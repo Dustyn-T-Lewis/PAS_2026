@@ -1,4 +1,4 @@
-# F03 · Do the sexes respond differently?
+# F03 · Sex differences
 
 Only the treatment × sex contrast says the sexes differ; a hit in one sex alone is "detected in"
 that sex.

@@ -1,4 +1,4 @@
-# F02 · Pathways PAS moves in each sex
+# F02 · Pathways by sex
 
 - **a, b** enrichVolcano rings, full proteome (Hallmark, Reactome without disease terms, KEGG
   reference, GO:BP without GO Slim) and mitochondrial proteome (MitoCarta), female above male; the

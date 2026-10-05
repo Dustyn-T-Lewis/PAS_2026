@@ -1,4 +1,4 @@
-# F05 · What biology carries the sex difference?
+# F05 · Biology of the sex difference
 
 - **a** Pathways whose phenotype link differs by sex (phenotype fgsea, female fit and male minus
   female slope): OXPHOS and aerobic respiration against soleus pyruvate conductance, ECM, EMT and
