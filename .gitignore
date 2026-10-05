@@ -1,0 +1,24 @@
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.Renviron
+.DS_Store
+*~
+Rplots.pdf
+
+# local working notes
+docs/
+
+# assistant and editor-agent files
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.claude/
+.codex/
+.cursor/
+.cursorrules
+.superpowers/
+
+# STRINGdb network downloads, refetched on demand
+04_Network/stringdb_cache/
