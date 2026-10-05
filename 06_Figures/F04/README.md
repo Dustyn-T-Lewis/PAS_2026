@@ -1,4 +1,4 @@
-# F04 · Does the signature track phenotype?
+# F04 · Signature and phenotype
 
 Phenotypes come from soleus, plantaris and IHC; the proteome from gastrocnemius. Associations only.
 
