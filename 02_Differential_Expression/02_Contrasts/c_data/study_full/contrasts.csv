@@ -1,0 +1,6 @@
+name,expression
+PAS_vs_VEH_female,PAS_F - VEH_F
+PAS_vs_VEH_male,PAS_M - VEH_M
+treatment_by_sex,PAS_F + VEH_M - PAS_M - VEH_F
+sex_in_VEH,VEH_M - VEH_F
+sex_in_PAS,PAS_M - PAS_F
