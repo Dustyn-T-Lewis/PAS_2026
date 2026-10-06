@@ -1,8 +1,10 @@
 #!/usr/bin/env Rscript
-# Every protein grouping the arcs test, fixed before any result is read: Hallmark, Reactome, KEGG
-# MEDICUS and GO:BP through enrichVolcano; MitoCarta pathways for the mitochondrial universe; GO
-# Slim cellular components; CORUM complexes; and clusters of the STRING network among the detected
-# proteins. None of them looks at the samples. Tests nothing.
+# Every protein grouping the later steps test, fixed before any result is read. Tested pathways:
+# GO:BP and Reactome (disease and infection branch left out) in the full proteome, MitoCarta in the
+# mitochondrial universe, each trimmed to 15-500 detected genes (MitoCarta 10-500), the same list
+# for fgsea and singscore. Also GO Slim cellular components, CORUM complexes, STRING clusters, and a
+# table of every detected protein with every tested group it belongs to. Hallmark is loaded only to
+# name clusters and modules. None of this looks at the samples.
 
 source(here::here("R", "helpers.R"))
 
@@ -10,23 +12,37 @@ out <- stage_paths("00_Trunk", "04_Gene_Sets")
 CACHE <- here("00_Trunk", "04_Gene_Sets", "cache")
 CORUM_FILE <- file.path(CACHE, "corum_complete.txt")
 MIN_DETECTED <- 5
+SIZE <- list(full = c(15, 500), mito = c(10, 500))
 inputs <- c(
   mitocarta = input_path("Mouse.MitoCarta3.0.xls"),
   proteins = here("00_Trunk", "02_Quantification", "c_data", "proteins.rds")
 )
 dir.create(CACHE, showWarnings = FALSE)
 
-proteins <- readRDS(inputs[["proteins"]])$proteins
-detected <- setdiff(unique(str_split_i(proteins$genes$Genes, ";", 1)), c("", NA))
+quant <- readRDS(inputs[["proteins"]])
+proteins <- quant$proteins
+gene <- str_split_i(proteins$genes$Genes, ";", 1)
+detected <- setdiff(unique(gene), c("", NA))
+detected_in <- map(quant$universes, \(keep) setdiff(unique(gene[keep]), c("", NA)))
 
-full <- enrichVolcano::load_gene_sets(c("Hallmark", "Reactome", "KEGG", "GO:BP"),
-  species = "Mus musculus"
-)
+full <- enrichVolcano::load_gene_sets(c("Hallmark", "Reactome", "GO:BP"), species = "Mus musculus")
 mitocarta <- readxl::read_excel(inputs[["mitocarta"]], sheet = 4)
 mito <- list(MitoCarta = set_names(
   str_split(mitocarta$Genes, ",\\s*"),
   paste0("MITOCARTA_", str_to_upper(str_replace_all(mitocarta$MitoPathway, "[^A-Za-z0-9]+", "_")))
 ))
+
+# The tested lists: a set enters when its detected genes in the universe fall inside SIZE, the
+# window enrichVolcano applies to the ranked genes, so fgsea and singscore test the same sets.
+in_window <- function(sets, universe) {
+  n <- map_int(sets, \(s) length(intersect(s, detected_in[[universe]])))
+  sets[n >= SIZE[[universe]][1] & n <= SIZE[[universe]][2]]
+}
+reactome <- full$Reactome[!str_detect(names(full$Reactome), REACTOME_DISEASE)]
+tested <- list(
+  full = list(`GO:BP` = in_window(full[["GO:BP"]], "full"), Reactome = in_window(reactome, "full")),
+  mito = list(MitoCarta = in_window(mito$MitoCarta, "mito"))
+)
 
 # GO Slim from the obo file enrichVolcano pins, so both use one definition of the slim.
 obo <- readLines(system.file("extdata", "goslim_generic.obo.gz", package = "enrichVolcano"))
@@ -153,18 +169,45 @@ LITERATURE_SETS <- tribble(
   "MITOCARTA_LYSINE_METABOLISM", "Pipecolate handling", "unclear"
 ) |>
   bind_rows(tibble(set = ROS_SETS, hypothesis = "ROS (named in advance)", expected = "unclear"))
+all_sets <- unlist(unname(c(full, mito)), recursive = FALSE)
+literature_sets <- all_sets[intersect(LITERATURE_SETS$set, names(all_sets))]
 
 collections <- c(full, mito, compartments, complexes, clusters)
+tested_names <- unlist(map(tested, \(u) map(u, names)))
 catalog <- collections |>
   imap(\(sets, db) {
     tibble(
       collection = db, set = names(sets), members = lengths(sets),
-      detected = map_int(sets, \(s) sum(s %in% detected))
+      detected = map_int(sets, \(s) sum(s %in% detected)),
+      tested = set %in% tested_names | db %in% c("Compartments", "CORUM", "STRING")
     )
   }) |>
   list_rbind() |>
   left_join(select(goslim, set = term, go_id, slim), by = "set")
-all_sets <- unlist(unname(collections), recursive = FALSE)
+
+# Every detected protein and each tested group it belongs to; a protein inherits its first gene
+# symbol's memberships. Long for filtering, wide for reading.
+groups <- c(
+  tested$full, tested$mito, compartments, complexes, clusters
+)
+protein_genes <- tibble(protein = rownames(proteins), gene = gene, is_mito = proteins$genes$is_mito) |>
+  filter(!is.na(gene), gene != "")
+membership <- groups |>
+  imap(\(sets, db) {
+    tibble(collection = db, term = rep(names(sets), lengths(sets)), gene = unlist(sets, use.names = FALSE))
+  }) |>
+  list_rbind() |>
+  distinct() |>
+  inner_join(protein_genes, by = "gene", relationship = "many-to-many") |>
+  select(protein, gene, is_mito, collection, term) |>
+  arrange(gene, protein, collection, term)
+membership_wide <- membership |>
+  summarise(n = n(), terms = paste(term, collapse = "; "), .by = c(protein, gene, is_mito, collection)) |>
+  pivot_wider(names_from = collection, values_from = c(n, terms), values_fill = list(n = 0L)) |>
+  right_join(protein_genes, by = c("protein", "gene", "is_mito")) |>
+  mutate(across(starts_with("n_"), \(x) coalesce(x, 0L))) |>
+  select(protein, gene, is_mito, map(names(groups), \(db) paste0(c("n_", "terms_"), db)) |> unlist()) |>
+  arrange(gene, protein)
 versions <- c(
   map_chr(attr(full, "versions"), as.character),
   CORUM = "5.3, released 2026-04-14, all mammalian complexes (md5 in input_manifest)",
@@ -173,24 +216,29 @@ versions <- c(
 
 saveRDS(
   list(
-    full = full, mito = mito, compartments = compartments, complexes = complexes,
-    clusters = clusters, goslim = goslim, slim_terms = goslim$term[goslim$go_id %in% slim_bp],
-    ros = ROS_SETS, literature = LITERATURE_SETS, versions = versions
+    full = full, mito = mito, tested = tested, compartments = compartments,
+    complexes = complexes, clusters = clusters, membership = membership, goslim = goslim,
+    slim_terms = goslim$term[goslim$go_id %in% slim_bp], ros = ROS_SETS,
+    literature = LITERATURE_SETS, literature_sets = literature_sets, versions = versions
   ),
   file.path(out$data, "gene_sets.rds")
 )
 write_workbook(
   list(
     catalog = catalog,
+    membership = membership_wide,
+    membership_long = membership,
     corum = transmute(complex_members, set, complex_name, organism,
       detected = lengths(members), members = map_chr(members, \(g) paste(g, collapse = ";"))
     ),
     string_clusters = mutate(cluster_labels, set = names(clusters$STRING), .before = 1),
-    literature_sets = mutate(LITERATURE_SETS, present = set %in% names(all_sets)),
+    literature_sets = mutate(LITERATURE_SETS, present = set %in% names(literature_sets)),
     versions = enframe(versions, "source", "version")
   ),
   c(
-    "Every set: collection, members, members detected here, GO ID and GO Slim ancestors.",
+    "Every set: collection, members, detected, whether tested, GO ID and GO Slim ancestors.",
+    "Every detected protein: count and names of the tested groups it belongs to, per collection.",
+    "The same, one row per protein and group.",
     "CORUM complexes with at least five detected subunits, and those subunits.",
     "STRING clusters: size, best over-represented term (FDR <= 0.05) and members.",
     "Literature-informed sets (chosen after the v1 results, all reported), hypothesis, expectation.",
@@ -199,6 +247,6 @@ write_workbook(
   out$workbook, inputs
 )
 
-count(catalog, collection)
+count(catalog, collection, tested)
 
 sessionInfo()

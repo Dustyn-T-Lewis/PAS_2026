@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
-# One singscore per mouse per GO:BP term, CORUM complex and STRING cluster on the full matrix, and
-# per MitoCarta pathway on the mitochondrial matrix. A score is the mean within-mouse rank of the
-# group's members, so it uses no group label; 07_Fit tests it.
+# One singscore per mouse per tested GO:BP and Reactome set, CORUM complex and STRING cluster on the
+# full matrix, and per tested MitoCarta pathway on the mitochondrial matrix: the same sets fgsea
+# tests in 08_Enrichment. A score is the mean within-mouse rank of the group's members, so it uses
+# no group label; 07_Fit tests it.
 
 source(here::here("R", "helpers.R"))
 library(singscore)
@@ -23,22 +24,17 @@ by_gene <- function(E) {
   rownames(m) <- symbol[rownames(m)]
   m
 }
-score <- function(E, collections, min_size) {
-  m <- by_gene(E)
+score <- function(E, collections) {
   sets <- unlist(unname(collections), recursive = FALSE)
-  sets <- sets[map_int(sets, \(s) sum(s %in% rownames(m))) >= min_size]
-  multiScore(rankGenes(m), upSetColc = sets)$Scores
+  multiScore(rankGenes(by_gene(E)), upSetColc = sets)$Scores
 }
 scores <- list(
-  full = rbind(
-    score(quant$E_norm$full, gs$full["GO:BP"], 15),
-    score(quant$E_norm$full, c(gs$complexes, gs$clusters), 5)
-  ),
-  mito = score(quant$E_norm$mito, gs$mito, 10)
+  full = score(quant$E_norm$full, c(gs$tested$full, gs$complexes, gs$clusters)),
+  mito = score(quant$E_norm$mito, gs$tested$mito)
 )
 stopifnot(map_lgl(scores, \(s) identical(colnames(s), targets$sample_id)))
 
-collection_of <- c(gs$full["GO:BP"], gs$mito, gs$complexes, gs$clusters) |>
+collection_of <- c(gs$tested$full, gs$tested$mito, gs$complexes, gs$clusters) |>
   imap(\(sets, db) set_names(rep(db, length(sets)), names(sets))) |>
   unname() |>
   unlist()
@@ -71,7 +67,7 @@ write_workbook(
   ),
   c(
     "Every scored set, complex and cluster: universe, collection, mean score.",
-    "Scores by mouse: GO:BP terms, CORUM complexes and STRING clusters.",
+    "Scores by mouse: GO:BP and Reactome sets, CORUM complexes and STRING clusters.",
     "Scores by mouse: MitoCarta pathways in the mitochondrial universe.",
     "Which PDF page shows what."
   ),
