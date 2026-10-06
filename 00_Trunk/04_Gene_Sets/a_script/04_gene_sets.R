@@ -23,7 +23,17 @@ quant <- readRDS(inputs[["proteins"]])
 proteins <- quant$proteins
 gene <- str_split_i(proteins$genes$Genes, ";", 1)
 detected <- setdiff(unique(gene), c("", NA))
-detected_in <- map(quant$universes, \(keep) setdiff(unique(gene[keep]), c("", NA)))
+# enrichVolcano maps accessions to symbols itself, so the tested window counts the genes it ranks.
+detected_in <- map(quant$universes, \(keep) {
+  da <- enrichVolcano::as_da(
+    tibble(
+      protein = rownames(proteins)[keep], gene = gene[keep], logFC = 0, t = 0, P.Value = 1,
+      adj.P.Val = 1, abundance = 0
+    ),
+    contrast = "none", species = "Mus musculus"
+  )
+  setdiff(unique(da$gene), c("", NA))
+})
 
 full <- enrichVolcano::load_gene_sets(c("Hallmark", "Reactome", "GO:BP"), species = "Mus musculus")
 mitocarta <- readxl::read_excel(inputs[["mitocarta"]], sheet = 4)

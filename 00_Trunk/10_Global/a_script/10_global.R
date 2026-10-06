@@ -11,7 +11,7 @@ source(here::here("R", "helpers.R"))
 N_COMPONENTS <- 4
 PERMUTATIONS <- 999
 
-out <- stage_paths("00_Trunk", "08_Global")
+out <- stage_paths("00_Trunk", "10_Global")
 inputs <- c(
   fit = here("00_Trunk", "07_Fit", "c_data", "fit.rds"),
   filtering = here("00_Trunk", "01_Filtering", "c_data", "precursors_filtered.rds")
@@ -110,7 +110,7 @@ r2_page <- ggplot(component_r2, aes(pc, factor(factor, rev(names(codes))), fill 
   scale_fill_gradient(low = "white", high = "grey25", limits = c(0, 1)) +
   labs(x = NULL, y = NULL, title = "What each component tracks", subtitle = "R² of each factor alone") +
   theme_figure()
-plot_index <- write_report(file.path(out$reports, "08_global.pdf"), list(
+plot_index <- write_report(file.path(out$reports, "10_global.pdf"), list(
   "proteome PCA" = pca_page(proteome_scores, proteome, "Proteome PCA"),
   "component R²" = r2_page,
   "phenotype PCA" = pca_page(phenotype_scores, phenotype, "Phenotype PCA, six traits scaled")
