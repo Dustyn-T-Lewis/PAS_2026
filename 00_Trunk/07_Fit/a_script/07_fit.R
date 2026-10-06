@@ -125,6 +125,60 @@ score_links <- expand_grid(phenotype = PHENOTYPES, adjusted = c(FALSE, TRUE)) |>
   list_rbind() |>
   rename(sex = coef)
 
+# Effect sizes beside every test, as Pearson r on the normalised values. For a two-group contrast,
+# r with group membership (first group = 1), the r-equivalent of a two-group t; empty for the
+# interaction. For a phenotype link, r across the sex's ten mice and, descriptively, within its
+# five vehicle and five PAS mice.
+group_r <- function(m, contrast) {
+  g <- COMPARISONS[[contrast]]
+  if (is.null(g)) {
+    return(tibble(feature = rownames(m), r_group = NA_real_))
+  }
+  keep <- targets$group %in% g
+  tibble(feature = rownames(m), r_group = cor(t(m[, keep]), as.numeric(targets$group[keep] == g[1]))[, 1])
+}
+link_r <- function(m, x) {
+  map(c(female = "F", male = "M"), \(code) {
+    r <- \(keep) cor(t(m[, keep]), x[keep])[, 1]
+    in_sex <- targets$sex == code
+    tibble(
+      feature = rownames(m), r = r(in_sex), r_veh = r(in_sex & targets$treatment == "VEH"),
+      r_pas = r(in_sex & targets$treatment == "PAS")
+    )
+  }) |>
+    list_rbind(names_to = "sex")
+}
+matrices <- c(
+  set_names(quant$E_norm, paste0("protein_", names(quant$E_norm))),
+  set_names(score_sets, paste0("score_", names(score_sets)))
+)
+r_groups <- imap(matrices, \(m, name) {
+  map(CONTRASTS, \(cn) mutate(group_r(m, cn), contrast = cn)) |>
+    list_rbind() |>
+    mutate(source = name)
+}) |>
+  list_rbind()
+r_links <- imap(matrices, \(m, name) {
+  map(PHENOTYPES, \(ph_name) mutate(link_r(m, ph[[ph_name]]), phenotype = ph_name)) |>
+    list_rbind() |>
+    mutate(source = name)
+}) |>
+  list_rbind()
+protein_contrasts <- protein_contrasts |>
+  left_join(
+    filter(r_groups, str_starts(source, "protein")) |> mutate(universe = str_remove(source, "protein_")) |> select(-source),
+    by = c("universe", "contrast", "feature")
+  )
+score_contrasts <- score_contrasts |>
+  left_join(filter(r_groups, str_starts(source, "score")) |> select(-source), by = c("contrast", "feature"))
+protein_links <- protein_links |>
+  left_join(
+    filter(r_links, str_starts(source, "protein")) |> mutate(universe = str_remove(source, "protein_")) |> select(-source),
+    by = c("universe", "phenotype", "sex", "feature")
+  )
+score_links <- score_links |>
+  left_join(filter(r_links, str_starts(source, "score")) |> select(-source), by = c("phenotype", "sex", "feature"))
+
 # Without weights or covariates the joint model's link equals a regression within one sex.
 check <- filter(score_links, !adjusted, universe == "full", sex == "female") |>
   slice_head(n = 1, by = phenotype)
@@ -209,7 +263,7 @@ volcano_page <- protein_contrasts |>
   mutate(
     contrast = factor(CONTRAST_LABELS[contrast], CONTRAST_LABELS),
     tier = case_when(
-      adj.P.Val <= ALPHA ~ "FDR ≤ 0.05", P.Value <= ALPHA & pi_score <= ALPHA ~ "p and Π ≤ 0.05",
+      adj.P.Val <= ALPHA ~ "FDR ≤ 0.05", pi_score <= ALPHA ~ "Π ≤ 0.05",
       P.Value <= ALPHA ~ "p ≤ 0.05", .default = "p > 0.05"
     )
   ) |>
@@ -218,7 +272,7 @@ volcano_page <- protein_contrasts |>
   geom_hline(yintercept = -log10(ALPHA), linetype = "dashed", linewidth = 0.3) +
   facet_wrap(~contrast, nrow = 1) +
   scale_colour_manual(values = c(
-    "p > 0.05" = "grey80", "p ≤ 0.05" = "grey50", "p and Π ≤ 0.05" = "#E08214",
+    "p > 0.05" = "grey80", "p ≤ 0.05" = "grey50", "Π ≤ 0.05" = "#E08214",
     "FDR ≤ 0.05" = "black"
   ), name = NULL) +
   labs(
@@ -275,12 +329,12 @@ write_workbook(
     plot_index = plot_index
   ),
   c(
-    "Per level, universe and contrast: p ≤ 0.05, chance, p and Π ≤ 0.05, FDR tiers, true-effect share.",
+    "Per level, universe and contrast: p ≤ 0.05, chance, Π ≤ 0.05, FDR tiers, true-effect share.",
     "Per level, universe, phenotype and sex: p ≤ 0.05, chance, FDR tiers; adjusted = mito check.",
-    "Every protein, universe and contrast: log2 FC with 95% CI, moderated t, p, BH FDR, Π.",
-    "Every protein's link with each phenotype in females and males (log2 per SD), unadjusted.",
-    "Every GO:BP, MitoCarta, complex, cluster and module score: the five contrasts.",
-    "Every score's link with each phenotype in females and males, unadjusted.",
+    "Every protein, universe and contrast: log2 FC with 95% CI, moderated t, p, BH FDR, Π, r with group.",
+    "Every protein's link with each phenotype per sex: slope (log2 per SD), t, p, FDR, r (pooled, VEH, PAS).",
+    "Every GO:BP, MitoCarta, complex, cluster and module score: the five contrasts, r with group.",
+    "Every score's link with each phenotype per sex: slope, t, p, FDR, r (pooled, VEH, PAS).",
     "PAS vs vehicle within sex: % change with 95% CI and Welch p.",
     "Treatment by sex on the log scale: female response relative to male, % with 95% CI.",
     "Which PDF page shows what."

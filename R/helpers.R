@@ -59,13 +59,13 @@ read_phenotypes <- function(samples) {
 }
 
 # Π (Xiao et al. 2014): p raised to |log2 fold change|. A ranking that rewards large changes;
-# it controls no error rate, so it is only counted among proteins already at p <= 0.05.
+# it controls no error rate, and Π <= 0.05 can include proteins with p > 0.05.
 pi_score <- \(p, logfc) p^abs(logfc)
 
 tier_counts <- function(p, fdr, pi = NULL) {
   tibble(
     tests = length(p), p_le_0.05 = sum(p <= ALPHA), expected_by_chance = ALPHA * length(p),
-    p_and_pi_le_0.05 = if (is.null(pi)) NA_integer_ else sum(p <= ALPHA & pi <= ALPHA),
+    pi_le_0.05 = if (is.null(pi)) NA_integer_ else sum(pi <= ALPHA),
     fdr_le_0.10 = sum(fdr <= 0.10), fdr_le_0.05 = sum(fdr <= ALPHA)
   )
 }
