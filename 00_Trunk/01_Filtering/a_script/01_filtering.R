@@ -2,22 +2,13 @@
 # DIA-NN precursors to a filtered, contaminant-free matrix. The README gives the reason for each
 # filter.
 
-library(here)
+source(here::here("R", "helpers.R"))
 library(limpa)
-library(dplyr)
-library(stringr)
-library(purrr)
 library(readr)
-library(tibble)
 library(readxl)
 library(nanoparquet)
-source(here::here("R", "helpers.R"))
 
-BASE <- here("01_Preprocess", "01_Filtering")
-DAT <- file.path(BASE, "c_data")
-FIG <- file.path(BASE, "b_reports", "01_filter_figures.pdf")
-dir.create(DAT, recursive = TRUE, showWarnings = FALSE)
-dir.create(dirname(FIG), recursive = TRUE, showWarnings = FALSE)
+out <- stage_paths("00_Trunk", "01_Filtering")
 
 total_signal <- function(m) sum(2^m, na.rm = TRUE)
 
@@ -57,7 +48,7 @@ PLASMA <- c(
 
 # Protein.Ids is added for the cRAP check. log = TRUE is the default, so y$E is already log2.
 y <- readDIANN(
-  here("00_Input", "report.parquet"),
+  input_path("report.parquet"),
   annotation.columns = c(
     "Protein.Group", "Protein.Ids", "Protein.Names", "Genes", "Proteotypic"
   ),
@@ -67,7 +58,7 @@ y <- readDIANN(
   q.cutoffs = rep(0.01, 5)
 )
 
-metadata <- read_csv(here("00_Input", "metadata.csv"), show_col_types = FALSE) |>
+metadata <- read_csv(input_path("metadata.csv"), show_col_types = FALSE) |>
   filter(include)
 
 i <- match(metadata$run, colnames(y))
@@ -88,13 +79,13 @@ signal_start <- total_signal(y$E)
 precursors_start <- nrow(y)
 
 raw_totals <- read_parquet(
-  here("00_Input", "report.parquet"),
+  input_path("report.parquet"),
   col_select = c("Run", "Precursor.Quantity")
 ) |>
   summarise(raw_total = sum(Precursor.Quantity), .by = Run) |>
   rename(run = Run) |>
   inner_join(
-    read_excel(here("00_Input", "report_stats.xlsx")) |>
+    read_excel(input_path("report_stats.xlsx")) |>
       transmute(
         run = str_remove(str_extract(File.Name, "[^\\\\]+$"), "\\.raw$"),
         precursors = Precursors.Identified,
@@ -181,7 +172,7 @@ saveRDS(
     precursors_start = precursors_start,
     run_qc = raw_totals, filter_log = filter_log
   ),
-  file.path(DAT, "precursors_filtered.rds")
+  file.path(out$data, "precursors_filtered.rds")
 )
 
 write_workbook(
@@ -201,14 +192,14 @@ write_workbook(
     "Contaminant and plasma share of signal per mouse, before removal.",
     "Per run: raw signal, precursors and protein groups identified."
   ),
-  file.path(DAT, "01_filter.xlsx"),
+  out$workbook,
   c(
-    report = here("00_Input", "report.parquet"), metadata = here("00_Input", "metadata.csv"),
-    report_stats = here("00_Input", "report_stats.xlsx")
+    report = input_path("report.parquet"), metadata = input_path("metadata.csv"),
+    report_stats = input_path("report_stats.xlsx")
   )
 )
 
-pdf(FIG, width = 7, height = 5)
+pdf(file.path(out$reports, "01_filtering.pdf"), width = 7, height = 5)
 group <- factor(raw_totals$group)
 plot(raw_totals$proteins, raw_totals$raw_rel,
   col = as.integer(group), pch = 16,
