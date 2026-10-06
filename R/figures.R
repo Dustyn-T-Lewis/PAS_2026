@@ -101,33 +101,6 @@ mds_plot <- function(proteins, targets, title) {
     theme_figure()
 }
 
-# p-value histograms, one facet per contrast, with the flat line no effect gives and limma's share
-# of true effects (one minus propTrueNull, from 05_Summary/01_Signal).
-p_histogram <- function(results, labels, signal, title) {
-  hist_data <- results |>
-    filter(contrast %in% names(labels)) |>
-    mutate(contrast = factor(labels[contrast], labels))
-  shares <- signal |>
-    filter(term %in% names(labels)) |>
-    transmute(
-      contrast = factor(labels[term], labels),
-      label = sprintf("true effects %.1f%%", 100 * share_true_effects)
-    )
-  ggplot(hist_data, aes(P.Value)) +
-    geom_histogram(breaks = seq(0, 1, 0.05), fill = "grey65", colour = "white", linewidth = 0.2) +
-    geom_hline(
-      yintercept = nrow(hist_data) / length(labels) * 0.05, linetype = "dashed", linewidth = 0.3
-    ) +
-    geom_text(
-      data = shares, aes(x = 0.97, y = Inf, label = label), hjust = 1, vjust = 1.5, size = 1.9
-    ) +
-    facet_wrap(~contrast, nrow = 1) +
-    scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1")) +
-    labs(x = "p", y = "Proteins", title = title) +
-    theme_figure() +
-    theme(strip.text = element_text(size = 6, face = "plain"), panel.spacing = unit(3, "mm"))
-}
-
 # One value or several per mouse, grouped and coloured by group, median marked.
 per_mouse_plot <- function(data, targets, measures, title, subtitle, y) {
   data |>
@@ -151,99 +124,6 @@ per_mouse_plot <- function(data, targets, measures, title, subtitle, y) {
       legend.position = "none", axis.text.x = element_text(size = 5, angle = 45, hjust = 1),
       strip.text = element_text(size = 6)
     )
-}
-
-RING_COLLECTIONS <- list(full = c("Hallmark", "Reactome", "KEGG", "GO:BP"), mito = "MitoCarta")
-RING_POOLS <- c(
-  full = "Hallmark, Reactome (no disease), KEGG reference, GO:BP (no GO Slim)",
-  mito = "MitoCarta pathways"
-)
-
-study_da <- function(universe) {
-  path <- here("02_Differential_Expression", "02_Contrasts", "c_data", paste0("study_", universe))
-  suppressMessages(enrichVolcano::read_study(path, species = "Mus musculus"))$da
-}
-
-# An enrichVolcano ring of the terms 08_Display chose for one universe and contrast; * marks
-# FDR ≤ 0.05, proteins at FDR ≤ 0.10 are coloured in the volcano.
-pathway_ring <- function(display, da, universe, contrast, title, subtitle) {
-  terms <- filter(display$ring_terms, universe == !!universe, contrast == !!contrast)
-  labels <- set_names(
-    paste0(
-      enrichVolcano::clean_label(terms$term, width = 18), if_else(terms$padj <= ALPHA, " *", "")
-    ),
-    terms$term
-  )
-  enrichVolcano::plot_volcano_ring(da, display$display[[universe]],
-    contrast = contrast, databases = RING_COLLECTIONS[[universe]], terms = terms$term,
-    labels = labels, title = title, subtitle = subtitle, p_threshold = 0.10,
-    show_counts = FALSE, score_limits = c(-3, 3), arc_span = "auto", label_size = 1.7,
-    label_gap = 1.2, label_headroom = 1.1, axis_size = 1.5,
-    theme = enrichVolcano::plot_theme(base_size = 6, base_family = "Helvetica")
-  ) +
-    theme(
-      plot.title = element_text(size = 7.5, face = "bold"),
-      plot.subtitle = element_text(size = 5.5, face = "italic", colour = "grey35")
-    )
-}
-
-# Pathway dot matrix after the HRvLR Figure 1: contrast-coloured column labels, a database square
-# beside each term, an optional group strip and an optional term tree, aligned with aplot. `data`
-# has term, label, column (factor of contrast labels), NES, padj, database and, if given, group.
-pathway_matrix <- function(data, title, subtitle, tree = NULL, group_colours = NULL,
-                           group_name = NULL, column_names = NULL) {
-  term_order <- if (is.null(tree)) levels(data$term) else tree$labels[tree$order]
-  data <- mutate(data, term = factor(term, term_order))
-  labels <- set_names(distinct(data, term, label)$label, distinct(data, term, label)$term)
-  bands <- distinct(data, column) |> mutate(band = CONTRAST_COLOURS[as.character(column)])
-  dots <- ggplot(data, aes(column, term)) +
-    geom_tile(
-      data = bands, aes(column, y = 1, fill = NULL), fill = bands$band, height = Inf,
-      width = 0.95, alpha = 0.15, inherit.aes = FALSE
-    ) +
-    geom_point(aes(size = -log10(padj), fill = NES), shape = 21, stroke = 0.25) +
-    geom_point(
-      data = \(d) filter(d, padj <= ALPHA), aes(size = -log10(padj)), shape = 21, fill = NA,
-      colour = "black", stroke = 0.6
-    ) +
-    scale_fill_distiller(
-      palette = "PuOr", direction = -1, limits = c(-2.6, 2.6), oob = scales::squish
-    ) +
-    scale_size_area(max_size = 4, name = "-log10 FDR") +
-    scale_y_discrete(position = "right", labels = labels) +
-    scale_x_discrete(
-      position = "top", expand = expansion(add = 0.6),
-      labels = column_names %||% set_names(levels(data$column), levels(data$column))
-    ) +
-    labs(x = NULL, y = NULL, title = title, subtitle = subtitle) +
-    theme_figure() +
-    theme(
-      axis.text.x.top = element_text(size = 6, face = "bold"),
-      axis.ticks = element_blank(),
-      axis.text.y = element_text(size = 5.5, colour = "grey15"),
-      panel.grid.major.x = element_blank()
-    )
-  databases <- ggplot(distinct(data, term, database), aes(1, term, fill = database)) +
-    geom_tile(colour = "white", linewidth = 0.3) +
-    scale_fill_manual(values = DATABASE_COLOURS, name = "Database") +
-    theme_void() +
-    theme(legend.key.size = unit(2.5, "mm"), legend.text = element_text(size = 5))
-  combined <- aplot::insert_left(dots, databases, width = 0.04)
-  if (!is.null(group_colours)) {
-    groups <- ggplot(distinct(data, term, group), aes(1, term, fill = group)) +
-      geom_tile() +
-      scale_fill_manual(values = group_colours, name = group_name) +
-      theme_void() +
-      theme(legend.key.size = unit(2.5, "mm"), legend.text = element_text(size = 5))
-    combined <- aplot::insert_left(combined, groups, width = 0.04)
-  }
-  if (!is.null(tree)) {
-    combined <- aplot::insert_left(
-      combined, ggtree::ggtree(ape::as.phylo(tree), linewidth = 0.3),
-      width = 0.3
-    )
-  }
-  ggplotify::as.ggplot(combined)
 }
 
 # A substage report: one landscape page per named ggplot, cairo so Π and ≤ render. Returns the
