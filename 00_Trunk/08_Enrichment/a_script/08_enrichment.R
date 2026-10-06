@@ -174,7 +174,7 @@ summary_page <- summary |>
   geom_col(position = position_dodge(width = 0.8), width = 0.75) +
   geom_point(
     aes(x = expected_by_chance), data = \(d) filter(d, tier == "p ≤ 0.05"), shape = 124, size = 3,
-    position = position_nudge(y = 0.2)
+    position = position_nudge(y = -0.2)
   ) +
   geom_text(aes(label = n), position = position_dodge(width = 0.8), hjust = -0.2, size = 2.2) +
   facet_wrap(~contrast, ncol = 1) +
@@ -207,9 +207,12 @@ string_page <- string |>
   ggplot(aes(fold, list)) +
   geom_vline(xintercept = 1, linetype = "dashed", linewidth = 0.3) +
   geom_point(aes(size = n_proteins), colour = "grey30") +
-  geom_text(aes(label = sprintf("%d edges, p %.2g", edges, p)), nudge_y = 0.3, size = 2) +
+  geom_text(aes(label = sprintf("%d edges, p %s", edges, if_else(p == 0, "< 1e-16", sprintf("%.2g", p)))),
+    nudge_y = 0.3, size = 2
+  ) +
   facet_wrap(~contrast, ncol = 1) +
   scale_size_area(max_size = 4, name = "Proteins") +
+  scale_x_continuous(expand = expansion(mult = 0.12)) +
   labs(
     x = "STRING edges / expected", y = NULL, title = "STRING connectivity of each protein list",
     subtitle = "v12, score ≥ 400, against the detected proteome; descriptive; lists with no expected edges omitted"

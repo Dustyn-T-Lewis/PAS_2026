@@ -88,7 +88,7 @@ perfect_page <- perfect |>
   geom_errorbar(aes(xmin = 0, xmax = null_q95), width = 0.3, colour = "grey60", orientation = "y") +
   geom_point(aes(x = null_median), shape = 124, size = 3, colour = "grey40") +
   geom_point(size = 2) +
-  geom_text(aes(label = sprintf("%d, p %.3f", observed, p)), nudge_y = 0.3, size = 2) +
+  geom_text(aes(label = sprintf("%d, p %.3f", observed, p)), nudge_y = 0.3, hjust = 0, size = 2) +
   facet_wrap(~arc) +
   labs(
     x = "Features separating PAS from vehicle perfectly", y = NULL,
