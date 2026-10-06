@@ -106,9 +106,9 @@ fit_scores <- function(design, contrasts, coefs) {
     stopifnot(identical(colnames(m), targets$sample_id))
     tidy(eBayes(contrasts.fit(lmFit(m, design), contrasts)), coefs) |>
       mutate(
-        universe = if_else(universe == "module", "full", universe),
         level = level_of(universe, feature),
         collection = if_else(level == "module", "WGCNA", unname(sc$collection[feature])),
+        universe = if_else(universe == "module", "full", universe),
         .before = 1
       )
   }) |>
