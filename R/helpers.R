@@ -1,5 +1,5 @@
 # Definitions and writers every stage shares, so a contrast, a phenotype or a workbook layout is
-# defined once. Sourced as source(here::here("R", "helpers.R")).
+# defined once. Sourced as source(here::here("R", "helpers.R")); it sources R/figures.R.
 
 library(here)
 library(dplyr)
@@ -7,6 +7,7 @@ library(purrr)
 library(tibble)
 library(stringr)
 library(tidyr)
+source(here::here("R", "figures.R"))
 
 SEED <- 20260910
 ALPHA <- 0.05
@@ -14,7 +15,18 @@ GROUPS <- c("VEH_F", "VEH_M", "PAS_F", "PAS_M")
 CONTRASTS <- c(
   "PAS_vs_VEH_female", "PAS_vs_VEH_male", "treatment_by_sex", "sex_in_VEH", "sex_in_PAS"
 )
-PRIMARY <- CONTRASTS[1:3]
+# Each arc reads one contrast of the shared fit; the two baseline sex contrasts are trunk context.
+ARCS <- list(
+  female = list(dir = "01_Female", contrast = "PAS_vs_VEH_female", sex = "F", label = "Female"),
+  male = list(dir = "02_Male", contrast = "PAS_vs_VEH_male", sex = "M", label = "Male"),
+  sex_difference = list(
+    dir = "03_Sex_Difference", contrast = "treatment_by_sex", sex = NA, label = "Sex difference"
+  )
+)
+ARC_OF_CONTRAST <- c(
+  PAS_vs_VEH_female = "female", PAS_vs_VEH_male = "male", treatment_by_sex = "sex_difference",
+  sex_in_VEH = "trunk", sex_in_PAS = "trunk"
+)
 # Two-group comparisons for classification and correlation tests: first group minus second.
 COMPARISONS <- list(
   PAS_vs_VEH_female = c("PAS_F", "VEH_F"),
@@ -27,6 +39,8 @@ PHENOTYPES <- c(
   "conductance_sol_pyr", "conductance_pla_pyr", "conductance_sol_oct"
 )
 
+input_path <- \(...) here("00_Trunk", "00_Input", ...)
+
 stage_paths <- function(stage, step) {
   root <- here(stage, step)
   dirs <- file.path(root, c("b_reports", "c_data"))
@@ -38,20 +52,20 @@ stage_paths <- function(stage, step) {
 }
 
 read_phenotypes <- function(samples) {
-  ph <- readxl::read_excel(here("00_Input", "phenotypes.xlsx"), "phenotypes")
+  ph <- readxl::read_excel(input_path("phenotypes.xlsx"), "phenotypes")
   ph <- ph[match(samples, ph$mouse), ]
   stopifnot(identical(ph$mouse, samples), !anyNA(ph[PHENOTYPES]))
   ph
 }
 
 # Π (Xiao et al. 2014): p raised to |log2 fold change|. A ranking that rewards large changes;
-# it controls no error rate.
+# it controls no error rate, so it is only counted among proteins already at p <= 0.05.
 pi_score <- \(p, logfc) p^abs(logfc)
 
 tier_counts <- function(p, fdr, pi = NULL) {
   tibble(
     tests = length(p), p_le_0.05 = sum(p <= ALPHA), expected_by_chance = ALPHA * length(p),
-    pi_le_0.05 = if (is.null(pi)) NA_integer_ else sum(pi <= ALPHA),
+    p_and_pi_le_0.05 = if (is.null(pi)) NA_integer_ else sum(p <= ALPHA & pi <= ALPHA),
     fdr_le_0.10 = sum(fdr <= 0.10), fdr_le_0.05 = sum(fdr <= ALPHA)
   )
 }
@@ -92,21 +106,33 @@ muffle <- function(expr, patterns) {
   })
 }
 
+# A protein group's name: its most over-represented term (fgsea::fora against the detected
+# proteome, BH across the sets tested for that group) when that term reaches FDR <= 0.05, else
+# "unannotated". Used for STRING clusters and modules, so no group is named by a chance hit.
+# Reactome's disease and infection branch is left out, as in the figures.
+label_groups <- function(groups, collections, universe) {
+  sets <- unlist(unname(collections), recursive = FALSE)
+  sets <- sets[!str_detect(names(sets), paste0("^REACTOME_.*(", REACTOME_DISEASE, ")"))]
+  map(groups, \(g) {
+    top <- fgsea::fora(sets, g, universe, minSize = 10, maxSize = 500) |>
+      as_tibble() |>
+      slice_min(pval, n = 1, with_ties = FALSE)
+    named <- nrow(top) == 1 && top$padj <= ALPHA
+    tibble(
+      size = length(g), label = if (named) top$pathway else "unannotated",
+      label_fdr = if (named) top$padj else NA_real_, members = paste(g, collapse = ";")
+    )
+  }) |>
+    list_rbind() |>
+    mutate(label_id = str_trunc(
+      str_remove(str_to_upper(label), "^(HALLMARK|REACTOME|GOBP|KEGG_MEDICUS_REFERENCE)_"),
+      40,
+      ellipsis = ""
+    ), .after = label)
+}
+
 # Rows ordered by hierarchical clustering on 1 - Pearson r, average linkage: display only.
 cluster_order <- \(m) hclust(as.dist(1 - cor(t(m), use = "pairwise.complete.obs")), "average")$order
-
-overview_heatmap <- function(m, group, title) {
-  z <- t(scale(t(m)))
-  z <- z[cluster_order(z), order(factor(group, GROUPS)), drop = FALSE]
-  limit <- unname(quantile(abs(z), 0.99, na.rm = TRUE))
-  ComplexHeatmap::Heatmap(z,
-    name = "z", col = circlize::colorRamp2(c(-limit, 0, limit), c("#2166AC", "white", "#B2182B")),
-    cluster_rows = FALSE, cluster_columns = FALSE, show_row_names = nrow(z) <= 60,
-    column_split = factor(group[order(factor(group, GROUPS))], GROUPS), column_title_gp =
-      grid::gpar(fontsize = 8), column_names_gp = grid::gpar(fontsize = 6),
-    row_names_gp = grid::gpar(fontsize = 5), use_raster = nrow(z) > 200, column_title = title
-  )
-}
 
 # One PDF from a named list of drawing functions, one page each; returns the rows plot_index needs.
 # cairo_pdf, because the base device cannot draw Π.

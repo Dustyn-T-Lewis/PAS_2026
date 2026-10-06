@@ -4,7 +4,6 @@
 # panel scripts in order, assembles the figure and writes one workbook of panel data.
 
 source(here::here("R", "helpers.R"))
-source(here::here("R", "figures.R"))
 
 figure_dirs <- function(figure, part) {
   root <- here("06_Figures", figure)
