@@ -654,9 +654,14 @@ arc_associations <- function(arc) {
         list_rbind() |>
         left_join(select(targets, sample_id, group), by = "sample_id") |>
         mutate(group = factor(group, FIGURE_GROUPS), strip = strip_factor(strip))
+      effect <- filter(effects, phenotype == p)
       pages <- link_grid(long,
         title = str_glue("{label}: {LEVEL_LABELS[level]} moving with {PHENOTYPE_LABELS[p]}, every link at p ≤ 0.05 (n = {nrow(d)})"),
-        subtitle = "Coloured lines within vehicle and within PAS (5 mice each); dashed: all 10 mice, the tested link"
+        subtitle = sprintf(
+          "PAS changed %s by %+.0f%% in this sex (p %.2g)%s.\nLines within vehicle and within PAS (5 mice each); dashed: all 10 mice, the tested link",
+          PHENOTYPE_LABELS[p], effect$pct_change, effect$P.Value,
+          if (effect$P.Value > ALPHA) ", so these links follow variation between mice, not a PAS response" else ""
+        )
       )
       set_names(pages, sprintf("link grid, %s, %s, page %d", LEVEL_LABELS[level], PHENOTYPE_LABELS[p], seq_along(pages)))
     }) |>
@@ -752,38 +757,42 @@ perfect_null <- function(m, case) {
   )
 }
 
-# Sex difference in the PAS response, mouse by mouse: each PAS mouse's value minus the mean of the
-# vehicle mice of its own sex, separated by sex (AUC by ranks). The vehicle mean is shared by all
-# mice of a sex, so AUC is judged against shuffles of sex within PAS and within vehicle that
-# recompute the vehicle means, not against 0.5.
-change_roc <- function(m, targets, n_shuffle = 1000) {
+# Each PAS mouse's change: its value minus the mean of the vehicle mice of its own sex.
+pas_change <- function(m, targets, male_pas = targets$sex[targets$treatment == "PAS"] == "M",
+                       male_veh = targets$sex[targets$treatment == "VEH"] == "M") {
   pas <- which(targets$treatment == "PAS")
   veh <- which(targets$treatment == "VEH")
+  veh_mean <- cbind(
+    rowMeans(m[, veh[!male_veh], drop = FALSE]), rowMeans(m[, veh[male_veh], drop = FALSE])
+  )
+  m[, pas, drop = FALSE] - veh_mean[, ifelse(male_pas, 2, 1)]
+}
+
+# Does the PAS change separate the sexes, mouse by mouse? AUC by ranks (1 = larger change in
+# males). The vehicle mean is shared by all mice of a sex, so AUC is judged against shuffles of
+# sex within PAS and within vehicle that recompute the vehicle means, not against 0.5.
+change_roc <- function(m, targets, n_shuffle = 1000) {
   auc_of <- function(male_pas, male_veh) {
-    veh_mean <- cbind(
-      rowMeans(m[, veh[!male_veh], drop = FALSE]), rowMeans(m[, veh[male_veh], drop = FALSE])
-    )
-    change <- m[, pas] - veh_mean[, ifelse(male_pas, 2, 1)]
-    ranks <- matrixStats::rowRanks(change)
+    ranks <- matrixStats::rowRanks(pas_change(m, targets, male_pas, male_veh))
     n_m <- sum(male_pas)
     (rowSums(ranks[, male_pas, drop = FALSE]) - n_m * (n_m + 1) / 2) / (n_m * sum(!male_pas))
   }
-  observed <- auc_of(targets$sex[pas] == "M", targets$sex[veh] == "M")
+  sex_pas <- targets$sex[targets$treatment == "PAS"] == "M"
+  sex_veh <- targets$sex[targets$treatment == "VEH"] == "M"
+  observed <- auc_of(sex_pas, sex_veh)
   set.seed(SEED)
-  null <- replicate(n_shuffle, auc_of(
-    sample(targets$sex[pas] == "M"), sample(targets$sex[veh] == "M")
-  ))
+  null <- replicate(n_shuffle, auc_of(sample(sex_pas), sample(sex_veh)))
   tibble(
-    feature = rownames(m), auc = observed, auc_low = NA_real_, auc_high = NA_real_,
+    feature = rownames(m), auc = observed,
     p = (1 + rowSums(abs(null - 0.5) >= abs(observed - 0.5))) / (n_shuffle + 1)
   ) |>
     mutate(fdr = p.adjust(p, "BH"))
 }
 
 # Classification: which single proteins, pathway scores, modules, complexes and clusters separate
-# the arc's groups. Female and male arcs: PAS against vehicle within sex. Sex difference: male
-# against female within vehicle, within PAS, and on each PAS mouse's change from its own sex's
-# vehicle mean.
+# the arc's groups. Female and male arcs: PAS against vehicle within sex (pROC, exact Wilcoxon,
+# perfect separations against all 252 relabellings). Sex difference: each PAS mouse's change from
+# its own sex's vehicle mean, males against females (re-centring shuffle null).
 arc_classification <- function(arc) {
   out <- arc_paths(arc, "04_Classification")
   inputs <- c(fit = trunk_path("07_Fit", "fit.rds"))
@@ -793,36 +802,70 @@ arc_classification <- function(arc) {
   label <- ARCS[[arc]]$label
   targets <- fit$targets
   sex <- ARCS[[arc]]$sex
-  groups <- if (is.na(sex)) {
-    list(
-      `Male vs female, vehicle` = c(case = "VEH_M", control = "VEH_F"),
-      `Male vs female, PAS` = c(case = "PAS_M", control = "PAS_F")
-    )
-  } else {
-    set_names(list(c(case = paste0("PAS_", sex), control = paste0("VEH_", sex))), "PAS vs vehicle")
+  name_rows <- \(x) {
+    mutate(x, label = coalesce(gene[feature], feature), .after = feature) |>
+      arrange(level, p)
+  }
+  auc_page <- function(roc, x_label) {
+    roc |>
+      mutate(level = factor(LEVEL_LABELS[level], LEVEL_LABELS)) |>
+      ggplot(aes(auc)) +
+      geom_histogram(breaks = seq(0, 1, 0.05), fill = "grey65", colour = "white", linewidth = 0.2) +
+      facet_wrap(~level, scales = "free_y", ncol = 1) +
+      labs(x = x_label, y = "Features", title = str_glue("{label}: AUC of every feature")) +
+      theme_figure()
   }
 
-  group_results <- imap(groups, \(g, comparison) {
-    keep <- targets$group %in% g
-    case <- targets$group[keep] == g[["case"]]
-    imap(features, \(m, level) {
-      list(
-        roc = roc_table(m[, keep], case) |> mutate(level = level, comparison = comparison, .before = 1),
-        perfect = perfect_null(m[, keep], case) |> mutate(level = level, comparison = comparison, .before = 1)
-      )
-    })
-  }) |>
-    unlist(recursive = FALSE)
-  roc <- map(group_results, "roc") |> list_rbind()
-  perfect <- map(group_results, "perfect") |> list_rbind()
   if (is.na(sex)) {
-    roc <- bind_rows(roc, imap(features, \(m, level) {
-      change_roc(m, targets) |> mutate(level = level, comparison = "Male vs female, PAS change", .before = 1)
-    }) |> list_rbind())
+    roc <- imap(features, \(m, level) mutate(change_roc(m, targets), level = level, .before = 1)) |>
+      list_rbind() |>
+      name_rows()
+    pas_targets <- filter(targets, treatment == "PAS")
+    change_pages <- roc |>
+      filter(p <= ALPHA) |>
+      group_by(level) |>
+      group_split() |>
+      map(\(d) {
+        change <- pas_change(features[[d$level[1]]], targets)
+        strips <- sprintf("%s\nAUC %.2f, p %.3f, FDR %.2g", short(d$label, 30), d$auc, d$p, d$fdr)
+        long <- long_values(change, d$feature, strips, pas_targets)
+        pages <- mouse_grid(long,
+          title = str_glue("{label}: {LEVEL_LABELS[d$level[1]]}, every feature whose PAS change separates the sexes at p ≤ 0.05 (n = {nrow(d)})"),
+          subtitle = "Each PAS mouse minus the vehicle mean of its own sex; AUC 1 = larger change in males; shuffle p, BH within level",
+          y = "Change from own-sex vehicle mean"
+        )
+        set_names(pages, sprintf("PAS-change grid, %s, page %d", LEVEL_LABELS[d$level[1]], seq_along(pages)))
+      }) |>
+      unlist(recursive = FALSE)
+    plot_index <- write_report(file.path(out$reports, "04_classification.pdf"), c(
+      list("AUC distributions" = auc_page(roc, "AUC (1: larger PAS change in males)")),
+      change_pages
+    ))
+    saveRDS(list(roc = roc), file.path(out$data, "classification.rds"))
+    write_workbook(
+      list(roc = roc, plot_index = plot_index),
+      c(
+        "Every feature and level, by p: AUC of the PAS change (males against females), shuffle p, BH FDR within level.",
+        "Which PDF page shows what."
+      ),
+      out$workbook, inputs
+    )
+    return(count(roc, level, p_le_0.05 = p <= ALPHA))
   }
-  roc <- roc |>
-    mutate(label = coalesce(gene[feature], feature), .after = feature) |>
-    arrange(comparison, level, p)
+
+  g <- c(case = paste0("PAS_", sex), control = paste0("VEH_", sex))
+  keep <- targets$group %in% g
+  case <- targets$group[keep] == g[["case"]]
+  results <- imap(features, \(m, level) {
+    list(
+      roc = roc_table(m[, keep], case) |> mutate(level = level, .before = 1),
+      perfect = perfect_null(m[, keep], case) |> mutate(level = level, .before = 1)
+    )
+  })
+  roc <- map(results, "roc") |>
+    list_rbind() |>
+    name_rows()
+  perfect <- map(results, "perfect") |> list_rbind()
 
   perfect_page <- perfect |>
     mutate(level = factor(LEVEL_LABELS[level], LEVEL_LABELS)) |>
@@ -831,28 +874,17 @@ arc_classification <- function(arc) {
     geom_point(aes(x = null_median), shape = 124, size = 3, colour = "grey40") +
     geom_point(size = 2, colour = arc_colour(arc)) +
     geom_text(aes(label = sprintf("p %.3f", p)), nudge_y = 0.3, size = 2) +
-    facet_wrap(~comparison) +
     labs(
-      x = "Features separating the groups perfectly", y = NULL,
+      x = "Features separating PAS from vehicle perfectly", y = NULL,
       title = str_glue("{label}: perfect separations against chance"),
       subtitle = "Dot: observed; grey: median and 95th percentile over all 252 relabellings of the same mice"
     ) +
     theme_figure()
-  auc_page <- roc |>
-    mutate(level = factor(LEVEL_LABELS[level], LEVEL_LABELS)) |>
-    ggplot(aes(auc)) +
-    geom_histogram(breaks = seq(0, 1, 0.05), fill = "grey65", colour = "white", linewidth = 0.2) +
-    facet_grid(level ~ comparison, scales = "free_y") +
-    labs(x = "AUC (1: higher in the first-named group)", y = "Features", title = str_glue("{label}: AUC of every feature")) +
-    theme_figure()
   curve_pages <- roc |>
-    filter(p <= ALPHA, comparison %in% names(groups)) |>
-    group_by(comparison, level) |>
+    filter(p <= ALPHA) |>
+    group_by(level) |>
     group_split() |>
     map(\(d) {
-      g <- groups[[d$comparison[1]]]
-      keep <- targets$group %in% g
-      case <- targets$group[keep] == g[["case"]]
       m <- features[[d$level[1]]]
       long <- pmap(d, \(feature, label, auc, p, fdr, ...) {
         roc_points(m[feature, keep], case, auc) |>
@@ -868,29 +900,32 @@ arc_classification <- function(arc) {
           coord_equal() +
           labs(
             x = "1 - specificity", y = "Sensitivity",
-            title = str_glue("{label}: {LEVEL_LABELS[d$level[1]]}, {d$comparison[1]}, every feature at p ≤ 0.05 (n = {nrow(d)})"),
-            subtitle = "Exact Wilcoxon p, BH within level; higher or lower in the first-named group"
+            title = str_glue("{label}: {LEVEL_LABELS[d$level[1]]}, PAS vs vehicle, every feature at p ≤ 0.05 (n = {nrow(d)})"),
+            subtitle = "Exact Wilcoxon p, BH within level; higher or lower in PAS"
           ) +
           theme_figure() +
           theme(strip.text = element_text(size = 4.6, face = "plain"), axis.text = element_text(size = 4.5))
       })
-      set_names(pages, sprintf("ROC grid, %s, %s, page %d", d$comparison[1], LEVEL_LABELS[d$level[1]], seq_along(pages)))
+      set_names(pages, sprintf("ROC grid, %s, page %d", LEVEL_LABELS[d$level[1]], seq_along(pages)))
     }) |>
     unlist(recursive = FALSE)
   plot_index <- write_report(file.path(out$reports, "04_classification.pdf"), c(
-    list("perfect separations against chance" = perfect_page, "AUC distributions" = auc_page),
+    list(
+      "perfect separations against chance" = perfect_page,
+      "AUC distributions" = auc_page(roc, "AUC (1: higher in PAS)")
+    ),
     curve_pages
   ))
 
-  saveRDS(list(roc = roc, perfect = perfect, groups = groups), file.path(out$data, "classification.rds"))
+  saveRDS(list(roc = roc, perfect = perfect), file.path(out$data, "classification.rds"))
   write_workbook(
     list(roc = roc, perfect_separations = perfect, plot_index = plot_index),
     c(
-      "Every feature, level and comparison, by p: AUC, DeLong 95% CI (empty at perfect separation or for the change ROC), p, BH FDR within level.",
-      "Per level and comparison: features separating perfectly, against all 252 relabellings.",
+      "Every feature and level, by p: AUC (PAS vs vehicle), DeLong 95% CI (empty at perfect separation), exact p, BH FDR within level.",
+      "Per level: features separating perfectly, against all 252 relabellings.",
       "Which PDF page shows what."
     ),
     out$workbook, inputs
   )
-  count(roc, comparison, level, p_le_0.05 = p <= ALPHA)
+  count(roc, level, p_le_0.05 = p <= ALPHA)
 }
