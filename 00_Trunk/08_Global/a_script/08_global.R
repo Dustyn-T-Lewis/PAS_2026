@@ -22,9 +22,23 @@ samples <- as_tibble(fit$targets) |>
   select(sample_id, treatment, sex, group) |>
   mutate(
     pct_mito = fit$pellet_mito[sample_id],
-    precursors = run_qc$precursors[match(sample_id, run_qc$sample_id)]
+    precursors = run_qc$precursors[match(sample_id, run_qc$sample_id)],
+    protein_groups = run_qc$proteins[match(sample_id, run_qc$sample_id)],
+    raw_signal_rel = run_qc$raw_rel[match(sample_id, run_qc$sample_id)]
   )
 stopifnot(!anyNA(samples$precursors))
+
+# Technical variables per group, with the two-way model each is read against. They are reported,
+# not adjusted for: run order was randomised and within-sex fold changes cancel what PAS and
+# vehicle share.
+TECHNICAL <- c("precursors", "protein_groups", "raw_signal_rel", "pct_mito")
+technical_groups <- samples |>
+  summarise(across(all_of(TECHNICAL), median), .by = group)
+technical_tests <- map(TECHNICAL, \(v) {
+  coefs <- summary(lm(samples[[v]] ~ treatment * sex, samples))$coefficients
+  tibble(variable = v, term = rownames(coefs)[-1], p = coefs[-1, "Pr(>|t|)"])
+}) |>
+  list_rbind()
 
 ordinate <- function(x, scale) {
   pca <- prcomp(x, center = TRUE, scale. = scale)
@@ -106,7 +120,8 @@ saveRDS(
   list(
     proteome_scores = proteome_scores, proteome_variance = proteome$variance,
     permanova = proteome$permanova, dispersion_p = proteome$dispersion_p,
-    component_r2 = component_r2, mito_vector = mito_vector,
+    component_r2 = component_r2, mito_vector = mito_vector, technical = samples,
+    technical_tests = technical_tests,
     phenotype_scores = phenotype_scores, phenotype_variance = phenotype$variance,
     phenotype_permanova = phenotype$permanova, phenotype_loadings = phenotype_loadings
   ),
@@ -121,6 +136,7 @@ write_workbook(
     )),
     component_r2 = select(component_r2, component, factor, r2),
     mito_vector = mito_vector,
+    technical_groups = technical_groups, technical_tests = technical_tests,
     phenotype_scores = phenotype_scores, phenotype_loadings = phenotype_loadings,
     phenotype_permanova = mutate(phenotype$permanova, dispersion_p = c(
       phenotype$dispersion_p, rep(NA, nrow(phenotype$permanova) - 1)
@@ -133,6 +149,8 @@ write_workbook(
     "Proteome PERMANOVA (adonis2, Euclidean, 999 permutations, sequential); betadisper p, row 1.",
     "R² of each design factor, the MitoCarta share and run depth on PC1 to PC4.",
     "MitoCarta share fitted onto PC1-PC2 (envfit): unit direction, R² and permutation p.",
+    "Median run depth, protein groups, relative raw signal and MitoCarta share per group.",
+    "Each technical variable against treatment, sex and their interaction (lm p).",
     "Phenotype PCA scores, six traits scaled.",
     "Phenotype PCA loadings on PC1 and PC2.",
     "Phenotype PERMANOVA on scaled traits; betadisper p on row 1.",

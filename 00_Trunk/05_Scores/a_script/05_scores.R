@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
-# One singscore per mouse per gene set, CORUM complex and STRING cluster: the full-proteome
-# groupings on the full matrix, MitoCarta pathways on the mitochondrial matrix. A score is the mean
-# within-mouse rank of the group's members, so it uses no group label; 07_Fit tests it.
+# One singscore per mouse per GO:BP term, CORUM complex and STRING cluster on the full matrix, and
+# per MitoCarta pathway on the mitochondrial matrix. A score is the mean within-mouse rank of the
+# group's members, so it uses no group label; 07_Fit tests it.
 
 source(here::here("R", "helpers.R"))
 library(singscore)
@@ -31,14 +31,14 @@ score <- function(E, collections, min_size) {
 }
 scores <- list(
   full = rbind(
-    score(quant$E_norm$full, gs$full, 15),
+    score(quant$E_norm$full, gs$full["GO:BP"], 15),
     score(quant$E_norm$full, c(gs$complexes, gs$clusters), 5)
   ),
   mito = score(quant$E_norm$mito, gs$mito, 10)
 )
 stopifnot(map_lgl(scores, \(s) identical(colnames(s), targets$sample_id)))
 
-collection_of <- c(gs$full, gs$mito, gs$complexes, gs$clusters) |>
+collection_of <- c(gs$full["GO:BP"], gs$mito, gs$complexes, gs$clusters) |>
   imap(\(sets, db) set_names(rep(db, length(sets)), names(sets))) |>
   unname() |>
   unlist()
@@ -71,7 +71,7 @@ write_workbook(
   ),
   c(
     "Every scored set, complex and cluster: universe, collection, mean score.",
-    "Scores by mouse: full-proteome pathways, CORUM complexes and STRING clusters.",
+    "Scores by mouse: GO:BP terms, CORUM complexes and STRING clusters.",
     "Scores by mouse: MitoCarta pathways in the mitochondrial universe.",
     "Which PDF page shows what."
   ),
