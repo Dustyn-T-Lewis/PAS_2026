@@ -60,9 +60,11 @@ goslim <- go_ids |>
     paste(sort(slim_name[hit]), collapse = "; ")
   }))
 
-# CORUM 5 (Tsitsiridis et al. 2023, NAR): human and mouse complexes, human subunits mapped to
-# mouse orthologs, kept when at least five subunits are detected. Identical detected member sets
-# are kept once.
+# CORUM 5.3 (Tsitsiridis et al. 2023, NAR; release 2026-04-14), every mammalian complex. Mouse
+# subunits are used as named; rat, bovine, dog and pig subunits go to their human orthologs and
+# every human symbol to its mouse ortholog (babelgene, HCOP); species babelgene lacks and the
+# generic "Mammalia" entries carry human-style symbols and are read as human. A complex is kept
+# when at least five subunits are detected here; identical detected member sets are kept once.
 if (!file.exists(CORUM_FILE)) {
   download.file(paste0(
     "https://mips.helmholtz-muenchen.de/fastapi-corum/public/file/download_current_file",
@@ -70,25 +72,39 @@ if (!file.exists(CORUM_FILE)) {
   ), CORUM_FILE, quiet = TRUE)
 }
 inputs <- c(inputs, corum = CORUM_FILE)
+BABELGENE_SPECIES <- c(
+  Rat = "Rattus norvegicus", Bovine = "Bos taurus", Dog = "Canis lupus familiaris",
+  Pig = "Sus scrofa"
+)
 corum <- readr::read_tsv(CORUM_FILE, show_col_types = FALSE) |>
-  filter(organism %in% c("Human", "Mouse")) |>
   transmute(complex_id, complex_name, organism, gene = str_split(subunits_gene_name, ";")) |>
   unnest(gene) |>
-  filter(gene != "")
-orthologs <- babelgene::orthologs(unique(corum$gene[corum$organism == "Human"]),
-  species = "Mus musculus", human = TRUE
-) |>
-  distinct(human_symbol, mouse = symbol)
+  filter(!is.na(gene), gene != "")
+to_human <- imap(BABELGENE_SPECIES, \(species, organism) {
+  genes <- unique(corum$gene[corum$organism == organism])
+  babelgene::orthologs(genes, species = species, human = FALSE) |>
+    distinct(organism = organism, gene = symbol, human = human_symbol)
+}) |>
+  list_rbind()
+corum <- corum |>
+  left_join(to_human, by = c("organism", "gene"), relationship = "many-to-many") |>
+  mutate(human = if_else(organism == "Mouse", NA_character_, coalesce(human, str_to_upper(gene))))
+to_mouse <- babelgene::orthologs(unique(na.omit(corum$human)), species = "Mus musculus", human = TRUE) |>
+  distinct(human = human_symbol, mouse = symbol)
 complex_members <- corum |>
-  left_join(orthologs, by = c(gene = "human_symbol"), relationship = "many-to-many") |>
+  left_join(to_mouse, by = "human", relationship = "many-to-many") |>
   mutate(mouse = if_else(organism == "Mouse", gene, mouse)) |>
   filter(mouse %in% detected) |>
-  distinct(complex_id, complex_name, mouse) |>
-  summarise(members = list(sort(mouse)), .by = c(complex_id, complex_name)) |>
+  distinct(complex_id, complex_name, organism, mouse) |>
+  summarise(members = list(sort(unique(mouse))), .by = c(complex_id, complex_name, organism)) |>
   filter(lengths(members) >= MIN_DETECTED) |>
+  arrange(complex_id) |>
   distinct(members, .keep_all = TRUE) |>
   mutate(set = paste0(
-    "CORUM_", str_to_upper(str_replace_all(complex_name, "[^A-Za-z0-9]+", "_")), "_", complex_id
+    "CORUM_", str_to_upper(str_replace_all(
+      if_else(is.na(complex_name) | complex_name == "", paste("complex", complex_id), complex_name),
+      "[^A-Za-z0-9]+", "_"
+    )), "_", complex_id
   ))
 complexes <- list(CORUM = set_names(complex_members$members, complex_members$set))
 
@@ -151,7 +167,7 @@ catalog <- collections |>
 all_sets <- unlist(unname(collections), recursive = FALSE)
 versions <- c(
   map_chr(attr(full, "versions"), as.character),
-  CORUM = "5.3, released 2026-04-14 (md5 in input_manifest)",
+  CORUM = "5.3, released 2026-04-14, all mammalian complexes (md5 in input_manifest)",
   STRING = "12.0, score >= 400, walktrap"
 )
 
@@ -166,7 +182,7 @@ saveRDS(
 write_workbook(
   list(
     catalog = catalog,
-    corum = transmute(complex_members, set, complex_name,
+    corum = transmute(complex_members, set, complex_name, organism,
       detected = lengths(members), members = map_chr(members, \(g) paste(g, collapse = ";"))
     ),
     string_clusters = mutate(cluster_labels, set = names(clusters$STRING), .before = 1),

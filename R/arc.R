@@ -173,12 +173,18 @@ arc_proteins <- function(arc) {
     title = str_glue("All {nrow(hits)} proteins at p ≤ 0.05, per mouse"),
     subtitle = "Rows z-scored across these mice, clustered on 1 - Pearson r (display only)"
   )
+  interaction <- is.na(ARCS[[arc]]$sex)
   strips <- with(hits, sprintf(
-    "%s\nlog2FC %.2f, r %.2f\np %.2g, FDR %.2g, Π %.2g", gene, logFC, r_group, P.Value, adj.P.Val, pi_score
+    "%s\nlog2FC %.2f%s\np %.2g, FDR %.2g, Π %.2g", gene, logFC,
+    if (interaction) "" else sprintf(", r %.2f", r_group), P.Value, adj.P.Val, pi_score
   ))
   grids <- mouse_grid(long_values(fit$E_norm$full, hits$feature, strips, targets),
     title = str_glue("{label}: every protein at p ≤ 0.05, in order of p"),
-    subtitle = "log2 abundance per mouse, bar at the group median; r: Pearson r with PAS (PAS = 1)"
+    subtitle = if (interaction) {
+      "log2 abundance per mouse, bar at the group median; log2FC: female PAS response minus male PAS response"
+    } else {
+      "log2 abundance per mouse, bar at the group median; r: Pearson r with PAS (PAS = 1)"
+    }
   )
   plot_index <- write_report(file.path(out$reports, "01_proteins.pdf"), c(
     list(
