@@ -12,6 +12,12 @@ SEX_SHAPES <- c(F = 16, M = 17)
 FIGURE_GROUPS <- c("VEH_F", "PAS_F", "VEH_M", "PAS_M")
 GROUP_COLOURS <- c(VEH_F = "#FDB863", PAS_F = "#D55E00", VEH_M = "#92C5DE", PAS_M = "#0072B2")
 DIRECTION_COLOURS <- c(Down = "#2166AC", Up = "#B2182B")
+PHENOTYPE_LABELS <- c(
+  csa_mean = "CSA", capillary_density = "Capillary density",
+  satellite_cells_per_fiber = "Satellite cells / fibre",
+  conductance_sol_pyr = "Soleus pyruvate", conductance_pla_pyr = "Plantaris pyruvate",
+  conductance_sol_oct = "Soleus octanoyl"
+)
 CONTRAST_LABELS <- c(
   PAS_vs_VEH_female = "PAS vs VEH, female", PAS_vs_VEH_male = "PAS vs VEH, male",
   treatment_by_sex = "Treatment × sex", sex_in_VEH = "Sex in VEH", sex_in_PAS = "Sex in PAS"
@@ -242,7 +248,7 @@ pathway_matrix <- function(data, title, subtitle, tree = NULL, group_colours = N
 
 # A substage report: one landscape page per named ggplot, cairo so Π and ≤ render. Returns the
 # rows of the workbook's plot_index sheet.
-write_report <- function(file, pages, width = 11, height = 8.5) {
+write_report <- function(file, pages, width = 7, height = 5) {
   cairo_pdf(file, width = width, height = height, onefile = TRUE)
   on.exit(dev.off())
   walk(pages, print)
@@ -274,4 +280,28 @@ group_heatmap <- function(m, targets, title, subtitle = NULL, row_labels = nrow(
       axis.text.y = if (row_labels) element_text(size = 5) else element_blank(),
       axis.ticks.y = element_blank(), panel.spacing = unit(1, "mm")
     )
+}
+
+# PAS against vehicle per phenotype and sex as a % change with its 95% CI, on a log ratio axis so
+# rises and falls of the same size look the same size.
+phenotype_effect_plot <- function(effects, title, subtitle) {
+  effects |>
+    mutate(
+      sex = factor(if_else(sex == "F", "Female", "Male"), c("Male", "Female")),
+      trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS)),
+      across(c(pct_change, ci_low, ci_high), \(x) 1 + x / 100)
+    ) |>
+    ggplot(aes(pct_change, trait, colour = sex)) +
+    geom_vline(xintercept = 1, colour = "grey50", linewidth = 0.3) +
+    geom_pointrange(aes(xmin = ci_low, xmax = ci_high, shape = P.Value <= ALPHA),
+      position = position_dodge(width = 0.6), size = 0.25, linewidth = 0.4, fill = "white"
+    ) +
+    scale_x_continuous(
+      transform = "log2", breaks = c(0.25, 0.5, 1, 2, 4, 8),
+      labels = \(x) sprintf("%+.0f%%", 100 * (x - 1))
+    ) +
+    scale_colour_manual(values = SEX_COLOURS, breaks = c("Female", "Male"), name = NULL) +
+    scale_shape_manual(values = c(`TRUE` = 16, `FALSE` = 21), labels = c("p > 0.05", "p ≤ 0.05"), name = NULL) +
+    labs(x = "PAS vs vehicle, % change (95% CI, log scale)", y = NULL, title = title, subtitle = subtitle) +
+    theme_figure()
 }

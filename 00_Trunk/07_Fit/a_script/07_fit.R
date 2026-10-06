@@ -227,8 +227,12 @@ volcano_page <- protein_contrasts |>
   theme(legend.position = "bottom")
 grid_page <- slope_summary |>
   filter(level == "protein", universe == "full", adjusted) |>
-  mutate(ratio = p_le_0.05 / expected_by_chance, slope = factor(slope, c("female", "male", "difference"))) |>
-  ggplot(aes(slope, phenotype, fill = ratio)) +
+  mutate(
+    ratio = p_le_0.05 / expected_by_chance,
+    slope = factor(slope, c("female", "male", "difference"), c("Female slope", "Male slope", "Male − female")),
+    trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS))
+  ) |>
+  ggplot(aes(slope, trait, fill = ratio)) +
   geom_tile(colour = "white") +
   geom_text(aes(label = str_glue("{p_le_0.05}\nFDR {fdr_le_0.05}")), size = 2.2) +
   scale_fill_gradient(low = "white", high = "grey35", name = "p ≤ 0.05 /\nchance") +
@@ -237,22 +241,9 @@ grid_page <- slope_summary |>
     subtitle = "Per-sex slopes, adjusted for pellet mitochondrial share; 92 at p ≤ 0.05 by chance"
   ) +
   theme_figure()
-effects_page <- phenotype_effects |>
-  mutate(sex = if_else(sex == "F", "Female", "Male")) |>
-  ggplot(aes(pct_change, phenotype, colour = sex)) +
-  geom_vline(xintercept = 0, colour = "grey50", linewidth = 0.3) +
-  geom_errorbar(aes(xmin = ci_low, xmax = ci_high),
-    width = 0, orientation = "y",
-    position = position_dodge(width = 0.5)
-  ) +
-  geom_point(aes(shape = P.Value <= ALPHA), position = position_dodge(width = 0.5), size = 1.8) +
-  scale_colour_manual(values = SEX_COLOURS, name = NULL) +
-  scale_shape_manual(values = c(`TRUE` = 16, `FALSE` = 1), labels = c("p > 0.05", "p ≤ 0.05"), name = NULL) +
-  labs(
-    x = "PAS vs vehicle, % change (95% CI)", y = NULL, title = "PAS effect on each phenotype",
-    subtitle = "Welch t on log values within sex, n = 5 v 5"
-  ) +
-  theme_figure()
+effects_page <- phenotype_effect_plot(phenotype_effects,
+  title = "PAS effect on each phenotype", subtitle = "Welch t on log values within sex, n = 5 v 5"
+)
 plot_index <- write_report(file.path(out$reports, "07_fit.pdf"), list(
   "protein volcanoes, every contrast" = volcano_page,
   "protein-phenotype slope counts" = grid_page,
