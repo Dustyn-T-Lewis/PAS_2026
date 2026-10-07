@@ -6,8 +6,10 @@
 # one list in the full proteome. Every term carries an EnrichmentMap redundancy flag
 # (enrichVolcano::dedup_terms, similarity >= 0.375, the stronger term kept) that only picks display
 # terms; nothing is dropped. fgsea also runs on each protein-phenotype association t per sex,
-# beside the same set's singscore association. STRING v12 connectivity of each contrast's Π and
-# FDR lists is descriptive: subunits of one complex vary together, so connected lists are expected.
+# beside the same set's singscore association. Cross-sex signatures: each sex's proteins at
+# p <= 0.05, up and down, tested by fgsea in the other sex's ranking. STRING v12 connectivity of
+# each contrast's Π and FDR lists is descriptive: subunits of one complex vary together, so
+# connected lists are expected.
 
 source(here::here("R", "helpers.R"))
 
@@ -153,6 +155,34 @@ string <- map(ARC_CONTRASTS, \(cn) {
   list_rbind() |>
   mutate(fdr = p.adjust(p, "BH"), .by = contrast)
 
+# Does one sex's PAS response carry into the other's? The up and down proteins at p <= 0.05 in one
+# sex (one per gene, full proteome) are placed in the other sex's ranking; fgsea tests each list
+# there, and the share of members ranked on the same side as in the source sex is reported.
+SEXES <- c(female = "PAS_vs_VEH_female", male = "PAS_vs_VEH_male")
+signature_genes <- imap(SEXES, \(cn, sex) {
+  hits <- filter(proteome, contrast == cn, P.Value <= ALPHA)
+  list(up = unique(hits$gene[hits$logFC > 0]), down = unique(hits$gene[hits$logFC < 0]))
+})
+signatures <- imap(SEXES, \(cn, source) {
+  target <- setdiff(names(SEXES), source)
+  in_target <- ranks[[SEXES[[target]]]]$full
+  lists <- set_names(signature_genes[[source]], paste(source, names(signature_genes[[source]])))
+  tested <- fgsea_of(studies$full, list(Signature = lists), SEXES[[target]], c(5, Inf))@results
+  imap(lists, \(genes, name) {
+    ranked <- in_target[intersect(genes, names(in_target))]
+    row <- tested[tested$term == name, ]
+    tibble(
+      source = source, ranked_in = target, direction = str_remove(name, "^\\w+ "),
+      n_proteins = length(genes), n_ranked = length(ranked),
+      same_way = mean(if (str_ends(name, "up")) ranked > 0 else ranked < 0),
+      NES = row$score, p = row$p, members = paste(names(ranked), collapse = ";")
+    )
+  }) |>
+    list_rbind()
+}) |>
+  list_rbind()
+stopifnot(nrow(signatures) == 4, !anyNA(signatures$p))
+
 summary <- results |>
   reframe(tier_counts(p, padj), .by = c(contrast, universe, collection)) |>
   select(-pi_le_0.05)
@@ -228,7 +258,7 @@ saveRDS(
   list(
     results = results, objects = objects, ranks = ranks, da = map(studies, "da"), sets = sets,
     compartments = compartments, literature = literature, association_fgsea = association_fgsea,
-    string = string, summary = summary
+    signatures = signatures, string = string, summary = summary
   ),
   file.path(out$data, "enrichment.rds")
 )
@@ -236,7 +266,7 @@ write_workbook(
   list(
     summary = summary, fgsea = results, compartments = compartments, literature = literature,
     association_summary = association_summary, association_fgsea = association_fgsea,
-    string = string, plot_index = plot_index
+    signatures = signatures, string = string, plot_index = plot_index
   ),
   c(
     "Per arc contrast and collection: sets tested, at p ≤ 0.05, expected by chance, FDR tiers.",
@@ -248,6 +278,7 @@ write_workbook(
     "Literature-informed and ROS sets, fgsea per arc contrast, full proteome, BH across the list.",
     "Per sex, collection and phenotype: fgsea and singscore association counts.",
     "Every set's fgsea on protein association t per sex and phenotype, beside its singscore association (slope, r, p, FDR).",
+    "Each sex's p ≤ 0.05 up and down proteins in the other sex's ranking: size, share ranked the same way, fgsea NES and p.",
     "STRING v12 connectivity of each contrast's Π and FDR lists.",
     "Which PDF page shows what."
   ),
