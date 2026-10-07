@@ -6,9 +6,10 @@ Study data. Nothing here runs.
 |---|---|---|
 | `report.parquet` | one precursor in one MS run | `01_Filtering` |
 | `metadata.csv` | one MS run, 21 rows | `01_Filtering` |
+| `uniprot_annotation.csv` | one UniProt accession: subcellular location, transit and signal peptide, keywords | nothing in v2; kept from v1 for reference |
 | `report_stats.xlsx` | one MS run, DIA-NN's own QC table | `01_Filtering` |
-| `Mouse.MitoCarta3.0.xls` | one mouse gene, 1,140 mitochondrial | `02_Quantification`, `03_Pathway_Enrichment/00_Gene_Sets` |
-| `phenotypes.xlsx` | one mouse, 41 physiology measures, with a `dictionary` and `notes` sheet | the `04_Associate` steps and `05_Summary/02_Panels`, through `R/helpers.R` |
+| `Mouse.MitoCarta3.0.xls` | one mouse gene, 1,140 mitochondrial | `02_Quantification`, `04_Gene_Sets` |
+| `phenotypes.xlsx` | one mouse, 41 physiology measures, with a `dictionary` and `notes` sheet | `07_Fit`, through `read_phenotypes()` in `R/helpers.R`; six are analysed |
 | `VEH_PAS_HLI_Master Data.xlsx` | one measure per row, one mouse per column, as delivered | nothing; the source of `phenotypes.xlsx` |
 
 `report.parquet` is the delivered `Mus.report.parquet`, renamed. This DIA-NN main report holds 297,290 precursor-by-run rows

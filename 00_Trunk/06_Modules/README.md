@@ -1,10 +1,13 @@
-# 01_Build_Modules
+# 06_Modules
 
-Builds the co-abundance modules every later network step reads, using WGCNA's standard workflow on
-the normalised full universe.
+Co-abundance modules by WGCNA's standard workflow, built after removing sex so the network follows variation within each sex rather than the sex difference that dominates this proteome.
 
-- **Method:** `WGCNA::pickSoftThreshold` (signed, `bicor`, maxPOutliers 0.05, scale-free R² cut 0.85; fallback power 16 if none reaches it), then `blockwiseModules` (signed TOM, minModuleSize 20, mergeCutHeight 0.25, deepSplit 2); eigengenes without grey; signed kME (`signedKME`, bicor); 10 hubs per module by kME.
-- **Inputs:** `02_Differential_Expression/02_Contrasts/c_data/contrasts.rds`
-- **Outputs:** `c_data/01_build_modules.xlsx` (sheets: sizes, modules, hubs, scale_free, eigengenes, plot_index), `c_data/modules.rds` (read by 02 to 05 and `05_Summary/02_Panels`), `b_reports/01_build_modules.pdf`
-- **Result:** power 14 (first power with signed R² ≥ 0.85, R² 0.864). Nine modules plus grey: turquoise 520, blue 509, brown 170, yellow 160, green 112, red 77, black 56, pink 48, magenta 37, grey 153. Yellow is the most mitochondrial (64% MitoCarta), magenta the least (5%).
-- **Note:** the script stops if the module set, turquoise size (520) or grey size (153) differ from the first build, so downstream results stay comparable.
+| | |
+|---|---|
+| Reads | `02_Quantification/c_data/proteins.rds`, `04_Gene_Sets/c_data/gene_sets.rds` |
+| Writes | `c_data/06_modules.xlsx`, `c_data/modules.rds` (read by 07), `b_reports/06_modules.pdf` |
+| Run | `Rscript 00_Trunk/06_Modules/a_script/06_modules.R` |
+
+- **Method:** `limma::removeBatchEffect(batch = sex, design = ~treatment)`, then `pickSoftThreshold` (signed, bicor, R² cut 0.85) and `blockwiseModules` (signed TOM, minModuleSize 20, mergeCutHeight 0.25, deepSplit 2). Eigengenes come from the unadjusted matrix, so 07 can test sex and treatment on them. A module is named only by an over-represented Hallmark or Reactome term at FDR ≤ 0.05.
+- **Result:** power 12; 18 modules plus 160 grey proteins. Turquoise is largest (332). `sizes` gives each module's MitoCarta share and its r with the pellet's mitochondrial share, overall and within group.
+- **Note:** Module colours are assigned on each build and change if the input changes.

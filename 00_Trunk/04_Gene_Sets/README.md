@@ -1,19 +1,14 @@
-# 00_Gene_Sets
+# 04_Gene_Sets
 
-Builds every gene-set collection the later steps test, and names the ROS and literature-informed
-sets that are reported whatever they show. Tests nothing.
+Builds every protein grouping the later steps test, before any result is read, and a table of every detected protein with the groups it belongs to.
 
-- **Method:** `enrichVolcano::load_gene_sets(c("Hallmark", "Reactome", "KEGG", "GO:BP"), species = "Mus musculus")`
-  (msigdbr 26.1.0, org.Mm.eg.db 3.23.0; KEGG is KEGG MEDICUS). MitoCarta 3.0 pathways from sheet 4
-  of the MitoCarta file. GO Slim terms from the `goslim_generic.obo` that enrichVolcano ships; each
-  GO:BP term carries its GO Slim BP ancestors (`GO.db::GOBPANCESTOR`). Compartment sets hold genes
-  annotated to a GO Slim cellular component or any descendant (`GOALL` in org.Mm.eg.db).
-- **Inputs:** `00_Input/Mouse.MitoCarta3.0.xls`
-- **Outputs:** `c_data/00_gene_sets.xlsx` (sheets: catalog, ros_sets, literature_sets, versions),
-  `c_data/gene_sets.rds` (read by 01, 02, 04, 07, 08)
-- **Result:** 7,402 GO:BP, 1,817 Reactome, 642 KEGG MEDICUS, 50 Hallmark, 149 MitoCarta and 25
-  compartment sets before trimming to the data. 7 ROS sets named in advance; 12 more
-  literature-informed sets (energy status, translation, oxidative fibre shift, atrophy defence,
-  pipecolate handling), all present.
-- **Note:** The 12 literature-informed sets were named on 2026-10-05, after the contrasts had been
-  seen (Burke et al. 2026; Wang et al. 2019). They are literature-informed, not a priori.
+| | |
+|---|---|
+| Reads | `00_Input/Mouse.MitoCarta3.0.xls`, `02_Quantification/c_data/proteins.rds`, `cache/corum_complete.txt` |
+| Writes | `c_data/04_gene_sets.xlsx`, `c_data/gene_sets.rds` (read by 05, 06, 08 and the pathway arcs). No PDF. |
+| Run | `Rscript 00_Trunk/04_Gene_Sets/a_script/04_gene_sets.R` |
+
+- **Tested pathways:** GO:BP and Reactome (disease and infection branch excluded) through `enrichVolcano::load_gene_sets()` in the full proteome; MitoCarta 3.0 pathways in the mitochondrial universe. A set is tested when 15 to 500 of its genes are detected (MitoCarta 10 to 500), counted on the symbols enrichVolcano maps, so fgsea (08) and singscore (05) use the same list: 727 GO:BP, 119 Reactome, 43 MitoCarta.
+- **Other groupings:** GO Slim cellular compartments (genes annotated to a slim term or any descendant); CORUM 5.3 (2026-04-14), all mammalian complexes mapped to mouse with babelgene, kept at ≥ 5 detected subunits (93); STRING v12 (score ≥ 400) walktrap clusters of ≥ 5 proteins (13), named by their best Hallmark or Reactome term at FDR ≤ 0.05. Each GO:BP term carries its GO Slim BP families, for display only. Hallmark is loaded only to name clusters and modules.
+- **Workbook:** `membership` has one row per detected protein with the count and names of its tested groups per collection; `membership_long` has one row per protein and group.
+- **Note:** The 12 literature-informed sets were named on 2026-10-05, after the v1 contrasts had been seen (Burke et al. 2026; Wang et al. 2019); 7 ROS sets were named in advance. All are reported in 08 whatever they show. The CORUM and STRING downloads live in `cache/`, which is not committed.

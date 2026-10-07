@@ -1,0 +1,7 @@
+- 20 mice, 2 x 2 sex by treatment, n = 5 per cell: 00_Trunk/00_Input/metadata.csv (VEH1-5, PAS1-5 female; VEH6-10, PAS6-10 male; AI_PAS6r replaces AI_PAS6).
+- Group colours: R/figures.R GROUP_COLOURS; contrast colours: R/figures.R CONTRAST_COLOURS.
+- Gastrocnemius mitochondrial pellet: 00_Trunk/00_Input/phenotypes.xlsx, notes row 5.
+- DIA proteomics, DIA-NN report: 00_Trunk/00_Input/README.md.
+- 1,842 proteins (full universe) and 568 MitoCarta (mito universe): 00_Trunk/07_Fit protein_contrasts, 1,842 and 568 rows per contrast.
+- Histology (IHC) CSA, capillary density, satellite cells per fibre; respirometry conductance in soleus and plantaris on pyruvate + malate and octanoylcarnitine + malate: phenotypes.xlsx dictionary.
+- Contrasts PAS vs VEH female, PAS vs VEH male, treatment x sex: 00_Trunk/03_Design.
