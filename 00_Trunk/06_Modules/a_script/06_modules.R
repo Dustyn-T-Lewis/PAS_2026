@@ -51,7 +51,7 @@ kme <- signedKME(datExpr, moduleEigengenes(datExpr, net$colors, excludeGrey = TR
 )
 colnames(kme) <- str_remove(colnames(kme), "^kME")
 
-gene <- str_split_i(quant$proteins$genes$Genes, ";", 1)
+gene <- first_symbol(quant$proteins$genes$Genes)
 modules <- tibble(
   protein = rownames(expr), gene = gene, is_mito = quant$proteins$genes$is_mito,
   module = unname(net$colors)
@@ -62,7 +62,7 @@ module_genes <- modules |>
   summarise(genes = list(unique(gene)), .by = module)
 labels <- label_groups(
   set_names(module_genes$genes, module_genes$module), gs$full[c("Hallmark", "Reactome")],
-  setdiff(unique(gene), "")
+  setdiff(unique(gene), c("", NA))
 ) |>
   mutate(module = module_genes$module, .before = 1)
 
@@ -137,7 +137,7 @@ saveRDS(
 write_workbook(
   list(
     sizes = sizes, modules = modules, hubs = hubs, scale_free = scale_free,
-    eigengenes = as_tibble(eigengenes, rownames = "mouse"), plot_index = plot_index
+    eigengenes = as_tibble(eigengenes, rownames = "sample_id"), plot_index = plot_index
   ),
   c(
     "Per module: proteins, MitoCarta share, FDR-gated label, r with pellet mitochondrial share.",

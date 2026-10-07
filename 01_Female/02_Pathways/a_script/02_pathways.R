@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
-# PAS against vehicle in females, pathway by pathway. R/arc.R holds the step; the README explains it.
+# Which pathways PAS shifted in females.
+# The step is arc_pathways() in R/arc.R.
 
 source(here::here("R", "arc.R"))
 arc_pathways("female")

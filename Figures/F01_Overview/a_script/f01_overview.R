@@ -10,14 +10,16 @@ inputs <- c(
   design = here("Figures", "F01_Overview", "assets", "design.png"),
   fit = here("00_Trunk", "07_Fit", "c_data", "fit.rds"),
   enrichment = here("00_Trunk", "08_Enrichment", "c_data", "enrichment.rds"),
-  global = here("00_Trunk", "10_Global", "c_data", "global.rds")
+  global = here("00_Trunk", "10_Global", "c_data", "global.rds"),
+  fit_workbook = here("00_Trunk", "07_Fit", "c_data", "07_fit.xlsx")
 )
 fit <- readRDS(inputs[["fit"]])
 enr <- readRDS(inputs[["enrichment"]])
 global <- readRDS(inputs[["global"]])
-ARC_CONTRASTS <- map_chr(ARCS, "contrast")
 SHORT <- c(PAS_vs_VEH_female = "Female", PAS_vs_VEH_male = "Male", treatment_by_sex = "F − M")
-tint <- \(colours) map_chr(colours, \(x) grDevices::colorRampPalette(c(x, "white"))(101)[80])
+n_mice <- nrow(fit$targets)
+per_group <- unique(count(fit$targets, group)$n)
+stopifnot(length(per_group) == 1)
 permanova_text <- \(tab) {
   with(filter(tab, term %in% c("sex", "treatment", "sex:treatment")), paste(
     "PERMANOVA",
@@ -28,11 +30,110 @@ permanova_text <- \(tab) {
   ))
 }
 
-# a: the design, generated from assets/design_spec and checked label by label.
+# PCA scores with a shaded 95% t-ellipse per group, a test summary in the top-left corner, and
+# arrows (x, y, label) from the origin, already scaled to the score axes.
+pca_panel <- function(scores, variance, title, subtitle, stats, arrows) {
+  axis <- \(i) sprintf("PC%d (%.1f%%)", i, 100 * variance[i])
+  scores <- mutate(scores, group = factor(group, FIGURE_GROUPS))
+  ggplot(scores, aes(PC1, PC2)) +
+    stat_ellipse(
+      aes(colour = group, fill = group),
+      geom = "polygon", type = "t", level = 0.95, linewidth = 0.3, alpha = 0.12
+    ) +
+    geom_point(aes(colour = group, shape = sex), size = 1.3) +
+    annotate(
+      "text",
+      x = -Inf, y = Inf, label = stats, hjust = -0.05, vjust = 1.3, size = 1.9,
+      lineheight = 0.95, colour = "grey20"
+    ) +
+    scale_colour_manual(values = GROUP_COLOURS, aesthetics = c("colour", "fill"), name = NULL) +
+    scale_shape_manual(values = SEX_SHAPES, guide = "none") +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.32))) +
+    labs(x = axis(1), y = axis(2), title = title, subtitle = subtitle) +
+    theme_figure() +
+    geom_segment(
+      aes(0, 0, xend = x, yend = y), arrows,
+      arrow = grid::arrow(length = grid::unit(1, "mm")), linewidth = 0.3, colour = "grey30"
+    ) +
+    ggrepel::geom_text_repel(
+      aes(x, y, label = label), arrows,
+      size = 1.7, colour = "grey20", min.segment.length = Inf, box.padding = 0.15, seed = SEED
+    )
+}
+
+# One sex's PAS signature (proteins at p <= 0.05, up and down) placed in the other sex's ranking,
+# drawn as limma's barcode (Wu & Smyth 2012): members as ticks, the up list above the axis and
+# the down list below, with a tricube moving average of membership along the rank. ranks holds
+# the named moderated t of each target ranking; signatures comes from 08_Enrichment.
+signature_barcode <- function(signatures, ranks, span = 0.12, min_height = 0.34) {
+  lane_name <- \(source, ranked_in) {
+    sprintf("%s signature\nin %s ranking", str_to_sentence(source), ranked_in)
+  }
+  lanes <- signatures |>
+    mutate(
+      lane = factor(
+        lane_name(source, ranked_in), lane_name(c("female", "male"), c("male", "female"))
+      ),
+      side = if_else(direction == "up", 1, -1),
+      ranks = map2(members, ranked_in, \(m, target) {
+        position <- rank(-ranks[[target]], ties.method = "first")
+        unname(position[str_split_1(m, ";")])
+      })
+    )
+  n_total <- unique(lengths(ranks))
+  stopifnot(length(n_total) == 1, all(lengths(lanes$ranks) == lanes$n_ranked))
+  ticks <- select(lanes, lane, direction, side, rank = ranks) |>
+    unnest(rank)
+  worms <- lanes |>
+    mutate(worm = map(ranks, \(r) {
+      smooth <- limma::tricubeMovingAverage(as.integer(seq_len(n_total) %in% r), span = span)
+      tibble(rank = seq_len(n_total), height = min_height + (1 - min_height) * smooth / max(smooth))
+    })) |>
+    select(lane, direction, side, worm) |>
+    unnest(worm) |>
+    mutate(y = side * height, y0 = side * min_height)
+  labels <- lanes |>
+    mutate(
+      text = sprintf(
+        "%s (n = %d), %.0f%% same way, p %.2g", direction, n_ranked, 100 * same_way, p
+      ),
+      x = if_else(direction == "up", n_total * 0.995, n_total * 0.005),
+      hjust = if_else(direction == "up", 1, 0), y = side * 0.97, vjust = if_else(side > 0, 1, 0)
+    )
+  ggplot() +
+    geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.3) +
+    geom_segment(
+      aes(rank, side * 0.06, xend = rank, yend = side * 0.3, colour = direction), ticks,
+      linewidth = 0.2, alpha = 0.8
+    ) +
+    geom_ribbon(aes(rank, ymin = y0, ymax = y, fill = direction), worms, alpha = 0.25) +
+    geom_line(aes(rank, y, colour = direction), worms, linewidth = 0.4) +
+    geom_text(
+      aes(x, y, label = text, hjust = hjust, vjust = vjust, colour = direction), labels,
+      size = 1.9, fontface = "bold", show.legend = FALSE
+    ) +
+    facet_wrap(~lane, ncol = 1, strip.position = "left") +
+    scale_colour_manual(
+      values = c(up = DIRECTION_COLOURS[["Up"]], down = DIRECTION_COLOURS[["Down"]]),
+      aesthetics = c("colour", "fill"), guide = "none"
+    ) +
+    scale_x_continuous(expand = expansion(mult = 0.02)) +
+    scale_y_continuous(limits = c(-1.05, 1.05), breaks = NULL, expand = expansion(0)) +
+    theme_figure() +
+    theme(
+      strip.placement = "outside", strip.text.y.left = element_text(angle = 90, size = 5.5),
+      panel.grid.major = element_blank(), panel.spacing.y = unit(2, "mm")
+    )
+}
+
+# a: the design (assets/design.png).
 panel_design <- ggplot() +
   annotation_custom(grid::rasterGrob(png::readPNG(inputs[["design"]]), interpolate = TRUE)) +
   labs(
-    title = "Design", subtitle = "20 mice, n = 5 per group; contrast colours carry through b to g"
+    title = "Design",
+    subtitle = str_glue(
+      "{n_mice} mice, n = {per_group} per group; contrast colours carry through b to g"
+    )
   ) +
   theme_void(base_size = 7) +
   theme(
@@ -54,11 +155,15 @@ bar_fills <- c(
   "Down, p or Π" = "#9ECAE1", "Down, Π" = DIRECTION_COLOURS[["Down"]],
   "Up, p or Π" = "#FCBBA1", "Up, Π" = DIRECTION_COLOURS[["Up"]]
 )
-universe_label <- c(full = "Full proteome (1,842)", mito = "Mitochondrial (568)")
+universe_size <- distinct(protein_counts, universe, tests) |> deframe()
+universe_label <- c(
+  full = sprintf("Full proteome (%s)", format(universe_size[["full"]], big.mark = ",")),
+  mito = sprintf("Mitochondrial (%s)", format(universe_size[["mito"]], big.mark = ","))
+)
 fdr_text <- protein_counts |>
   summarise(fdr = sum(fdr), chance = ALPHA / 2 * tests[1], .by = c(universe, contrast)) |>
   mutate(
-    band = tint(CONTRAST_COLOURS[CONTRAST_LABELS[contrast]]),
+    band = map_chr(CONTRAST_COLOURS[CONTRAST_LABELS[contrast]], lighten, amount = 0.79),
     row = sprintf("%s\nFDR %d", SHORT[contrast], fdr), universe = universe_label[universe]
   )
 bars <- protein_counts |>
@@ -109,7 +214,8 @@ mito_arrow <- with(global$mito_vector, tibble(
   x = PC1 * reach, y = PC2 * reach, label = sprintf("MitoCarta share, R² %.2f", r2)
 ))
 panel_proteome <- pca_panel(
-  scores, global$proteome_variance, "Proteome", "20 mice, 1,842 proteins",
+  scores, global$proteome_variance, "Proteome",
+  sprintf("%d mice, %s proteins", n_mice, format(universe_size[["full"]], big.mark = ",")),
   permanova_text(global$permanova), mito_arrow
 )
 
@@ -211,19 +317,17 @@ panel_barcode <- signature_barcode(enr$signatures, target_ranks) +
     subtitle = "Each sex's p ≤ 0.05 proteins in the other's ranking; fgsea p"
   )
 
-# Every plotted number traces to its source before anything is written.
-summary_counts <- filter(fit$protein_contrasts, contrast %in% ARC_CONTRASTS) |>
-  summarise(fdr = sum(adj.P.Val <= ALPHA), .by = c(universe, contrast))
-fgsea_counts <- filter(enr$summary, fdr_le_0.05 > 0) |>
-  summarise(n = sum(fdr_le_0.05), .by = contrast)
+# The plotted counts agree with the tables 07_Fit and 08_Enrichment wrote before anything is saved.
+fit_summary <- readxl::read_excel(inputs[["fit_workbook"]], "contrast_summary") |>
+  filter(level == "protein", contrast %in% ARC_CONTRASTS)
+plotted <- summarise(protein_counts, pi = sum(pi), fdr = sum(fdr), .by = c(universe, contrast)) |>
+  inner_join(fit_summary, by = c("universe", "contrast"))
+pathway_fdr <- count(filter(pathways, padj <= ALPHA), contrast, name = "plotted") |>
+  inner_join(summarise(enr$summary, tested = sum(fdr_le_0.05), .by = contrast), by = "contrast")
 stopifnot(
-  identical(
-    summarise(protein_counts, fdr = sum(fdr), .by = c(universe, contrast))$fdr,
-    summary_counts$fdr
-  ),
-  nrow(scores) == 20, nrow(phenotype_scores) == 20,
-  all(count(pathways, term)$n == 3),
-  all(selected$term %in% filter(enr$results, padj <= ALPHA)$term),
+  nrow(plotted) == 6, plotted$pi == plotted$pi_le_0.05, plotted$fdr == plotted$fdr_le_0.05,
+  nrow(scores) == n_mice, nrow(phenotype_scores) == n_mice,
+  all(count(pathways, term)$n == 3), pathway_fdr$plotted <= pathway_fdr$tested,
   nrow(enr$signatures) == 4
 )
 
@@ -232,7 +336,7 @@ figure <- (panel_design | panel_proteins | panel_proteome | panel_phenotype) /
   plot_annotation(tag_levels = "a") &
   theme(plot.tag = element_text(size = 9, face = "bold"))
 figure[[2]] <- figure[[2]] + plot_layout(widths = c(1, 2, 1))
-save_figure(figure, out$reports, "f01_overview", height_mm = 190, width_mm = 300)
+save_figure(figure, out$reports, "f01_overview", width_mm = 300, height_mm = 190)
 
 write_workbook(
   list(

@@ -21,12 +21,12 @@ run_qc <- readRDS(inputs[["filtering"]])$run_qc
 samples <- as_tibble(fit$targets) |>
   select(sample_id, treatment, sex, group) |>
   mutate(
-    pct_mito = fit$pellet_mito[sample_id],
+    pct_mito = fit$pct_mito[sample_id],
     precursors = run_qc$precursors[match(sample_id, run_qc$sample_id)],
     protein_groups = run_qc$proteins[match(sample_id, run_qc$sample_id)],
     raw_signal_rel = run_qc$raw_rel[match(sample_id, run_qc$sample_id)]
   )
-stopifnot(!anyNA(samples$precursors))
+stopifnot(!anyNA(samples$precursors), identical(fit$phenotypes$mouse, samples$sample_id))
 
 # Technical variables per group, with the two-way model each is read against. They are reported,
 # not adjusted for: run order was randomised and within-sex fold changes cancel what PAS and

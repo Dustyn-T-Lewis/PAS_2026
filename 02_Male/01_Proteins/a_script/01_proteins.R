@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
-# PAS against vehicle in males, protein by protein. R/arc.R holds the step; the README explains it.
+# Which proteins PAS changed in males.
+# The step is arc_proteins() in R/arc.R.
 
 source(here::here("R", "arc.R"))
 arc_proteins("male")

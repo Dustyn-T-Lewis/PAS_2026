@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# What PAS did to the phenotypes in females, and which proteins, pathways and protein groups move
-# with them. R/arc.R holds the step; the README explains it.
+# Phenotype effects of PAS in females, and the proteins and scores associated with each phenotype.
+# The step is arc_associations() in R/arc.R.
 
 source(here::here("R", "arc.R"))
 arc_associations("female")

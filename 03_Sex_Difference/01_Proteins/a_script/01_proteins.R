@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# Sex difference in the PAS response (female minus male), protein by protein. R/arc.R holds the
-# step; the README explains it.
+# Which proteins respond to PAS differently in females and males.
+# The step is arc_proteins() in R/arc.R.
 
 source(here::here("R", "arc.R"))
 arc_proteins("sex_difference")

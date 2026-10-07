@@ -1,18 +1,18 @@
 #!/usr/bin/env Rscript
-# Every protein grouping the later steps test, fixed before any result is read. Tested pathways:
-# GO:BP and Reactome (disease and infection branch left out) in the full proteome, MitoCarta in the
-# mitochondrial universe, each trimmed to 15-500 detected genes (MitoCarta 10-500), the same list
-# for fgsea and singscore. Also GO Slim cellular components, CORUM complexes, STRING clusters, and a
-# table of every detected protein with every tested group it belongs to. Hallmark is loaded only to
-# name clusters and modules. None of this looks at the samples.
+# Every protein grouping the later steps test. Tested pathways: GO:BP and Reactome (disease and
+# infection branch left out) in the full proteome, MitoCarta in the mitochondrial universe, each
+# trimmed to TEST_WINDOW detected genes, the same list for fgsea and singscore. Also GO Slim
+# cellular components, CORUM complexes, STRING clusters, the literature and ROS sets, and a table of
+# every detected protein with every tested group it belongs to. Hallmark names clusters and modules
+# and supplies four of the literature and ROS sets. None of this looks at the samples.
 
 source(here::here("R", "helpers.R"))
 
 out <- stage_paths("00_Trunk", "04_Gene_Sets")
 CACHE <- here("00_Trunk", "04_Gene_Sets", "cache")
 CORUM_FILE <- file.path(CACHE, "corum_complete.txt")
+CORUM_MD5 <- "49c5911c903c4165a7074c9233f42e2f"
 MIN_DETECTED <- 5
-SIZE <- list(full = c(15, 500), mito = c(10, 500))
 inputs <- c(
   mitocarta = input_path("Mouse.MitoCarta3.0.xls"),
   proteins = here("00_Trunk", "02_Quantification", "c_data", "proteins.rds")
@@ -21,7 +21,7 @@ dir.create(CACHE, showWarnings = FALSE)
 
 quant <- readRDS(inputs[["proteins"]])
 proteins <- quant$proteins
-gene <- str_split_i(proteins$genes$Genes, ";", 1)
+gene <- first_symbol(proteins$genes$Genes)
 detected <- setdiff(unique(gene), c("", NA))
 # enrichVolcano maps accessions to symbols itself, so the tested window counts the genes it ranks.
 detected_in <- map(quant$universes, \(keep) {
@@ -39,14 +39,14 @@ full <- enrichVolcano::load_gene_sets(c("Hallmark", "Reactome", "GO:BP"), specie
 mitocarta <- readxl::read_excel(inputs[["mitocarta"]], sheet = 4)
 mito <- list(MitoCarta = set_names(
   str_split(mitocarta$Genes, ",\\s*"),
-  paste0("MITOCARTA_", str_to_upper(str_replace_all(mitocarta$MitoPathway, "[^A-Za-z0-9]+", "_")))
+  paste0("MITOCARTA_", set_id(mitocarta$MitoPathway))
 ))
 
-# The tested lists: a set enters when its detected genes in the universe fall inside SIZE, the
-# window enrichVolcano applies to the ranked genes, so fgsea and singscore test the same sets.
+# The tested lists: a set enters when its detected genes in the universe fall inside TEST_WINDOW,
+# the window enrichVolcano applies to the ranked genes, so fgsea and singscore test the same sets.
 in_window <- function(sets, universe) {
   n <- map_int(sets, \(s) length(intersect(s, detected_in[[universe]])))
-  sets[n >= SIZE[[universe]][1] & n <= SIZE[[universe]][2]]
+  sets[n >= TEST_WINDOW[[universe]][1] & n <= TEST_WINDOW[[universe]][2]]
 }
 reactome <- full$Reactome[!str_detect(names(full$Reactome), REACTOME_DISEASE)]
 tested <- list(
@@ -71,9 +71,7 @@ cc <- suppressMessages(AnnotationDbi::select(org.Mm.eg.db::org.Mm.eg.db,
 )) |>
   distinct(go_id = GOALL, gene = SYMBOL) |>
   filter(!is.na(gene)) |>
-  mutate(set = paste0("GOSLIM_", str_to_upper(str_replace_all(
-    AnnotationDbi::Term(go_id), "[^A-Za-z0-9]+", "_"
-  ))))
+  mutate(set = paste0("GOSLIM_", set_id(AnnotationDbi::Term(go_id))))
 compartments <- list(Compartments = split(cc$gene, cc$set))
 
 go_ids <- msigdbr::msigdbr(species = "Mus musculus", collection = "C5", subcollection = "GO:BP") |>
@@ -97,6 +95,8 @@ if (!file.exists(CORUM_FILE)) {
     "?file_id=complete&file_format=txt"
   ), CORUM_FILE, quiet = TRUE)
 }
+# The download serves the current release, so the file is pinned to release 5.3 by checksum.
+stopifnot(unname(tools::md5sum(CORUM_FILE)) == CORUM_MD5)
 inputs <- c(inputs, corum = CORUM_FILE)
 BABELGENE_SPECIES <- c(
   Rat = "Rattus norvegicus", Bovine = "Bos taurus", Dog = "Canis lupus familiaris",
@@ -130,21 +130,19 @@ complex_members <- corum |>
   arrange(complex_id) |>
   distinct(members, .keep_all = TRUE) |>
   mutate(set = paste0(
-    "CORUM_", str_to_upper(str_replace_all(
-      if_else(is.na(complex_name) | complex_name == "", paste("complex", complex_id), complex_name),
-      "[^A-Za-z0-9]+", "_"
-    )), "_", complex_id
+    "CORUM_",
+    set_id(if_else(
+      is.na(complex_name) | complex_name == "", paste("complex", complex_id), complex_name
+    )),
+    "_", complex_id
   ))
 complexes <- list(CORUM = set_names(complex_members$members, complex_members$set))
 
 # STRING v12 network among the detected proteins (score >= 400), clustered by walktrap; clusters
 # of at least five proteins, named by their best over-represented Hallmark or Reactome term.
-string_db <- STRINGdb::STRINGdb$new(
-  version = "12.0", species = 10090, score_threshold = 400, network_type = "full",
-  input_directory = CACHE
-)
-string_map <- string_db$map(data.frame(gene = detected), "gene", removeUnmappedRows = TRUE)
-string_clusters <- string_db$get_clusters(unique(string_map$STRING_id), algorithm = "walktrap") |>
+stringdb <- string_db()
+string_map <- stringdb$map(data.frame(gene = detected), "gene", removeUnmappedRows = TRUE)
+string_clusters <- stringdb$get_clusters(unique(string_map$STRING_id), algorithm = "walktrap") |>
   map(\(ids) sort(unique(string_map$gene[string_map$STRING_id %in% ids]))) |>
   keep(\(g) length(g) >= MIN_DETECTED)
 cluster_labels <- label_groups(string_clusters, full[c("Hallmark", "Reactome")], detected)
@@ -160,11 +158,11 @@ ROS_SETS <- c(
   "GOBP_CELLULAR_RESPONSE_TO_REACTIVE_OXYGEN_SPECIES",
   "REACTOME_DETOXIFICATION_OF_REACTIVE_OXYGEN_SPECIES", "MITOCARTA_ROS_AND_GLUTATHIONE_METABOLISM"
 )
-# Named on 2026-10-05 from the PAS literature, after the v1 contrasts had been seen, so they are
-# literature-informed rather than a priori; every one is reported whatever it shows. Burke et al.
-# 2026 (Nat Commun, PMID 42431880): PAS preserves muscle "by enhancing cellular energy status and
-# translational capacity". Wang et al. 2019 (EMBO Rep, PMID 31318145): succinate shifts fibres
-# towards oxidative metabolism through SUCNR1 and lowers glycolysis.
+# Named on 2026-10-05 from the PAS literature, after the first contrast results had been seen,
+# so they are literature-informed rather than a priori; every one is reported whatever it shows.
+# Burke et al. 2026 (Nat Commun, PMID 42431880): PAS preserves muscle "by enhancing cellular
+# energy status and translational capacity". Wang et al. 2019 (EMBO Rep, PMID 31318145):
+# succinate shifts fibres towards oxidative metabolism through SUCNR1 and lowers glycolysis.
 LITERATURE_SETS <- tribble(
   ~set, ~hypothesis, ~expected,
   "HALLMARK_OXIDATIVE_PHOSPHORYLATION", "Energy status", "up",
@@ -192,7 +190,8 @@ catalog <- collections |>
     tibble(
       collection = db, set = names(sets), members = lengths(sets),
       detected = map_int(sets, \(s) sum(s %in% detected)),
-      tested = set %in% tested_names | db %in% c("Compartments", "CORUM", "STRING")
+      tested = set %in% c(tested_names, names(literature_sets)) |
+        db %in% c("Compartments", "CORUM", "STRING")
     )
   }) |>
   list_rbind() |>
@@ -266,7 +265,7 @@ write_workbook(
     "CORUM complexes with at least five detected subunits, and those subunits.",
     "STRING clusters: size, best over-represented term (FDR <= 0.05) and members.",
     paste(
-      "Literature-informed sets (chosen after the v1 results, all reported),",
+      "Literature-informed sets (chosen after the first contrast results, all reported),",
       "hypothesis, expectation."
     ),
     "Gene-set sources and versions."

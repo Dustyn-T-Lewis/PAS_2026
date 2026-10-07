@@ -9,6 +9,10 @@ library(readxl)
 library(nanoparquet)
 
 out <- stage_paths("00_Trunk", "01_Filtering")
+inputs <- c(
+  report = input_path("report.parquet"), metadata = input_path("metadata.csv"),
+  report_stats = input_path("report_stats.xlsx")
+)
 
 total_signal <- function(m) sum(2^m, na.rm = TRUE)
 
@@ -48,7 +52,7 @@ PLASMA <- c(
 
 # Protein.Ids is added for the cRAP check. log = TRUE is the default, so y$E is already log2.
 y <- readDIANN(
-  input_path("report.parquet"),
+  inputs[["report"]],
   annotation.columns = c(
     "Protein.Group", "Protein.Ids", "Protein.Names", "Genes", "Proteotypic"
   ),
@@ -58,7 +62,7 @@ y <- readDIANN(
   q.cutoffs = rep(0.01, 5)
 )
 
-metadata <- read_csv(input_path("metadata.csv"), show_col_types = FALSE) |>
+metadata <- read_csv(inputs[["metadata"]], show_col_types = FALSE) |>
   filter(include)
 
 i <- match(metadata$run, colnames(y))
@@ -79,13 +83,13 @@ signal_start <- total_signal(y$E)
 precursors_start <- nrow(y)
 
 raw_totals <- read_parquet(
-  input_path("report.parquet"),
+  inputs[["report"]],
   col_select = c("Run", "Precursor.Quantity")
 ) |>
   summarise(raw_total = sum(Precursor.Quantity), .by = Run) |>
   rename(run = Run) |>
   inner_join(
-    read_excel(input_path("report_stats.xlsx")) |>
+    read_excel(inputs[["report_stats"]]) |>
       transmute(
         run = str_remove(str_extract(File.Name, "[^\\\\]+$"), "\\.raw$"),
         precursors = Precursors.Identified,
@@ -97,6 +101,7 @@ raw_totals <- read_parquet(
   inner_join(select(metadata, run, sample_id, group), by = "run") |>
   mutate(raw_rel = raw_total / median(raw_total)) |>
   arrange(raw_rel)
+stopifnot(nrow(raw_totals) == nrow(metadata))
 
 members <- str_split(y$genes$Protein.Ids, ";")
 crap_only <- map_lgl(members, \(m) all(str_starts(m, "cRAP-")))
@@ -192,11 +197,7 @@ write_workbook(
     "Contaminant and plasma share of signal per mouse, before removal.",
     "Per run: raw signal, precursors and protein groups identified."
   ),
-  out$workbook,
-  c(
-    report = input_path("report.parquet"), metadata = input_path("metadata.csv"),
-    report_stats = input_path("report_stats.xlsx")
-  )
+  out$workbook, inputs
 )
 
 pdf(file.path(out$reports, "01_filtering.pdf"), width = 7, height = 5)

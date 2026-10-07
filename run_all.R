@@ -31,9 +31,11 @@ arcs <- c(
 figures <- "Figures/F01_Overview/a_script/f01_overview.R"
 
 root <- here::here()
+log_file <- file.path(root, "run_all.log")
+invisible(file.create(log_file))
 for (step in c(trunk, arcs, figures)) {
   message(format(Sys.time(), "%H:%M:%S "), step)
-  status <- system2("Rscript", file.path(root, step), stdout = FALSE, stderr = FALSE)
-  if (status != 0) stop("failed: ", step, " (rerun it alone to see the error)")
+  status <- system2("Rscript", c(shQuote(file.path(root, step)), ">>", shQuote(log_file), "2>&1"))
+  if (status != 0) stop("failed: ", step, " (see run_all.log)")
 }
 message("done")

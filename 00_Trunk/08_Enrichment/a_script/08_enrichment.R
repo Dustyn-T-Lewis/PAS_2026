@@ -14,21 +14,25 @@
 source(here::here("R", "helpers.R"))
 
 out <- stage_paths("00_Trunk", "08_Enrichment")
+study_files <- expand_grid(
+  universe = c("full", "mito"), file = c("da_results", "matrix", "weights", "samples", "contrasts")
+) |>
+  with(set_names(
+    here("00_Trunk", "07_Fit", "c_data", paste0("study_", universe), paste0(file, ".csv")),
+    paste0("study_", universe, "_", file)
+  ))
 inputs <- c(
   gene_sets = here("00_Trunk", "04_Gene_Sets", "c_data", "gene_sets.rds"),
   fit = here("00_Trunk", "07_Fit", "c_data", "fit.rds"),
-  study_full = here("00_Trunk", "07_Fit", "c_data", "study_full", "da_results.csv"),
-  study_mito = here("00_Trunk", "07_Fit", "c_data", "study_mito", "da_results.csv")
+  study_files
 )
 gs <- readRDS(inputs[["gene_sets"]])
 fit <- readRDS(inputs[["fit"]])
-ARC_CONTRASTS <- map_chr(ARCS, "contrast")
-SIZE <- list(full = c(15, 500), mito = c(10, 500))
 SIMILARITY_CUTOFF <- 0.375
 
 sets <- map(gs$tested, \(x) unlist(unname(x), recursive = FALSE))
 studies <- map(set_names(names(gs$tested)), \(u) {
-  suppressMessages(enrichVolcano::read_study(dirname(inputs[[paste0("study_", u)]]),
+  suppressMessages(enrichVolcano::read_study(dirname(inputs[[paste0("study_", u, "_da_results")]]),
     species = "Mus musculus"
   ))
 })
@@ -50,9 +54,9 @@ gene_ranks <- function(da) {
 }
 flatten <- \(x) map_chr(x, \(g) paste(g, collapse = ";"))
 
-objects <- map(set_names(ARC_CONTRASTS), \(cn) {
+enrichment_objects <- map(set_names(ARC_CONTRASTS), \(cn) {
   imap(gs$tested, \(collection, u) {
-    enrichVolcano::dedup_terms(fgsea_of(studies[[u]], collection, cn, SIZE[[u]]), sets[[u]],
+    enrichVolcano::dedup_terms(fgsea_of(studies[[u]], collection, cn, TEST_WINDOW[[u]]), sets[[u]],
       cutoff = SIMILARITY_CUTOFF, term_threshold = Inf
     )
   })
@@ -71,7 +75,7 @@ score_stats <- fit$score_contrasts |>
     contrast,
     term = feature, score_logFC = logFC, score_p = P.Value, score_fdr = adj.P.Val, r_group
   )
-results <- imap(objects, \(by_universe, cn) {
+results <- imap(enrichment_objects, \(by_universe, cn) {
   imap(by_universe, \(e, u) mutate(e@results, universe = u, .before = 1)) |>
     list_rbind()
 }) |>
@@ -109,7 +113,7 @@ literature <- side_list(list(Literature = gs$literature_sets), c(5, Inf)) |>
 # association, which is tested across mice.
 association_fgsea <- expand_grid(sex = c("female", "male"), u = names(gs$tested)) |>
   pmap(\(sex, u) {
-    da <- fit$protein_links |>
+    da <- fit$protein_associations |>
       filter(!adjusted, sex == !!sex, universe == u) |>
       transmute(
         protein = feature, gene, contrast = phenotype, logFC = estimate, t, P.Value, adj.P.Val,
@@ -118,7 +122,7 @@ association_fgsea <- expand_grid(sex = c("female", "male"), u = names(gs$tested)
       enrichVolcano::as_da(species = "Mus musculus")
     set.seed(SEED)
     suppressMessages(enrichVolcano::run_enrichment(da, gs$tested[[u]],
-      tests = "fgsea", min_size = SIZE[[u]][1], max_size = SIZE[[u]][2]
+      tests = "fgsea", min_size = TEST_WINDOW[[u]][1], max_size = TEST_WINDOW[[u]][2]
     ))$fgsea@results |>
       mutate(sex = sex, universe = u, .before = 1)
   }) |>
@@ -129,7 +133,7 @@ association_fgsea <- expand_grid(sex = c("female", "male"), u = names(gs$tested)
     fgsea_fdr = padj, size, leading_edge = flatten(leading_edge)
   ) |>
   left_join(
-    fit$score_links |>
+    fit$score_associations |>
       filter(!adjusted, level == "pathway") |>
       select(sex, phenotype,
         term = feature, score_slope = estimate, score_r = r,
@@ -140,17 +144,14 @@ association_fgsea <- expand_grid(sex = c("female", "male"), u = names(gs$tested)
   arrange(sex, phenotype, collection, fgsea_p)
 stopifnot(!anyNA(association_fgsea$score_p))
 
-string_db <- STRINGdb::STRINGdb$new(
-  version = "12.0", species = 10090, score_threshold = 400, network_type = "full",
-  input_directory = here("00_Trunk", "04_Gene_Sets", "cache")
-)
+stringdb <- string_db()
 proteome <- filter(fit$protein_contrasts, universe == "full", !is.na(gene), gene != "")
-string_map <- string_db$map(
+string_map <- stringdb$map(
   data.frame(gene = unique(proteome$gene)), "gene",
   removeUnmappedRows = TRUE
 )
-string_db$set_background(unique(string_map$STRING_id))
-string <- map(ARC_CONTRASTS, \(cn) {
+stringdb$set_background(unique(string_map$STRING_id))
+string_tests <- map(ARC_CONTRASTS, \(cn) {
   hits <- filter(proteome, contrast == cn)
   lists <- list(
     `Π ≤ 0.05, up` = hits$gene[hits$pi_score <= ALPHA & hits$logFC > 0],
@@ -160,7 +161,7 @@ string <- map(ARC_CONTRASTS, \(cn) {
   imap(lists, \(genes, name) {
     ids <- unique(string_map$STRING_id[string_map$gene %in% genes])
     e <- if (length(ids) >= 2) {
-      string_db$get_ppi_enrichment(ids)
+      stringdb$get_ppi_enrichment(ids)
     } else {
       list(edges = 0, lambda = 0, enrichment = 1)
     }
@@ -203,7 +204,7 @@ signatures <- imap(SEXES, \(cn, source) {
   list_rbind()
 stopifnot(nrow(signatures) == 4, !anyNA(signatures$p))
 
-summary <- results |>
+tier_table <- results |>
   reframe(tier_counts(p, padj), .by = c(contrast, universe, collection)) |>
   select(-pi_le_0.05)
 association_summary <- association_fgsea |>
@@ -213,7 +214,7 @@ association_summary <- association_fgsea |>
   ) |>
   select(-pi_le_0.05)
 
-summary_page <- summary |>
+summary_page <- tier_table |>
   select(contrast, collection, tests, p_le_0.05, expected_by_chance, fdr_le_0.05) |>
   pivot_longer(c(p_le_0.05, fdr_le_0.05), names_to = "tier", values_to = "n") |>
   mutate(
@@ -253,7 +254,7 @@ association_page <- association_summary |>
     subtitle = "fgsea on protein association t across one sex's PAS and vehicle mice (co-movement)"
   ) +
   theme_figure()
-string_page <- string |>
+string_page <- string_tests |>
   filter(expected > 0) |>
   mutate(contrast = factor(CONTRAST_LABELS[contrast], CONTRAST_LABELS[ARC_CONTRASTS])) |>
   ggplot(aes(fold, list)) +
@@ -282,17 +283,18 @@ plot_index <- write_report(file.path(out$reports, "08_enrichment.pdf"), list(
 
 saveRDS(
   list(
-    results = results, objects = objects, ranks = ranks, da = map(studies, "da"), sets = sets,
+    results = results, objects = enrichment_objects, ranks = ranks, da = map(studies, "da"),
+    sets = sets,
     compartments = compartments, literature = literature, association_fgsea = association_fgsea,
-    signatures = signatures, string = string, summary = summary
+    signatures = signatures, string = string_tests, summary = tier_table
   ),
   file.path(out$data, "enrichment.rds")
 )
 write_workbook(
   list(
-    summary = summary, fgsea = results, compartments = compartments, literature = literature,
+    summary = tier_table, fgsea = results, compartments = compartments, literature = literature,
     association_summary = association_summary, association_fgsea = association_fgsea,
-    signatures = signatures, string = string, plot_index = plot_index
+    signatures = signatures, string = string_tests, plot_index = plot_index
   ),
   c(
     "Per arc contrast and collection: sets tested, at p ≤ 0.05, expected by chance, FDR tiers.",
@@ -317,6 +319,6 @@ write_workbook(
   out$workbook, inputs
 )
 
-summary
+tier_table
 
 sessionInfo()

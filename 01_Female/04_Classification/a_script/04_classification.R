@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# Which single features separate PAS from vehicle in females. R/arc.R holds the step; the README
-# explains it.
+# Which single scores separate PAS from vehicle in females.
+# The step is arc_classification() in R/arc.R.
 
 source(here::here("R", "arc.R"))
 arc_classification("female")

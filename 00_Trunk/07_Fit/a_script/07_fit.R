@@ -1,12 +1,12 @@
 #!/usr/bin/env Rscript
 # Every model the arcs read, fitted once on all 20 mice. Proteins: limpa's dpcDE with precision
-# and sample weights, quantile-normalised per universe. GO:BP, MitoCarta, complex and cluster
-# scores and module eigengenes: limma. Each level gets the five contrasts and, for each phenotype,
-# a link in females and a link in males: the feature regressed on the z-scored phenotype across the
-# ten mice of each sex, PAS and vehicle together (~0 + sex + z:female + z:male). The links ask
-# whether features that move with treatment move with the phenotypes too; co-movement, not cause.
-# A refit with the pellet's mitochondrial share (centred within group) is kept as a check.
-# Phenotype effects are % changes against the same sex's vehicle. Arcs slice these tables.
+# and sample weights, quantile-normalised per universe. GO:BP, Reactome, MitoCarta, complex and
+# cluster scores and module eigengenes: limma. Each level gets the five contrasts and, for each
+# phenotype, an association in females and one in males: the feature regressed on the phenotype
+# (z-scored across all 20 mice) within the ten mice of each sex, PAS and vehicle together
+# (~0 + sex + z:female + z:male). An association is co-movement, not a PAS effect. A refit with
+# the pellet's mitochondrial share (centred within group) is kept as a check. Phenotype effects are
+# % changes against the same sex's vehicle. Arcs slice these tables.
 
 source(here::here("R", "helpers.R"))
 library(limma)
@@ -26,28 +26,31 @@ sc <- readRDS(inputs[["scores"]])
 mods <- readRDS(inputs[["modules"]])
 targets <- quant$proteins$targets
 stopifnot(identical(rownames(d$design), targets$sample_id))
-ph <- read_phenotypes(targets$sample_id)
+ph <- readxl::read_excel(inputs[["phenotypes"]], "phenotypes")
+ph <- ph[match(targets$sample_id, ph$mouse), ]
+stopifnot(identical(ph$mouse, targets$sample_id), !anyNA(ph[PHENOTYPES]), all(ph[PHENOTYPES] > 0))
 female <- as.numeric(targets$sex == "F")
 pellet_mito <- quant$pct_mito - ave(quant$pct_mito, targets$group)
 sex_design <- model.matrix(~ 0 + sex, targets)
 colnames(sex_design) <- c("F", "M")
 genes <- as_tibble(quant$proteins$genes, rownames = "feature") |>
-  transmute(feature, gene = str_split_i(Genes, ";", 1), genes = Genes, is_mito)
+  transmute(feature, gene = first_symbol(Genes), genes = Genes, is_mito)
 
 # The phenotype design: a mean per sex and the z-scored phenotype's slope within each sex, with
 # PAS and vehicle mice together; optionally the pellet's mitochondrial share around its group mean.
-link_design <- function(x, adjusted) {
+association_design <- function(x, adjusted) {
   z <- as.numeric(scale(x))
-  m <- cbind(sex_design, link_F = z * female, link_M = z * (1 - female))
+  m <- cbind(sex_design, slope_F = z * female, slope_M = z * (1 - female))
   if (adjusted) cbind(m, pellet_mito = pellet_mito) else m
 }
-link_contrasts <- \(design) makeContrasts(female = link_F, male = link_M, levels = design)
+slope_contrasts <- \(design) makeContrasts(female = slope_F, male = slope_M, levels = design)
 
 tidy <- function(fit, coefs) {
   map(coefs, \(k) {
     topTable(fit, coef = k, number = Inf, sort.by = "none", confint = TRUE) |>
       as_tibble(rownames = "feature") |>
-      transmute(feature, coef = k, estimate = logFC, ci_low = CI.L, ci_high = CI.R,
+      transmute(feature,
+        coef = k, estimate = logFC, ci_low = CI.L, ci_high = CI.R,
         AveExpr, t, P.Value, adj.P.Val
       )
   }) |>
@@ -61,7 +64,7 @@ protein_elist <- function(universe) {
   p
 }
 fit_proteins <- function(design, contrasts) {
-  imap(quant$universes, \(keep, universe) {
+  map(set_names(names(quant$universes)), \(universe) {
     dpc <- dpcDE(protein_elist(universe), design, sample.weights = TRUE, plot = FALSE)
     list(dpc = dpc, fit = eBayes(contrasts.fit(dpc, contrasts)))
   })
@@ -75,10 +78,10 @@ protein_contrasts <- imap(protein_fits, \(f, universe) {
   left_join(genes, by = "feature") |>
   mutate(pi_score = pi_score(P.Value, logFC))
 
-protein_links <- expand_grid(phenotype = PHENOTYPES, adjusted = c(FALSE, TRUE)) |>
+protein_associations <- expand_grid(phenotype = PHENOTYPES, adjusted = c(FALSE, TRUE)) |>
   pmap(\(phenotype, adjusted) {
-    design <- link_design(ph[[phenotype]], adjusted)
-    imap(fit_proteins(design, link_contrasts(design)), \(f, universe) {
+    design <- association_design(ph[[phenotype]], adjusted)
+    imap(fit_proteins(design, slope_contrasts(design)), \(f, universe) {
       tidy(f$fit, c("female", "male")) |>
         mutate(universe = universe, phenotype = phenotype, adjusted = adjusted, .before = 1)
     }) |>
@@ -116,10 +119,10 @@ fit_scores <- function(design, contrasts, coefs) {
 }
 score_contrasts <- fit_scores(d$design, d$contrasts, CONTRASTS) |>
   rename(contrast = coef, logFC = estimate)
-score_links <- expand_grid(phenotype = PHENOTYPES, adjusted = c(FALSE, TRUE)) |>
+score_associations <- expand_grid(phenotype = PHENOTYPES, adjusted = c(FALSE, TRUE)) |>
   pmap(\(phenotype, adjusted) {
-    design <- link_design(ph[[phenotype]], adjusted)
-    fit_scores(design, link_contrasts(design), c("female", "male")) |>
+    design <- association_design(ph[[phenotype]], adjusted)
+    fit_scores(design, slope_contrasts(design), c("female", "male")) |>
       mutate(phenotype = phenotype, adjusted = adjusted, .before = 1)
   }) |>
   list_rbind() |>
@@ -127,17 +130,24 @@ score_links <- expand_grid(phenotype = PHENOTYPES, adjusted = c(FALSE, TRUE)) |>
 
 # Effect sizes beside every test, as Pearson r on the normalised values. For a two-group contrast,
 # r with group membership (first group = 1), the r-equivalent of a two-group t; empty for the
-# interaction. For a phenotype link, r across the sex's ten mice and, descriptively, within its
-# five vehicle and five PAS mice.
+# interaction. For a phenotype association, r across the sex's ten mice and, descriptively, within
+# its five vehicle and five PAS mice.
+COMPARISONS <- list(
+  PAS_vs_VEH_female = c("PAS_F", "VEH_F"),
+  PAS_vs_VEH_male = c("PAS_M", "VEH_M"),
+  sex_in_VEH = c("VEH_M", "VEH_F"),
+  sex_in_PAS = c("PAS_M", "PAS_F")
+)
 group_r <- function(m, contrast) {
   g <- COMPARISONS[[contrast]]
   if (is.null(g)) {
     return(tibble(feature = rownames(m), r_group = NA_real_))
   }
   keep <- targets$group %in% g
-  tibble(feature = rownames(m), r_group = cor(t(m[, keep]), as.numeric(targets$group[keep] == g[1]))[, 1])
+  first <- as.numeric(targets$group[keep] == g[1])
+  tibble(feature = rownames(m), r_group = cor(t(m[, keep]), first)[, 1])
 }
-link_r <- function(m, x) {
+association_r <- function(m, x) {
   map(c(female = "F", male = "M"), \(code) {
     r <- \(keep) cor(t(m[, keep]), x[keep])[, 1]
     in_sex <- targets$sex == code
@@ -158,29 +168,33 @@ r_groups <- imap(matrices, \(m, name) {
     mutate(source = name)
 }) |>
   list_rbind()
-r_links <- imap(matrices, \(m, name) {
-  map(PHENOTYPES, \(ph_name) mutate(link_r(m, ph[[ph_name]]), phenotype = ph_name)) |>
+r_associations <- imap(matrices, \(m, name) {
+  map(PHENOTYPES, \(ph_name) mutate(association_r(m, ph[[ph_name]]), phenotype = ph_name)) |>
     list_rbind() |>
     mutate(source = name)
 }) |>
   list_rbind()
+# Score, module and protein names are unique within their source, so each contrast row takes
+# exactly one r; an association's r is shared by its unadjusted row and its mito-share check.
+protein_r <- \(r) {
+  filter(r, str_starts(source, "protein")) |>
+    mutate(universe = str_remove(source, "protein_")) |>
+    select(-source)
+}
+score_r <- \(r) select(filter(r, str_starts(source, "score")), -source)
+join_r <- \(x, y, by, relationship = "one-to-one") {
+  left_join(x, y, by = by, relationship = relationship, unmatched = "error")
+}
 protein_contrasts <- protein_contrasts |>
-  left_join(
-    filter(r_groups, str_starts(source, "protein")) |> mutate(universe = str_remove(source, "protein_")) |> select(-source),
-    by = c("universe", "contrast", "feature")
-  )
-score_contrasts <- score_contrasts |>
-  left_join(filter(r_groups, str_starts(source, "score")) |> select(-source), by = c("contrast", "feature"))
-protein_links <- protein_links |>
-  left_join(
-    filter(r_links, str_starts(source, "protein")) |> mutate(universe = str_remove(source, "protein_")) |> select(-source),
-    by = c("universe", "phenotype", "sex", "feature")
-  )
-score_links <- score_links |>
-  left_join(filter(r_links, str_starts(source, "score")) |> select(-source), by = c("phenotype", "sex", "feature"))
+  join_r(protein_r(r_groups), c("universe", "contrast", "feature"))
+score_contrasts <- join_r(score_contrasts, score_r(r_groups), c("contrast", "feature"))
+protein_associations <- protein_associations |>
+  join_r(protein_r(r_associations), c("universe", "phenotype", "sex", "feature"), "many-to-one")
+score_associations <- score_associations |>
+  join_r(score_r(r_associations), c("phenotype", "sex", "feature"), "many-to-one")
 
-# Without weights or covariates the joint model's link equals a regression within one sex.
-check <- filter(score_links, !adjusted, universe == "full", sex == "female") |>
+# Without weights or covariates the joint model's association equals a regression within one sex.
+check <- filter(score_associations, !adjusted, universe == "full", sex == "female") |>
   slice_head(n = 1, by = phenotype)
 stopifnot(pmap_lgl(check, \(phenotype, feature, estimate, ...) {
   keep <- female == 1
@@ -255,7 +269,9 @@ contrast_summary <- bind_rows(
     share_true_effects = if (n() >= 100) 1 - propTrueNull(P.Value) else NA_real_,
     .by = c(level, universe, contrast)
   )
-link_summary <- bind_rows(mutate(protein_links, level = "protein"), score_links) |>
+association_summary <- protein_associations |>
+  mutate(level = "protein") |>
+  bind_rows(score_associations) |>
   reframe(tier_counts(P.Value, adj.P.Val), .by = c(level, universe, phenotype, sex, adjusted))
 
 volcano_page <- protein_contrasts |>
@@ -264,7 +280,8 @@ volcano_page <- protein_contrasts |>
     contrast = factor(CONTRAST_LABELS[contrast], CONTRAST_LABELS),
     tier = case_when(
       adj.P.Val <= ALPHA ~ "FDR ≤ 0.05", pi_score <= ALPHA ~ "Π ≤ 0.05",
-      P.Value <= ALPHA ~ "p ≤ 0.05", .default = "p > 0.05"
+      P.Value <= ALPHA ~ "p ≤ 0.05",
+      .default = "p > 0.05"
     )
   ) |>
   ggplot(aes(logFC, -log10(P.Value), colour = tier)) +
@@ -281,7 +298,7 @@ volcano_page <- protein_contrasts |>
   ) +
   theme_figure() +
   theme(legend.position = "bottom")
-grid_page <- link_summary |>
+grid_page <- association_summary |>
   filter(level == "protein", universe == "full") |>
   mutate(
     ratio = p_le_0.05 / expected_by_chance,
@@ -296,47 +313,69 @@ grid_page <- link_summary |>
   geom_text(aes(label = str_glue("{p_le_0.05}\nFDR {fdr_le_0.05}")), size = 2.2) +
   scale_fill_gradient(low = "white", high = "grey35", name = "p ≤ 0.05 /\nchance") +
   labs(
-    x = NULL, y = NULL, title = "Proteins moving with each phenotype",
-    subtitle = "Across PAS and vehicle mice of each sex; 92 at p ≤ 0.05 by chance"
+    x = NULL, y = NULL, title = "Proteins associated with each phenotype",
+    subtitle = str_glue(
+      "Across PAS and vehicle mice of each sex; ",
+      "{round(ALPHA * sum(quant$universes$full))} at p ≤ 0.05 by chance"
+    )
   ) +
   theme_figure()
 effects_page <- phenotype_effect_plot(phenotype_effects,
-  title = "PAS effect on each phenotype", subtitle = "Welch t on log values within sex, n = 5 v 5"
+  title = "Phenotype effects of PAS",
+  subtitle = str_glue(
+    "Welch t on log values within sex, n = {min(phenotype_effects$n_pas)} v ",
+    "{min(phenotype_effects$n_veh)}"
+  )
 )
 plot_index <- write_report(file.path(out$reports, "07_fit.pdf"), list(
   "protein volcanoes, every contrast" = volcano_page,
-  "protein-phenotype link counts" = grid_page,
+  "protein-phenotype association counts" = grid_page,
   "phenotype effects" = effects_page
 ))
 
 saveRDS(
   list(
-    protein_contrasts = protein_contrasts, protein_links = protein_links,
-    score_contrasts = score_contrasts, score_links = score_links,
+    protein_contrasts = protein_contrasts, protein_associations = protein_associations,
+    score_contrasts = score_contrasts, score_associations = score_associations,
     phenotype_effects = phenotype_effects, phenotype_interaction = phenotype_interaction,
     E_norm = quant$E_norm, scores = score_sets, targets = targets, phenotypes = ph,
-    pellet_mito = quant$pct_mito
+    pct_mito = quant$pct_mito
   ),
   file.path(out$data, "fit.rds")
 )
 write_workbook(
   list(
-    contrast_summary = contrast_summary, link_summary = link_summary,
+    contrast_summary = contrast_summary, association_summary = association_summary,
     protein_contrasts = protein_contrasts,
-    protein_links = filter(protein_links, !adjusted),
-    score_contrasts = score_contrasts, score_links = filter(score_links, !adjusted),
+    protein_associations = filter(protein_associations, !adjusted),
+    score_contrasts = score_contrasts, score_associations = filter(score_associations, !adjusted),
     phenotype_effects = phenotype_effects, phenotype_interaction = phenotype_interaction,
     plot_index = plot_index
   ),
   c(
     "Per level, universe and contrast: p ≤ 0.05, chance, Π ≤ 0.05, FDR tiers, true-effect share.",
     "Per level, universe, phenotype and sex: p ≤ 0.05, chance, FDR tiers; adjusted = mito check.",
-    "Every protein, universe and contrast: log2 FC with 95% CI, moderated t, p, BH FDR, Π, r with group.",
-    "Every protein's link with each phenotype per sex: slope (log2 per SD), t, p, FDR, r (pooled, VEH, PAS).",
-    "Every GO:BP, MitoCarta, complex, cluster and module score: the five contrasts, r with group.",
-    "Every score's link with each phenotype per sex: slope, t, p, FDR, r (pooled, VEH, PAS).",
-    "PAS vs vehicle within sex: % change with 95% CI and Welch p.",
-    "Treatment by sex on the log scale: female response relative to male, % with 95% CI.",
+    paste(
+      "Every protein, universe and contrast: log2 FC with 95% CI, moderated t, p, BH FDR, Π,",
+      "r with group."
+    ),
+    paste(
+      "Every protein's association with each phenotype per sex: slope (log2 per SD across all",
+      "20 mice), t, p, FDR, r (pooled, VEH, PAS)."
+    ),
+    paste(
+      "Every GO:BP, Reactome, MitoCarta, complex, cluster and module score: the five contrasts,",
+      "r with group."
+    ),
+    paste(
+      "Every score's association with each phenotype per sex: slope, t, p, FDR,",
+      "r (pooled, VEH, PAS)."
+    ),
+    "Phenotype effects: PAS vs vehicle within sex, % change with 95% CI and Welch p.",
+    paste(
+      "Interaction (treatment_by_sex) on the log scale: female response relative to male,",
+      "% with 95% CI."
+    ),
     "Which PDF page shows what."
   ),
   out$workbook, inputs

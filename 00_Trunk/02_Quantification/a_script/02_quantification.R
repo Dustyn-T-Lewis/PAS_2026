@@ -1,19 +1,37 @@
 #!/usr/bin/env Rscript
 # Precursors to a quantified, MitoCarta-annotated protein matrix, normalised once for the full
-# proteome and once for the mitochondrial universe. The README gives the reasons.
+# proteome and once for the mitochondrial universe. The README gives the reasons. dpcQuant() takes
+# about two and a half minutes, so its result is checkpointed in c_data/dpcQuant/ and refitted only
+# with REFIT_DPCQUANT=TRUE.
 
-# 02_quantification_run.R attaches the helpers, limpa and readxl, and carries the c_data paths,
-# quantify_or_load() and the MitoCarta lookup.
-source(here::here("00_Trunk", "02_Quantification", "a_script", "02_quantification_run.R"))
+source(here::here("R", "helpers.R"))
+library(limpa)
 
-REFIT <- isTRUE(as.logical(Sys.getenv("REFIT_DPCQUANT", "FALSE")))
+DPC_SLOPE <- 0.7
 NORMALIZATION <- "quantile"
+REFIT <- isTRUE(as.logical(Sys.getenv("REFIT_DPCQUANT", "FALSE")))
 
 out <- stage_paths("00_Trunk", "02_Quantification")
+inputs <- c(
+  precursors = here("00_Trunk", "01_Filtering", "c_data", "precursors_filtered.rds"),
+  mitocarta = input_path("Mouse.MitoCarta3.0.xls")
+)
+checkpoint <- file.path(out$data, "dpcQuant", sprintf("proteins_slope_%s.rds", DPC_SLOPE))
+y <- readRDS(inputs[["precursors"]])$y
+
+# A checkpoint built from a different filtering run would report old numbers silently.
+fingerprint <- \(y) c(dim(y), sum(y$E, na.rm = TRUE))
+if (REFIT || !file.exists(checkpoint)) {
+  dir.create(dirname(checkpoint), showWarnings = FALSE)
+  quantified <- dpcQuant(y, "Protein.Group", dpc.slope = DPC_SLOPE, verbose = FALSE)
+  attr(quantified, "source_fingerprint") <- fingerprint(y)
+  saveRDS(quantified, checkpoint)
+}
+quantified <- readRDS(checkpoint)
+stopifnot(identical(attr(quantified, "source_fingerprint"), fingerprint(y)))
+inputs <- c(inputs, dpcquant_checkpoint = checkpoint)
+
 pdf(file.path(out$reports, "02_quantification.pdf"), width = 7, height = 5)
-
-y <- readRDS(file.path(FILTER_DATA, "precursors_filtered.rds"))$y
-
 dpc_cn <- dpcCN(y$E)
 dpc_on <- dpcON(y$E, robust = TRUE)
 plotDPC(dpc_cn)
@@ -27,21 +45,27 @@ dpc_parameters <- tibble(
 
 # The detection bar sits at the smallest group size, derived from the targets so dropping a
 # mouse cannot leave the code and the stated rule disagreeing.
-proteins <- quantify_or_load(y, REFIT)
-proteins <- proteins[filterByDetection(proteins, n.samples = min(table(proteins$targets$group))), ]
+proteins <- quantified[
+  filterByDetection(quantified, n.samples = min(table(quantified$targets$group))),
+]
 
-mitocarta <- read_mitocarta()
-proteins$genes$is_mito <- seq_len(nrow(proteins)) %in%
-  mitocarta_rows(proteins, mitocarta$symbol, mitocarta)
-localization <- function(keys, table) {
+# MitoCarta matched on symbol or UniProt accession: symbol alone misses renamed genes.
+mitocarta <- readxl::read_excel(inputs[["mitocarta"]], sheet = 2) |>
+  transmute(
+    symbol = Symbol, accession = UniProt, sub_localization = MitoCarta3.0_SubMitoLocalization
+  )
+group_symbols <- str_split(proteins$genes$Genes, ";")
+group_accessions <- str_split(rownames(proteins), ";")
+proteins$genes$is_mito <- map_lgl(group_symbols, \(g) any(g %in% mitocarta$symbol)) |
+  map_lgl(group_accessions, \(a) any(a %in% mitocarta$accession))
+first_hit <- function(keys, table) {
   hit <- mitocarta$sub_localization[match(keys, table)]
   hit <- hit[!is.na(hit)]
   if (length(hit)) hit[1] else NA_character_
 }
-proteins$genes$sub_localization <- map2_chr(
-  str_split(proteins$genes$Genes, ";"), str_split(rownames(proteins), ";"),
-  \(g, a) coalesce(localization(g, mitocarta$symbol), localization(a, mitocarta$accession))
-)
+proteins$genes$sub_localization <- map2_chr(group_symbols, group_accessions, \(g, a) {
+  coalesce(first_hit(g, mitocarta$symbol), first_hit(a, mitocarta$accession))
+})
 
 pct_mito <- 100 * colSums(2^proteins$E[proteins$genes$is_mito, ]) / colSums(2^proteins$E)
 mito_share <- tibble(
@@ -53,7 +77,7 @@ boxplot(pct_mito_signal ~ group,
 )
 stripchart(pct_mito_signal ~ group, data = mito_share, vertical = TRUE, add = TRUE, pch = 16)
 
-enrichment_tests <- tibble(
+mito_share_tests <- tibble(
   factor = c("treatment", "sex"),
   p_value = c(
     t.test(pct_mito_signal ~ treatment, mito_share)$p.value,
@@ -85,25 +109,20 @@ saveRDS(
     proteins = proteins, E_norm = E_norm, universes = universes, pct_mito = pct_mito,
     mito_share = mito_share, normalization = NORMALIZATION, dpc_slope = DPC_SLOPE
   ),
-  file.path(QUANT_DATA, "proteins.rds")
+  file.path(out$data, "proteins.rds")
 )
-
 write_workbook(
   list(
     dpc_parameters = dpc_parameters, mito_share = mito_share,
-    enrichment_tests = enrichment_tests, normalization_evidence = normalization_evidence
+    mito_share_tests = mito_share_tests, normalization_evidence = normalization_evidence
   ),
   c(
     "Detection-probability curve intercept and slope, by estimator.",
     "MitoCarta share of signal per mouse.",
-    "Tests of the MitoCarta share against sex and treatment.",
+    "Welch t-tests of the MitoCarta share against sex and against treatment.",
     "Median and IQR of log2 abundance per mouse before normalisation."
   ),
-  out$workbook,
-  c(
-    precursors = file.path(FILTER_DATA, "precursors_filtered.rds"),
-    mitocarta = input_path("Mouse.MitoCarta3.0.xls")
-  )
+  out$workbook, inputs
 )
 
 tibble(

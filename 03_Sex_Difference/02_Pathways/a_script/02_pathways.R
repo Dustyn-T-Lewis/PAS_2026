@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# Sex difference in the PAS response (female minus male), pathway by pathway. R/arc.R holds the
-# step; the README explains it.
+# Which pathways respond to PAS differently in females and males.
+# The step is arc_pathways() in R/arc.R.
 
 source(here::here("R", "arc.R"))
 arc_pathways("sex_difference")

@@ -60,12 +60,12 @@ perfect_null <- function(m, case) {
 
 arcs <- keep(ARCS, \(a) !is.na(a$sex))
 results <- imap(arcs, \(a, arc) {
-  keep <- targets$sex == a$sex
-  case <- targets$treatment[keep] == "PAS"
+  in_sex <- targets$sex == a$sex
+  case <- targets$treatment[in_sex] == "PAS"
   imap(features, \(m, level) {
     list(
-      roc = roc_table(m[, keep], case) |> mutate(arc = arc, level = level, .before = 1),
-      perfect = perfect_null(m[, keep], case) |> mutate(arc = arc, level = level, .before = 1)
+      roc = roc_table(m[, in_sex], case) |> mutate(arc = arc, level = level, .before = 1),
+      perfect = perfect_null(m[, in_sex], case) |> mutate(arc = arc, level = level, .before = 1)
     )
   })
 })
@@ -78,12 +78,17 @@ roc <- map(results, \(r) list_rbind(map(r, "roc"))) |>
   left_join(r_group, by = c("arc", "feature")) |>
   relocate(collection, .after = level) |>
   arrange(arc, factor(level, names(LEVELS)), p)
-perfect <- map(results, \(r) map(r, "perfect") |> list_rbind()) |> list_rbind()
-summary <- roc |>
+perfect <- list_rbind(map(results, \(r) list_rbind(map(r, "perfect"))))
+tier_table <- roc |>
   summarise(
     features = n(), p_le_0.05 = sum(p <= ALPHA), expected_by_chance = ALPHA * n(),
     fdr_le_0.05 = sum(fdr <= ALPHA), perfect = sum(auc %in% c(0, 1)), .by = c(arc, level)
   )
+# Perfect separations counted from mouse orderings must equal the features with AUC 0 or 1.
+stopifnot(identical(
+  perfect$observed,
+  left_join(select(perfect, arc, level), tier_table, by = c("arc", "level"))$perfect
+))
 
 arc_label <- \(x) map_chr(ARCS[x], "label")
 perfect_page <- perfect |>
@@ -114,11 +119,11 @@ plot_index <- write_report(file.path(out$reports, "09_classification.pdf"), list
 ))
 
 saveRDS(
-  list(roc = roc, perfect = perfect, summary = summary, features = features),
+  list(roc = roc, perfect = perfect, summary = tier_table, features = features),
   file.path(out$data, "classification.rds")
 )
 write_workbook(
-  list(summary = summary, roc = roc, perfect_separations = perfect, plot_index = plot_index),
+  list(summary = tier_table, roc = roc, perfect_separations = perfect, plot_index = plot_index),
   c(
     paste(
       "Per arc and level: features, at p ≤ 0.05, expected by chance, FDR ≤ 0.05,",
@@ -134,6 +139,6 @@ write_workbook(
   out$workbook, inputs
 )
 
-summary
+tier_table
 
 sessionInfo()

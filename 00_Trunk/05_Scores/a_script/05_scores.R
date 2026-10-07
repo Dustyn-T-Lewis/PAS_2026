@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
-# One singscore per mouse per tested GO:BP and Reactome set, CORUM complex and STRING cluster on the
-# full matrix, and per tested MitoCarta pathway on the mitochondrial matrix: the same sets fgsea
-# tests in 08_Enrichment. A score is the mean within-mouse rank of the group's members, so it uses
-# no group label; 07_Fit tests it.
+# One singscore per mouse per tested GO:BP and Reactome set, CORUM complex and STRING cluster on
+# the full matrix, and per tested MitoCarta pathway on the mitochondrial matrix. The GO:BP,
+# Reactome and MitoCarta sets are the ones fgsea tests in 08_Enrichment. A score is the mean
+# within-mouse rank of the group's members, so it uses no group label; 07_Fit tests it.
 
 source(here::here("R", "helpers.R"))
 library(singscore)
@@ -17,7 +17,7 @@ gs <- readRDS(inputs[["gene_sets"]])
 targets <- quant$proteins$targets
 
 # One protein per gene by average abundance, the rule enrichVolcano applies before fgsea.
-symbol <- set_names(str_split_i(quant$proteins$genes$Genes, ";", 1), rownames(quant$proteins))
+symbol <- set_names(first_symbol(quant$proteins$genes$Genes), rownames(quant$proteins))
 by_gene <- function(E) {
   keep <- one_per_gene(rownames(E), symbol[rownames(E)], rowMeans(E))
   m <- E[keep, ]
