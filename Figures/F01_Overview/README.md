@@ -24,7 +24,7 @@ The script reads saved outputs only and computes nothing beyond counts and arrow
 
 Π is p^|log2 FC| (Xiao et al. 2014). It ranks a protein on p and fold change together and controls no error rate; Π ≤ 0.05 can include proteins with p > 0.05.
 
-Panel a was generated with Nano Banana from `assets/design_spec/` (SPEC, EVIDENCE, DONOTDRAW; prompt and model in PROMPT.txt and PROVENANCE.json) and checked label by label. Known styling defects were accepted: the column connectors cross the processing row, the male-to-interaction connector is blue, and the purple connector is doubled. To change it, edit the spec and rerun `build_from_spec.py`, or replace `design.png` with a BioRender export; nothing else changes.
+Panel a is an illustration drawn from `assets/design_spec/`: SPEC.md holds every label, EVIDENCE.md the source of each element and DONOTDRAW.md what the evidence rules out. Every label was checked against EVIDENCE.md. Three styling defects are accepted: the column connectors cross the processing row, the male-to-interaction connector is blue, and the purple connector is doubled. Replacing `design.png` (a new generation or a BioRender export) changes nothing else.
 
 ## Workbook
 

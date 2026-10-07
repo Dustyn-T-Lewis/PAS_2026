@@ -7,4 +7,4 @@ Does the PAS response differ between the sexes? The test is the interaction cont
 | [`01_Proteins`](01_Proteins/README.md) | which proteins respond differently | limpa `dpcDE` interaction contrast; p, Π and FDR tiers; STRING |
 | [`02_Pathways`](02_Pathways/README.md) | which pathways respond differently | fgsea on GO:BP, Reactome and MitoCarta, beside the singscore contrast |
 
-The phenotype interaction (capillary density p 0.014; the other five p ≥ 0.22) is in `00_Trunk/07_Fit` (`phenotype_interaction`) and in `Figures/F01_Overview` panel e. There is no classification here: the interaction is a difference of differences between groups, not a label any mouse carries.
+The phenotype interaction (capillary density p 0.014; the other five p ≥ 0.21) is in `00_Trunk/07_Fit` (`phenotype_interaction`) and in `Figures/F01_Overview` panel e. There is no classification here: the interaction is a difference of differences between groups, not a label any mouse carries.

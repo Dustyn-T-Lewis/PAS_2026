@@ -21,10 +21,10 @@ Differences between females and males at baseline are not a question here. They 
 | [`02_Male/`](02_Male/README.md) | question 2: the same four substages |
 | [`03_Sex_Difference/`](03_Sex_Difference/README.md) | question 3: proteins and pathways |
 | [`Figures/`](Figures/README.md) | figures built from saved outputs only |
-| `R/` | `helpers.R` (constants, writers, shared rules), `arc.R` (the arc steps), `figures.R` (theme and panels) |
+| `R/` | `helpers.R` (constants, writers, shared rules), `arc.R` (the arc steps), `figures.R` (theme, colours and the plots several steps draw) |
 | `Supplementary/` | submission files, once a manuscript is drafted |
 
-Data flows one way: the trunk computes, the arcs slice and report, the figures read both. No arc reads another arc. Every step holds `a_script/` (one script), `b_reports/` (one PDF), `c_data/` (one workbook, plus any `.rds` a later step reads) and a README naming what it reads and writes.
+Data flows one way: the trunk computes, the arcs slice and report, the figures read both. No arc reads another arc. Every step holds `a_script/` (one script), `b_reports/` (one PDF, where there is something to draw), `c_data/` (one workbook, plus any `.rds` a later step reads) and a README naming what it reads and writes.
 
 ## Reading the results by hand
 
@@ -53,7 +53,7 @@ Rscript -e 'renv::restore()'
 Rscript run_all.R
 ```
 
-About 5 minutes on a laptop. R 4.6.0. `renv.lock` pins every package; enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. The CORUM and STRING downloads land in `00_Trunk/04_Gene_Sets/cache/`, which is not committed. limpa's quantification is checkpointed; `00_Trunk/02_Quantification/README.md` says how to refit it.
+About 5 minutes on a laptop. R 4.6.0. `renv.lock` pins every package; enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. The CORUM and STRING downloads land in `00_Trunk/04_Gene_Sets/cache/`, which is not committed; the CORUM file is pinned to release 5.3 by checksum. limpa's quantification is checkpointed; `00_Trunk/02_Quantification/README.md` says how to refit it.
 
 ## Open with Dr. Ismaeel
 
@@ -61,7 +61,7 @@ Whether the measured limb is the ligated one; the muscle, marker and units of th
 
 ## Version 1
 
-The exploratory first version is on branch `Dustyn/v1-exploratory-analyses`.
+The exploratory first version is on branch `Dustyn/v1-exploratory-analyses`. Its protein contrasts are identical to these.
 
 ## Reference
 

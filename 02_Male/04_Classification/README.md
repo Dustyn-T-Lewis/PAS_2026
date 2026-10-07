@@ -11,4 +11,4 @@ Does one pathway score, module eigengene, complex score or cluster score alone s
 - **Method:** `arc_classification()` keeps this sex's rows from `09_Classification`: AUC (1 = higher in PAS) with DeLong 95% CI, left empty at perfect separation; exact Wilcoxon p; BH within level; r with PAS beside each row.
 - **Report:** perfect separations against all 252 relabellings, AUC distributions, then the ROC curve of every feature at p ≤ 0.05.
 - **Result:** Pathway scores: 20 of 889 at p ≤ 0.05 (44 expected); 3 perfect separators (null median 2, p 0.41). Modules 2 of 18, complexes 1 of 93, clusters 0 of 13. None at FDR ≤ 0.05.
-- **Note:** proteins are left out, because their ROC repeats the protein contrast in `01_Proteins`.
+- **Note:** Proteins are left out, because their ROC repeats the protein contrast in `01_Proteins`.

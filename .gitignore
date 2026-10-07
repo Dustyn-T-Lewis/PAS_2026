@@ -1,0 +1,10 @@
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.Renviron
+.DS_Store
+Rplots.pdf
+run_all.log
+docs/
+00_Trunk/04_Gene_Sets/cache/
