@@ -1,6 +1,6 @@
 # Runs the pipeline end to end, each script in its own R session so no step inherits objects or
 # masked functions from the one before. Every script also runs alone; this file is a convenience.
-# The trunk runs first and computes everything; the arcs then slice its results.
+# The trunk runs first and computes everything; the arcs then slice its results; the figures read both.
 #
 #   Rscript run_all.R
 
@@ -27,9 +27,10 @@ arcs <- c(
   file.path("02_Male", arc_steps),
   file.path("03_Sex_Difference", arc_steps[1:2])
 )
+figures <- "Figures/F01_Overview/a_script/f01_overview.R"
 
 root <- here::here()
-for (step in c(trunk, arcs)) {
+for (step in c(trunk, arcs, figures)) {
   message(format(Sys.time(), "%H:%M:%S "), step)
   status <- system2("Rscript", file.path(root, step), stdout = FALSE, stderr = FALSE)
   if (status != 0) stop("failed: ", step, " (rerun it alone to see the error)")
