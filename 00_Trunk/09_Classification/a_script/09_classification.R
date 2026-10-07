@@ -27,7 +27,11 @@ roc_table <- function(m, case) {
     x <- m[f, ]
     roc <- pROC::roc(y, x, levels = levels(y), direction = "<", quiet = TRUE)
     auc <- as.numeric(roc$auc)
-    ci <- if (auc %in% c(0, 1)) rep(NA_real_, 3) else as.numeric(pROC::ci.auc(roc, method = "delong"))
+    ci <- if (auc %in% c(0, 1)) {
+      rep(NA_real_, 3)
+    } else {
+      as.numeric(pROC::ci.auc(roc, method = "delong"))
+    }
     tibble(
       feature = f, auc = auc, auc_low = ci[1], auc_high = ci[3],
       p = wilcox.test(x[case], x[!case], exact = TRUE)$p.value
@@ -68,7 +72,7 @@ results <- imap(arcs, \(a, arc) {
 r_group <- fit$score_contrasts |>
   filter(contrast %in% map_chr(arcs, "contrast")) |>
   transmute(arc = ARC_OF_CONTRAST[contrast], feature, r_group)
-roc <- map(results, \(r) map(r, "roc") |> list_rbind()) |>
+roc <- map(results, \(r) list_rbind(map(r, "roc"))) |>
   list_rbind() |>
   left_join(distinct(levels_of, feature, collection), by = "feature") |>
   left_join(r_group, by = c("arc", "feature")) |>
@@ -101,19 +105,25 @@ auc_page <- roc |>
   ggplot(aes(auc)) +
   geom_histogram(breaks = seq(0, 1, 0.05), fill = "grey65", colour = "white", linewidth = 0.2) +
   facet_grid(level ~ arc, scales = "free_y") +
-  labs(x = "AUC (1: higher in PAS)", y = "Features", title = "AUC of every feature, PAS vs vehicle") +
+  labs(
+    x = "AUC (1: higher in PAS)", y = "Features", title = "AUC of every feature, PAS vs vehicle"
+  ) +
   theme_figure()
 plot_index <- write_report(file.path(out$reports, "09_classification.pdf"), list(
   "perfect separations against chance" = perfect_page, "AUC distributions" = auc_page
 ))
 
-saveRDS(list(roc = roc, perfect = perfect, summary = summary, features = features),
+saveRDS(
+  list(roc = roc, perfect = perfect, summary = summary, features = features),
   file.path(out$data, "classification.rds")
 )
 write_workbook(
   list(summary = summary, roc = roc, perfect_separations = perfect, plot_index = plot_index),
   c(
-    "Per arc and level: features, at p ≤ 0.05, expected by chance, FDR ≤ 0.05, perfect separations.",
+    paste(
+      "Per arc and level: features, at p ≤ 0.05, expected by chance, FDR ≤ 0.05,",
+      "perfect separations."
+    ),
     paste(
       "Every feature, PAS vs vehicle within sex: AUC, DeLong 95% CI (empty at perfect separation),",
       "exact Wilcoxon p, BH FDR within arc and level, r with group (PAS = 1)."

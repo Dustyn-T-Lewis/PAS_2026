@@ -115,7 +115,10 @@ to_human <- imap(BABELGENE_SPECIES, \(species, organism) {
 corum <- corum |>
   left_join(to_human, by = c("organism", "gene"), relationship = "many-to-many") |>
   mutate(human = if_else(organism == "Mouse", NA_character_, coalesce(human, str_to_upper(gene))))
-to_mouse <- babelgene::orthologs(unique(na.omit(corum$human)), species = "Mus musculus", human = TRUE) |>
+to_mouse <- babelgene::orthologs(
+  unique(na.omit(corum$human)),
+  species = "Mus musculus", human = TRUE
+) |>
   distinct(human = human_symbol, mouse = symbol)
 complex_members <- corum |>
   left_join(to_mouse, by = "human", relationship = "many-to-many") |>
@@ -200,11 +203,16 @@ catalog <- collections |>
 groups <- c(
   tested$full, tested$mito, compartments, complexes, clusters
 )
-protein_genes <- tibble(protein = rownames(proteins), gene = gene, is_mito = proteins$genes$is_mito) |>
+protein_genes <- tibble(
+  protein = rownames(proteins), gene = gene, is_mito = proteins$genes$is_mito
+) |>
   filter(!is.na(gene), gene != "")
 membership <- groups |>
   imap(\(sets, db) {
-    tibble(collection = db, term = rep(names(sets), lengths(sets)), gene = unlist(sets, use.names = FALSE))
+    tibble(
+      collection = db, term = rep(names(sets), lengths(sets)),
+      gene = unlist(sets, use.names = FALSE)
+    )
   }) |>
   list_rbind() |>
   distinct() |>
@@ -212,11 +220,17 @@ membership <- groups |>
   select(protein, gene, is_mito, collection, term) |>
   arrange(gene, protein, collection, term)
 membership_wide <- membership |>
-  summarise(n = n(), terms = paste(term, collapse = "; "), .by = c(protein, gene, is_mito, collection)) |>
+  summarise(
+    n = n(), terms = paste(term, collapse = "; "),
+    .by = c(protein, gene, is_mito, collection)
+  ) |>
   pivot_wider(names_from = collection, values_from = c(n, terms), values_fill = list(n = 0L)) |>
   right_join(protein_genes, by = c("protein", "gene", "is_mito")) |>
   mutate(across(starts_with("n_"), \(x) coalesce(x, 0L))) |>
-  select(protein, gene, is_mito, map(names(groups), \(db) paste0(c("n_", "terms_"), db)) |> unlist()) |>
+  select(
+    protein, gene, is_mito,
+    map(names(groups), \(db) paste0(c("n_", "terms_"), db)) |> unlist()
+  ) |>
   arrange(gene, protein)
 versions <- c(
   map_chr(attr(full, "versions"), as.character),
@@ -251,7 +265,10 @@ write_workbook(
     "The same, one row per protein and group.",
     "CORUM complexes with at least five detected subunits, and those subunits.",
     "STRING clusters: size, best over-represented term (FDR <= 0.05) and members.",
-    "Literature-informed sets (chosen after the v1 results, all reported), hypothesis, expectation.",
+    paste(
+      "Literature-informed sets (chosen after the v1 results, all reported),",
+      "hypothesis, expectation."
+    ),
     "Gene-set sources and versions."
   ),
   out$workbook, inputs

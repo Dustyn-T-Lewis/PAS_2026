@@ -67,16 +67,23 @@ families <- gs$goslim |>
   filter(family != "")
 score_stats <- fit$score_contrasts |>
   filter(level == "pathway", contrast %in% ARC_CONTRASTS) |>
-  select(contrast, term = feature, score_logFC = logFC, score_p = P.Value, score_fdr = adj.P.Val, r_group)
+  select(
+    contrast,
+    term = feature, score_logFC = logFC, score_p = P.Value, score_fdr = adj.P.Val, r_group
+  )
 results <- imap(objects, \(by_universe, cn) {
   imap(by_universe, \(e, u) mutate(e@results, universe = u, .before = 1)) |>
     list_rbind()
 }) |>
   list_rbind() |>
-  left_join(summarise(families, families = paste(family, collapse = "; "), .by = term), by = "term") |>
+  left_join(
+    summarise(families, families = paste(family, collapse = "; "), .by = term),
+    by = "term"
+  ) |>
   left_join(score_stats, by = c("contrast", "term")) |>
   transmute(
-    contrast, universe, collection = database, term, NES = score, p, padj, size, direction,
+    contrast, universe,
+    collection = database, term, NES = score, p, padj, size, direction,
     dedup_status, merged_into, similarity, score_logFC, score_p, score_fdr, r_group, families,
     leading_edge = flatten(leading_edge)
   ) |>
@@ -86,7 +93,10 @@ stopifnot(!anyNA(results$score_p), !anyNA(results$dedup_status))
 side_list <- function(collection, size) {
   map(ARC_CONTRASTS, \(cn) fgsea_of(studies$full, collection, cn, size)@results) |>
     list_rbind() |>
-    transmute(contrast, set = term, NES = score, p, padj, size, direction, leading_edge = flatten(leading_edge))
+    transmute(
+      contrast,
+      set = term, NES = score, p, padj, size, direction, leading_edge = flatten(leading_edge)
+    )
 }
 compartments <- side_list(gs$compartments, c(15, Inf))
 literature <- side_list(list(Literature = gs$literature_sets), c(5, Inf)) |>
@@ -114,13 +124,15 @@ association_fgsea <- expand_grid(sex = c("female", "male"), u = names(gs$tested)
   }) |>
   list_rbind() |>
   transmute(
-    sex, universe, collection = database, phenotype = contrast, term, NES = score, fgsea_p = p,
+    sex, universe,
+    collection = database, phenotype = contrast, term, NES = score, fgsea_p = p,
     fgsea_fdr = padj, size, leading_edge = flatten(leading_edge)
   ) |>
   left_join(
     fit$score_links |>
       filter(!adjusted, level == "pathway") |>
-      select(sex, phenotype, term = feature, score_slope = estimate, score_r = r,
+      select(sex, phenotype,
+        term = feature, score_slope = estimate, score_r = r,
         score_r_veh = r_veh, score_r_pas = r_pas, score_p = P.Value, score_fdr = adj.P.Val
       ),
     by = c("sex", "phenotype", "term")
@@ -133,7 +145,10 @@ string_db <- STRINGdb::STRINGdb$new(
   input_directory = here("00_Trunk", "04_Gene_Sets", "cache")
 )
 proteome <- filter(fit$protein_contrasts, universe == "full", !is.na(gene), gene != "")
-string_map <- string_db$map(data.frame(gene = unique(proteome$gene)), "gene", removeUnmappedRows = TRUE)
+string_map <- string_db$map(
+  data.frame(gene = unique(proteome$gene)), "gene",
+  removeUnmappedRows = TRUE
+)
 string_db$set_background(unique(string_map$STRING_id))
 string <- map(ARC_CONTRASTS, \(cn) {
   hits <- filter(proteome, contrast == cn)
@@ -144,10 +159,15 @@ string <- map(ARC_CONTRASTS, \(cn) {
   )
   imap(lists, \(genes, name) {
     ids <- unique(string_map$STRING_id[string_map$gene %in% genes])
-    e <- if (length(ids) >= 2) string_db$get_ppi_enrichment(ids) else list(edges = 0, lambda = 0, enrichment = 1)
+    e <- if (length(ids) >= 2) {
+      string_db$get_ppi_enrichment(ids)
+    } else {
+      list(edges = 0, lambda = 0, enrichment = 1)
+    }
     tibble(
       contrast = cn, list = name, n_proteins = length(genes), mapped = length(ids), edges = e$edges,
-      expected = e$lambda, fold = if_else(e$lambda > 0, e$edges / e$lambda, NA_real_), p = e$enrichment
+      expected = e$lambda, fold = if_else(e$lambda > 0, e$edges / e$lambda, NA_real_),
+      p = e$enrichment
     )
   }) |>
     list_rbind()
@@ -187,7 +207,8 @@ summary <- results |>
   reframe(tier_counts(p, padj), .by = c(contrast, universe, collection)) |>
   select(-pi_le_0.05)
 association_summary <- association_fgsea |>
-  reframe(tier_counts(fgsea_p, fgsea_fdr), singscore_p_le_0.05 = sum(score_p <= ALPHA),
+  reframe(tier_counts(fgsea_p, fgsea_fdr),
+    singscore_p_le_0.05 = sum(score_p <= ALPHA),
     singscore_fdr_le_0.05 = sum(score_fdr <= ALPHA), .by = c(sex, universe, collection, phenotype)
   ) |>
   select(-pi_le_0.05)
@@ -203,7 +224,8 @@ summary_page <- summary |>
   ggplot(aes(n, collection, fill = tier)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.75) +
   geom_point(
-    aes(x = expected_by_chance), data = \(d) filter(d, tier == "p ≤ 0.05"), shape = 124, size = 3,
+    aes(x = expected_by_chance),
+    data = \(d) filter(d, tier == "p ≤ 0.05"), shape = 124, size = 3,
     position = position_nudge(y = -0.2)
   ) +
   geom_text(aes(label = n), position = position_dodge(width = 0.8), hjust = -0.2, size = 2.2) +
@@ -237,7 +259,8 @@ string_page <- string |>
   ggplot(aes(fold, list)) +
   geom_vline(xintercept = 1, linetype = "dashed", linewidth = 0.3) +
   geom_point(aes(size = n_proteins), colour = "grey30") +
-  geom_text(aes(label = sprintf("%d edges, p %s", edges, if_else(p == 0, "< 1e-16", sprintf("%.2g", p)))),
+  geom_text(
+    aes(label = sprintf("%d edges, p %s", edges, if_else(p == 0, "< 1e-16", sprintf("%.2g", p)))),
     nudge_y = 0.3, size = 2
   ) +
   facet_wrap(~contrast, ncol = 1) +
@@ -245,7 +268,10 @@ string_page <- string |>
   scale_x_continuous(expand = expansion(mult = 0.12)) +
   labs(
     x = "STRING edges / expected", y = NULL, title = "STRING connectivity of each protein list",
-    subtitle = "v12, score ≥ 400, against the detected proteome; descriptive; lists with no expected edges omitted"
+    subtitle = paste(
+      "v12, score ≥ 400, against the detected proteome; descriptive;",
+      "lists with no expected edges omitted"
+    )
   ) +
   theme_figure()
 plot_index <- write_report(file.path(out$reports, "08_enrichment.pdf"), list(
@@ -277,8 +303,14 @@ write_workbook(
     "GO Slim cellular compartments, fgsea per arc contrast, full proteome.",
     "Literature-informed and ROS sets, fgsea per arc contrast, full proteome, BH across the list.",
     "Per sex, collection and phenotype: fgsea and singscore association counts.",
-    "Every set's fgsea on protein association t per sex and phenotype, beside its singscore association (slope, r, p, FDR).",
-    "Each sex's p ≤ 0.05 up and down proteins in the other sex's ranking: size, share ranked the same way, fgsea NES and p.",
+    paste(
+      "Every set's fgsea on protein association t per sex and phenotype,",
+      "beside its singscore association (slope, r, p, FDR)."
+    ),
+    paste(
+      "Each sex's p ≤ 0.05 up and down proteins in the other sex's ranking:",
+      "size, share ranked the same way, fgsea NES and p."
+    ),
     "STRING v12 connectivity of each contrast's Π and FDR lists.",
     "Which PDF page shows what."
   ),

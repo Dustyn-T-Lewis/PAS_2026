@@ -25,7 +25,8 @@ tier_of <- function(p, fdr, pi) {
   factor(
     case_when(
       fdr <= ALPHA ~ "FDR ≤ 0.05", pi <= ALPHA ~ "Π ≤ 0.05",
-      p <= ALPHA ~ "p ≤ 0.05", .default = "p > 0.05"
+      p <= ALPHA ~ "p ≤ 0.05",
+      .default = "p > 0.05"
     ),
     c("p > 0.05", "p ≤ 0.05", "Π ≤ 0.05", "FDR ≤ 0.05")
   )
@@ -61,7 +62,9 @@ short <- \(x, width = 34) str_trunc(enrichVolcano::clean_label(x, width = 200), 
 mouse_grid <- function(long, title, subtitle, y = "log2 abundance") {
   paginate(long, \(d) {
     ggplot(d, aes(group, value, colour = group, shape = sex)) +
-      stat_summary(fun = median, geom = "crossbar", width = 0.5, linewidth = 0.25, colour = "grey40") +
+      stat_summary(
+        fun = median, geom = "crossbar", width = 0.5, linewidth = 0.25, colour = "grey40"
+      ) +
       geom_point(position = position_jitter(width = 0.12, seed = SEED), size = 1.1) +
       facet_wrap(~strip, scales = "free_y", ncol = 5, nrow = 4, drop = FALSE) +
       scale_colour_manual(values = GROUP_COLOURS, guide = "none") +
@@ -83,7 +86,10 @@ long_values <- function(m, features, strips, targets) {
 # connectivity of those lists from 08_Enrichment (descriptive).
 arc_proteins <- function(arc) {
   out <- arc_paths(arc, "01_Proteins")
-  inputs <- c(fit = trunk_path("07_Fit", "fit.rds"), enrichment = trunk_path("08_Enrichment", "enrichment.rds"))
+  inputs <- c(
+    fit = trunk_path("07_Fit", "fit.rds"),
+    enrichment = trunk_path("08_Enrichment", "enrichment.rds")
+  )
   fit <- readRDS(inputs[["fit"]])
   contrast <- ARCS[[arc]]$contrast
   label <- ARCS[[arc]]$label
@@ -91,7 +97,9 @@ arc_proteins <- function(arc) {
 
   results <- fit$protein_contrasts |>
     filter(contrast == !!contrast) |>
-    mutate(tier = tier_of(P.Value, adj.P.Val, pi_score), direction = if_else(logFC > 0, "up", "down")) |>
+    mutate(
+      tier = tier_of(P.Value, adj.P.Val, pi_score), direction = if_else(logFC > 0, "up", "down")
+    ) |>
     arrange(universe, P.Value)
   summary <- results |>
     reframe(tier_counts(P.Value, adj.P.Val, pi_score), .by = c(universe, direction))
@@ -130,8 +138,16 @@ arc_proteins <- function(arc) {
     ) |>
     ggplot(aes(n, tier, fill = direction)) +
     geom_col(width = 0.7) +
-    geom_vline(aes(xintercept = -expected_by_chance), data = \(d) filter(d, tier == "p ≤ 0.05", direction == "down"), linetype = "dashed", linewidth = 0.3) +
-    geom_vline(aes(xintercept = expected_by_chance), data = \(d) filter(d, tier == "p ≤ 0.05", direction == "up"), linetype = "dashed", linewidth = 0.3) +
+    geom_vline(
+      aes(xintercept = -expected_by_chance),
+      data = \(d) filter(d, tier == "p ≤ 0.05", direction == "down"),
+      linetype = "dashed", linewidth = 0.3
+    ) +
+    geom_vline(
+      aes(xintercept = expected_by_chance),
+      data = \(d) filter(d, tier == "p ≤ 0.05", direction == "up"),
+      linetype = "dashed", linewidth = 0.3
+    ) +
     geom_vline(xintercept = 0, linewidth = 0.3) +
     geom_text(aes(label = abs(n), hjust = if_else(n < 0, 1.2, -0.2)), size = 2.2) +
     facet_wrap(~universe, scales = "free_x") +
@@ -139,7 +155,10 @@ arc_proteins <- function(arc) {
     scale_x_continuous(labels = abs, expand = expansion(mult = 0.2)) +
     labs(
       x = "Proteins (down | up)", y = NULL, title = "Proteins per tier",
-      subtitle = "Dashed: proteins at p ≤ 0.05 expected by chance in each direction; Π can include p > 0.05"
+      subtitle = paste(
+        "Dashed: proteins at p ≤ 0.05 expected by chance in each direction;",
+        "Π can include p > 0.05"
+      )
     ) +
     theme_figure()
   hits <- filter(results, universe == "full", P.Value <= ALPHA)
@@ -155,7 +174,10 @@ arc_proteins <- function(arc) {
   grids <- mouse_grid(long_values(fit$E_norm$full, hits$feature, strips, targets),
     title = str_glue("{label}: every protein at p ≤ 0.05, in order of p"),
     subtitle = if (interaction) {
-      "log2 abundance per mouse, bar at the group median; log2FC: female PAS response minus male PAS response"
+      paste(
+        "log2 abundance per mouse, bar at the group median;",
+        "log2FC: female PAS response minus male PAS response"
+      )
     } else {
       "log2 abundance per mouse, bar at the group median; r: Pearson r with PAS (PAS = 1)"
     }
@@ -168,7 +190,8 @@ arc_proteins <- function(arc) {
     set_names(grids, sprintf("per-mouse grid, page %d", seq_along(grids)))
   ))
 
-  saveRDS(list(results = results, summary = summary, pi_lists = pi_lists, string = string),
+  saveRDS(
+    list(results = results, summary = summary, pi_lists = pi_lists, string = string),
     file.path(out$data, "proteins.rds")
   )
   write_workbook(
@@ -178,7 +201,10 @@ arc_proteins <- function(arc) {
     ),
     c(
       "Per universe and direction: p ≤ 0.05, chance, Π ≤ 0.05, FDR tiers.",
-      "Every protein in both universes, by p: log2 FC with 95% CI, t, p, BH FDR, Π, r with PAS, tier.",
+      paste(
+        "Every protein in both universes, by p:",
+        "log2 FC with 95% CI, t, p, BH FDR, Π, r with PAS, tier."
+      ),
       "Full-universe proteins at Π ≤ 0.05, by direction.",
       "STRING v12 connectivity of each list against the detected proteome (descriptive).",
       "Which PDF page shows what."
@@ -216,11 +242,16 @@ enrichment_grid <- function(terms, sets, ranks, title) {
         )
       ) +
       theme_figure() +
-      theme(plot.title = element_text(size = 5, face = "plain"), axis.text = element_text(size = 4.5))
+      theme(
+        plot.title = element_text(size = 5, face = "plain"), axis.text = element_text(size = 4.5)
+      )
   })
   split(plots, ceiling(seq_along(plots) / 12)) |>
     map(\(page) {
-      patchwork::wrap_plots(c(page, rep(list(patchwork::plot_spacer()), 12 - length(page))), ncol = 4) +
+      patchwork::wrap_plots(
+        c(page, rep(list(patchwork::plot_spacer()), 12 - length(page))),
+        ncol = 4
+      ) +
         patchwork::plot_annotation(
           title = title, theme = theme(plot.title = element_text(size = 7.5, face = "bold"))
         )
@@ -286,7 +317,10 @@ arc_pathways <- function(arc) {
     enrichVolcano::plot_volcano_ring(da[da$contrast == contrast, ], enr$objects[[contrast]][[u]],
       contrast = contrast, databases = db, terms = terms$term,
       labels = set_names(
-        paste0(enrichVolcano::clean_label(terms$term, width = 22), if_else(terms$padj <= ALPHA, " *", "")),
+        paste0(
+          enrichVolcano::clean_label(terms$term, width = 22),
+          if_else(terms$padj <= ALPHA, " *", "")
+        ),
         terms$term
       ),
       title = str_glue("{label}: {db}"),
@@ -308,11 +342,17 @@ arc_pathways <- function(arc) {
     ggplot(aes(n, family, fill = direction)) +
     geom_col(width = 0.7) +
     geom_vline(xintercept = 0, linewidth = 0.3) +
-    scale_fill_manual(values = c(down_p = "#2166AC", up_p = "#B2182B"), labels = c("down", "up"), name = NULL) +
+    scale_fill_manual(
+      values = c(down_p = "#2166AC", up_p = "#B2182B"), labels = c("down", "up"), name = NULL
+    ) +
     scale_x_continuous(labels = abs) +
     labs(
-      x = "GO:BP terms at p ≤ 0.05 (down | up)", y = NULL, title = str_glue("{label}: signal by GO Slim family"),
-      subtitle = "fgsea; a term counts in every family it belongs to; every family with a term at p ≤ 0.05"
+      x = "GO:BP terms at p ≤ 0.05 (down | up)", y = NULL,
+      title = str_glue("{label}: signal by GO Slim family"),
+      subtitle = paste(
+        "fgsea; a term counts in every family it belongs to;",
+        "every family with a term at p ≤ 0.05"
+      )
     ) +
     theme_figure()
   tree_page <- tree_terms |>
@@ -325,7 +365,9 @@ arc_pathways <- function(arc) {
       colour = "black", stroke = 0.7
     ) +
     scale_y_discrete(labels = \(x) enrichVolcano::clean_label(x, width = 60)) +
-    scale_fill_gradient2(low = "#2166AC", high = "#B2182B", limits = c(-3, 3), oob = scales::squish) +
+    scale_fill_gradient2(
+      low = "#2166AC", high = "#B2182B", limits = c(-3, 3), oob = scales::squish
+    ) +
     labs(
       x = "NES", y = NULL, title = "20 strongest GO:BP and Reactome terms, ordered by shared genes",
       subtitle = "EnrichmentMap similarity, average linkage; black ring FDR ≤ 0.05"
@@ -337,9 +379,15 @@ arc_pathways <- function(arc) {
     geom_col(width = 0.7) +
     geom_vline(xintercept = 0, linewidth = 0.3) +
     geom_text(aes(label = sprintf("p %.2g", p), hjust = if_else(NES < 0, 1.1, -0.1)), size = 1.8) +
-    scale_fill_manual(values = c(`TRUE` = arc_colour(arc), `FALSE` = "grey70"), labels = c("FDR > 0.05", "FDR ≤ 0.05"), name = NULL) +
+    scale_fill_manual(
+      values = c(`TRUE` = arc_colour(arc), `FALSE` = "grey70"),
+      labels = c("FDR > 0.05", "FDR ≤ 0.05"), name = NULL
+    ) +
     scale_x_continuous(expand = expansion(mult = 0.25)) +
-    labs(x = "NES", y = NULL, title = "GO Slim cellular compartments", subtitle = "fgsea, full proteome") +
+    labs(
+      x = "NES", y = NULL, title = "GO Slim cellular compartments",
+      subtitle = "fgsea, full proteome"
+    ) +
     theme_figure()
   grids <- enrichment_grid(filter(results, p <= ALPHA), enr$sets, enr$ranks[[contrast]],
     title = str_glue("{label}: every term at p ≤ 0.05, in order of p (fgsea running score)")
@@ -370,13 +418,17 @@ arc_pathways <- function(arc) {
     c(
       "Per universe and collection: p ≤ 0.05, chance, FDR tiers.",
       paste(
-        "Every tested set, by p: NES, p, BH FDR within collection, size, redundancy flag, singscore",
+        "Every tested set, by p: NES, p, BH FDR within collection, size, redundancy flag,",
+        "singscore",
         "contrast (log2 FC, p, FDR, r with group), GO Slim families, leading edge."
       ),
       "Per GO Slim family: GO:BP terms tested and at p and FDR ≤ 0.05 by direction.",
       "GO Slim cellular compartments: fgsea, full proteome.",
       "Ring terms: 12 strongest per collection that the EnrichmentMap flag keeps.",
-      "Tree terms: 20 strongest GO:BP and Reactome terms, their cluster at EnrichmentMap 0.375 and its lead term.",
+      paste(
+        "Tree terms: 20 strongest GO:BP and Reactome terms,",
+        "their cluster at EnrichmentMap 0.375 and its lead term."
+      ),
       "Literature-informed and ROS sets, fgsea in the full proteome, BH across the list.",
       "Which PDF page shows what."
     ),
@@ -390,19 +442,30 @@ arc_pathways <- function(arc) {
 link_grid <- function(long, title, subtitle, ncol = 5, nrow = 4) {
   paginate(long, per_page = ncol * nrow, draw = \(d) {
     ggplot(d, aes(phenotype_value, value)) +
-      geom_smooth(aes(group = 1), method = "lm", formula = y ~ x, se = FALSE, colour = "grey20", linetype = "dashed", linewidth = 0.4) +
-      geom_smooth(aes(colour = group), method = "lm", formula = y ~ x, se = FALSE, linewidth = 0.4) +
+      geom_smooth(
+        aes(group = 1),
+        method = "lm", formula = y ~ x, se = FALSE, colour = "grey20", linetype = "dashed",
+        linewidth = 0.4
+      ) +
+      geom_smooth(
+        aes(colour = group),
+        method = "lm", formula = y ~ x, se = FALSE, linewidth = 0.4
+      ) +
       geom_point(aes(colour = group), size = 1.1) +
       facet_wrap(~strip, scales = "free", ncol = ncol, nrow = nrow, drop = FALSE) +
       scale_colour_manual(values = GROUP_COLOURS, name = NULL) +
       labs(x = "Phenotype", y = "Feature value", title = title, subtitle = subtitle) +
       theme_figure() +
-      theme(strip.text = element_text(size = 4.6, face = "plain"), axis.text = element_text(size = 4.5), legend.position = "bottom")
+      theme(
+        strip.text = element_text(size = 4.6, face = "plain"), axis.text = element_text(size = 4.5),
+        legend.position = "bottom"
+      )
   })
 }
 
-# The protein with the smallest association p whose slope keeps its sign and p <= 0.05 when any one mouse
-# is left out (ordinary least squares within the sex), so an example is not one mouse's doing.
+# The protein with the smallest association p whose slope keeps its sign and p <= 0.05 when any
+# one mouse is left out (ordinary least squares within the sex), so an example is not one mouse's
+# doing.
 robust_example <- function(links, E, x, mice, max_tries = 50) {
   candidates <- slice_min(links, P.Value, n = max_tries, with_ties = FALSE)
   for (i in seq_len(nrow(candidates))) {
@@ -433,7 +496,8 @@ LEVEL_LABELS <- c(
 arc_associations <- function(arc) {
   out <- arc_paths(arc, "03_Associations")
   inputs <- c(
-    fit = trunk_path("07_Fit", "fit.rds"), enrichment = trunk_path("08_Enrichment", "enrichment.rds")
+    fit = trunk_path("07_Fit", "fit.rds"),
+    enrichment = trunk_path("08_Enrichment", "enrichment.rds")
   )
   fit <- readRDS(inputs[["fit"]])
   sex <- ARCS[[arc]]$sex
@@ -480,7 +544,10 @@ arc_associations <- function(arc) {
       ),
       trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS))
     ) |>
-    summarise(across(c(tests, p_le_0.05, expected_by_chance, fdr_le_0.05), sum), .by = c(level, trait)) |>
+    summarise(
+      across(c(tests, p_le_0.05, expected_by_chance, fdr_le_0.05), sum),
+      .by = c(level, trait)
+    ) |>
     mutate(ratio = p_le_0.05 / expected_by_chance) |>
     ggplot(aes(level, trait, fill = ratio)) +
     geom_tile(colour = "white") +
@@ -488,7 +555,10 @@ arc_associations <- function(arc) {
     scale_fill_gradient(low = "white", high = "grey35", name = "p ≤ 0.05 /\nchance") +
     labs(
       x = NULL, y = NULL, title = str_glue("{label}: phenotype associations by level"),
-      subtitle = "Co-movement across PAS and vehicle mice of this sex (n = 10); p ≤ 0.05 of tests; BH within level and phenotype"
+      subtitle = paste(
+        "Co-movement across PAS and vehicle mice of this sex (n = 10);",
+        "p ≤ 0.05 of tests; BH within level and phenotype"
+      )
     ) +
     theme_figure()
   check_page <- link_summary |>
@@ -503,9 +573,12 @@ arc_associations <- function(arc) {
     ggplot(aes(value, trait, fill = model)) +
     geom_col(position = position_dodge(width = 0.8), width = 0.75) +
     facet_wrap(~count, scales = "free_x") +
-    scale_fill_manual(values = c(without = "grey40", `with pellet mito share` = "grey75"), name = NULL) +
+    scale_fill_manual(
+      values = c(without = "grey40", `with pellet mito share` = "grey75"), name = NULL
+    ) +
     labs(
-      x = "Proteins", y = NULL, title = "Check: protein associations with and without pellet mitochondrial share",
+      x = "Proteins", y = NULL,
+      title = "Check: protein associations with and without pellet mitochondrial share",
       subtitle = "Share centred within group, added to the association model"
     ) +
     theme_figure()
@@ -514,7 +587,8 @@ arc_associations <- function(arc) {
     select(level, feature, phenotype, r, adj.P.Val) |>
     left_join(r_group, by = c("level", "feature"), relationship = "many-to-one")
   heat <- bind_rows(
-    distinct(group_rows, level, feature, r = r_group, fdr = group_fdr) |> mutate(column = "PAS vs vehicle"),
+    distinct(group_rows, level, feature, r = r_group, fdr = group_fdr) |>
+      mutate(column = "PAS vs vehicle"),
     transmute(group_rows, level, feature, r, fdr = adj.P.Val, column = PHENOTYPE_LABELS[phenotype])
   ) |>
     mutate(
@@ -535,13 +609,19 @@ arc_associations <- function(arc) {
     map(\(d) {
       ggplot(d, aes(column, feature, fill = r)) +
         geom_tile(colour = "white") +
-        geom_tile(data = \(x) filter(x, fdr <= ALPHA), fill = NA, colour = "black", linewidth = 0.5) +
+        geom_tile(
+          data = \(x) filter(x, fdr <= ALPHA), fill = NA, colour = "black", linewidth = 0.5
+        ) +
         geom_text(aes(label = sprintf("%.2f", r)), size = 1.7) +
         facet_grid(~panel, scales = "free_x", space = "free_x") +
         scale_fill_gradient2(low = "#2166AC", high = "#B2182B", limits = c(-1, 1)) +
         labs(
-          x = NULL, y = NULL, title = str_glue("{label}: {d$level[1]}, treatment effect and phenotype associations"),
-          subtitle = "Pearson r across this sex's ten mice (treatment: PAS = 1); box: FDR ≤ 0.05 (limma, BH within level)"
+          x = NULL, y = NULL,
+          title = str_glue("{label}: {d$level[1]}, treatment effect and phenotype associations"),
+          subtitle = paste(
+            "Pearson r across this sex's ten mice (treatment: PAS = 1);",
+            "box: FDR ≤ 0.05 (limma, BH within level)"
+          )
         ) +
         theme_figure() +
         theme(axis.text.x = element_text(angle = 30, hjust = 1))
@@ -550,21 +630,26 @@ arc_associations <- function(arc) {
     rowwise() |>
     reframe(
       strip = sprintf(
-        "%s · %s\nr %.2f (VEH %.2f, PAS %.2f)\np %.2g, FDR %.2g", PHENOTYPE_LABELS[phenotype], label, r,
+        "%s · %s\nr %.2f (VEH %.2f, PAS %.2f)\np %.2g, FDR %.2g",
+        PHENOTYPE_LABELS[phenotype], label, r,
         r_veh, r_pas, P.Value, adj.P.Val
       ),
-      sample_id = mice, value = fit$E_norm$full[feature, mice], phenotype_value = phenotype_of(phenotype)
+      sample_id = mice, value = fit$E_norm$full[feature, mice],
+      phenotype_value = phenotype_of(phenotype)
     ) |>
     left_join(select(targets, sample_id, group), by = "sample_id") |>
     mutate(group = factor(group, FIGURE_GROUPS), strip = strip_factor(strip))
   examples_page <- link_grid(example_long,
     title = str_glue("{label}: strongest robust protein per phenotype"),
-    subtitle = "Smallest association p that keeps its sign and p ≤ 0.05 with any one mouse left out",
+    subtitle =
+      "Smallest association p that keeps its sign and p ≤ 0.05 with any one mouse left out",
     ncol = 3, nrow = 2
   )
 
   score_matrix <- rbind(fit$scores$full, fit$scores$mito, fit$scores$module)
-  feature_matrix <- \(level, universe) if (level == "protein") fit$E_norm[[universe]] else score_matrix
+  feature_matrix <- \(level, universe) {
+    if (level == "protein") fit$E_norm[[universe]] else score_matrix
+  }
   hits <- links |>
     filter(P.Value <= ALPHA) |>
     arrange(match(level, names(LEVEL_LABELS)), match(phenotype, PHENOTYPES), P.Value)
@@ -576,24 +661,45 @@ arc_associations <- function(arc) {
       p <- d$phenotype[1]
       strips <- sprintf(
         "%s%s\nr %.2f (VEH %.2f, PAS %.2f)\np %.2g, FDR %.2g", short(d$label, 32),
-        if_else(level == "protein" & d$universe == "mito", " (mito)", ""), d$r, d$r_veh, d$r_pas, d$P.Value, d$adj.P.Val
+        if_else(level == "protein" & d$universe == "mito", " (mito)", ""),
+        d$r, d$r_veh, d$r_pas, d$P.Value, d$adj.P.Val
       )
       long <- pmap(list(d$feature, d$universe, strips), \(f, u, s) {
-        tibble(strip = s, sample_id = mice, value = feature_matrix(level, u)[f, mice], phenotype_value = phenotype_of(p))
+        tibble(
+          strip = s, sample_id = mice, value = feature_matrix(level, u)[f, mice],
+          phenotype_value = phenotype_of(p)
+        )
       }) |>
         list_rbind() |>
         left_join(select(targets, sample_id, group), by = "sample_id") |>
         mutate(group = factor(group, FIGURE_GROUPS), strip = strip_factor(strip))
       effect <- filter(effects, phenotype == p)
       pages <- link_grid(long,
-        title = str_glue("{label}: {LEVEL_LABELS[level]} associated with {PHENOTYPE_LABELS[p]}, every association at p ≤ 0.05 (n = {nrow(d)})"),
+        title = str_glue(
+          "{label}: {LEVEL_LABELS[level]} associated with {PHENOTYPE_LABELS[p]}, ",
+          "every association at p ≤ 0.05 (n = {nrow(d)})"
+        ),
         subtitle = sprintf(
-          "Phenotype effect of PAS in this sex: %+.0f%% (p %.2g)%s.\nLines within vehicle and within PAS (5 mice each); dashed: all 10 mice, the tested association",
+          paste0(
+            "Phenotype effect of PAS in this sex: %+.0f%% (p %.2g)%s.\n",
+            "Lines within vehicle and within PAS (5 mice each); dashed: all 10 mice, ",
+            "the tested association"
+          ),
           effect$pct_change, effect$P.Value,
-          if (effect$P.Value > ALPHA) ", so these associations follow variation between mice, not a PAS response" else ""
+          if (effect$P.Value > ALPHA) {
+            ", so these associations follow variation between mice, not a PAS response"
+          } else {
+            ""
+          }
         )
       )
-      set_names(pages, sprintf("association grid, %s, %s, page %d", LEVEL_LABELS[level], PHENOTYPE_LABELS[p], seq_along(pages)))
+      set_names(
+        pages,
+        sprintf(
+          "association grid, %s, %s, page %d", LEVEL_LABELS[level], PHENOTYPE_LABELS[p],
+          seq_along(pages)
+        )
+      )
     }) |>
     unlist(recursive = FALSE)
   plot_index <- write_report(file.path(out$reports, "03_associations.pdf"), c(
@@ -623,11 +729,26 @@ arc_associations <- function(arc) {
     ),
     c(
       "Phenotype effects: PAS vs vehicle per phenotype in this sex, % change, 95% CI, Welch p.",
-      "Per level, universe and phenotype: associations at p ≤ 0.05, chance, FDR tiers; adjusted rows add pellet mito share.",
-      "Every protein's association with each phenotype across this sex's ten mice: slope (log2 per SD), 95% CI, t, p, BH FDR, r pooled, r in VEH, r in PAS.",
-      "Every pathway, module, complex and cluster score's association with each phenotype, same columns.",
-      "fgsea on protein association t per phenotype (gene permutation), beside the same set's singscore association (mouse level).",
-      "Treatment effect beside the associations: every feature's r with PAS (PAS = 1) in this sex, with the contrast's p and FDR.",
+      paste(
+        "Per level, universe and phenotype: associations at p ≤ 0.05, chance, FDR tiers;",
+        "adjusted rows add pellet mito share."
+      ),
+      paste(
+        "Every protein's association with each phenotype across this sex's ten mice:",
+        "slope (log2 per SD), 95% CI, t, p, BH FDR, r pooled, r in VEH, r in PAS."
+      ),
+      paste(
+        "Every pathway, module, complex and cluster score's association with each phenotype,",
+        "same columns."
+      ),
+      paste(
+        "fgsea on protein association t per phenotype (gene permutation),",
+        "beside the same set's singscore association (mouse level)."
+      ),
+      paste(
+        "Treatment effect beside the associations: every feature's r with PAS (PAS = 1)",
+        "in this sex, with the contrast's p and FDR."
+      ),
       "The robust example protein per phenotype.",
       "Which PDF page shows what."
     ),
@@ -638,11 +759,16 @@ arc_associations <- function(arc) {
 
 # ROC curve points for one feature, drawn on the side it separates.
 roc_points <- function(x, case, auc) {
-  r <- pROC::roc(factor(case, c(FALSE, TRUE)), x, direction = if (auc >= 0.5) "<" else ">", quiet = TRUE)
+  r <- pROC::roc(
+    factor(case, c(FALSE, TRUE)), x,
+    direction = if (auc >= 0.5) "<" else ">", quiet = TRUE
+  )
   tibble(fpr = 1 - r$specificities, tpr = r$sensitivities) |> arrange(fpr, tpr)
 }
 
-CLASSIFICATION_LEVELS <- c(pathway = "Pathways", module = "Modules", complex = "Complexes", cluster = "Clusters")
+CLASSIFICATION_LEVELS <- c(
+  pathway = "Pathways", module = "Modules", complex = "Complexes", cluster = "Clusters"
+)
 
 # Classification: which single pathway scores, modules, complexes and clusters separate PAS from
 # vehicle mice in this sex, sliced from 09_Classification (AUC, DeLong CI, exact Wilcoxon p, BH
@@ -667,14 +793,20 @@ arc_classification <- function(arc) {
   perfect_page <- perfect |>
     mutate(level = factor(CLASSIFICATION_LEVELS[level], rev(CLASSIFICATION_LEVELS))) |>
     ggplot(aes(observed, level)) +
-    geom_errorbar(aes(xmin = 0, xmax = null_q95), width = 0.3, colour = "grey60", orientation = "y") +
+    geom_errorbar(
+      aes(xmin = 0, xmax = null_q95),
+      width = 0.3, colour = "grey60", orientation = "y"
+    ) +
     geom_point(aes(x = null_median), shape = 124, size = 3, colour = "grey40") +
     geom_point(size = 2, colour = arc_colour(arc)) +
     geom_text(aes(label = sprintf("p %.3f", p)), nudge_y = 0.3, hjust = 0, size = 2) +
     labs(
       x = "Features separating PAS from vehicle perfectly", y = NULL,
       title = str_glue("{label}: perfect separations against chance"),
-      subtitle = "Dot: observed; grey: median and 95th percentile over all 252 relabellings of the same mice"
+      subtitle = paste(
+        "Dot: observed; grey: median and 95th percentile",
+        "over all 252 relabellings of the same mice"
+      )
     ) +
     theme_figure()
   auc_page <- roc |>
@@ -682,7 +814,10 @@ arc_classification <- function(arc) {
     ggplot(aes(auc)) +
     geom_histogram(breaks = seq(0, 1, 0.05), fill = "grey65", colour = "white", linewidth = 0.2) +
     facet_wrap(~level, scales = "free_y", ncol = 1) +
-    labs(x = "AUC (1: higher in PAS)", y = "Features", title = str_glue("{label}: AUC of every feature")) +
+    labs(
+      x = "AUC (1: higher in PAS)", y = "Features",
+      title = str_glue("{label}: AUC of every feature")
+    ) +
     theme_figure()
   curve_pages <- roc |>
     filter(p <= ALPHA) |>
@@ -708,13 +843,25 @@ arc_classification <- function(arc) {
           coord_equal() +
           labs(
             x = "1 - specificity", y = "Sensitivity",
-            title = str_glue("{label}: {CLASSIFICATION_LEVELS[level]}, PAS vs vehicle, every feature at p ≤ 0.05 (n = {nrow(d)})"),
-            subtitle = "Exact Wilcoxon p, BH within level; higher or lower in PAS; r with PAS (PAS = 1)"
+            title = str_glue(
+              "{label}: {CLASSIFICATION_LEVELS[level]}, PAS vs vehicle, ",
+              "every feature at p ≤ 0.05 (n = {nrow(d)})"
+            ),
+            subtitle = paste(
+              "Exact Wilcoxon p, BH within level; higher or lower in PAS;",
+              "r with PAS (PAS = 1)"
+            )
           ) +
           theme_figure() +
-          theme(strip.text = element_text(size = 4.6, face = "plain"), axis.text = element_text(size = 4.5))
+          theme(
+            strip.text = element_text(size = 4.6, face = "plain"),
+            axis.text = element_text(size = 4.5)
+          )
       })
-      set_names(pages, sprintf("ROC grid, %s, page %d", CLASSIFICATION_LEVELS[level], seq_along(pages)))
+      set_names(
+        pages,
+        sprintf("ROC grid, %s, page %d", CLASSIFICATION_LEVELS[level], seq_along(pages))
+      )
     }) |>
     unlist(recursive = FALSE)
   plot_index <- write_report(file.path(out$reports, "04_classification.pdf"), c(
@@ -722,7 +869,10 @@ arc_classification <- function(arc) {
     curve_pages
   ))
 
-  saveRDS(list(roc = roc, perfect = perfect, summary = summary), file.path(out$data, "classification.rds"))
+  saveRDS(
+    list(roc = roc, perfect = perfect, summary = summary),
+    file.path(out$data, "classification.rds")
+  )
   write_workbook(
     list(summary = summary, roc = roc, perfect_separations = perfect, plot_index = plot_index),
     c(

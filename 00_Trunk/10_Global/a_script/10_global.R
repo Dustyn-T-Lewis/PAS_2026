@@ -108,7 +108,9 @@ r2_page <- ggplot(component_r2, aes(pc, factor(factor, rev(names(codes))), fill 
   geom_tile(colour = "white") +
   geom_text(aes(label = sprintf("%.2f", r2)), size = 2.4) +
   scale_fill_gradient(low = "white", high = "grey25", limits = c(0, 1)) +
-  labs(x = NULL, y = NULL, title = "What each component tracks", subtitle = "R² of each factor alone") +
+  labs(
+    x = NULL, y = NULL, title = "What each component tracks", subtitle = "R² of each factor alone"
+  ) +
   theme_figure()
 plot_index <- write_report(file.path(out$reports, "10_global.pdf"), list(
   "proteome PCA" = pca_page(proteome_scores, proteome, "Proteome PCA"),

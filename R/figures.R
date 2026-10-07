@@ -178,8 +178,13 @@ phenotype_effect_plot <- function(effects, title, subtitle) {
       labels = \(x) sprintf("%+.0f%%", 100 * (x - 1))
     ) +
     scale_colour_manual(values = SEX_COLOURS, breaks = c("Female", "Male"), name = NULL) +
-    scale_shape_manual(values = c(`TRUE` = 16, `FALSE` = 21), labels = c("p > 0.05", "p ≤ 0.05"), name = NULL) +
-    labs(x = "PAS vs vehicle, % change (95% CI, log scale)", y = NULL, title = title, subtitle = subtitle) +
+    scale_shape_manual(
+      values = c(`TRUE` = 16, `FALSE` = 21), labels = c("p > 0.05", "p ≤ 0.05"), name = NULL
+    ) +
+    labs(
+      x = "PAS vs vehicle, % change (95% CI, log scale)", y = NULL, title = title,
+      subtitle = subtitle
+    ) +
     theme_figure()
 }
 
@@ -223,10 +228,14 @@ pca_panel <- function(scores, variance, title, subtitle, stats, arrows = NULL) {
 # the down list below, with a tricube moving average of membership along the rank. `ranks` holds
 # the named moderated t of each target ranking; `signatures` comes from 08_Enrichment.
 signature_barcode <- function(signatures, ranks, span = 0.12, floor = 0.34) {
-  lane_name <- \(source, ranked_in) sprintf("%s signature\nin %s ranking", str_to_sentence(source), ranked_in)
+  lane_name <- \(source, ranked_in) {
+    sprintf("%s signature\nin %s ranking", str_to_sentence(source), ranked_in)
+  }
   lanes <- signatures |>
     mutate(
-      lane = factor(lane_name(source, ranked_in), lane_name(c("female", "male"), c("male", "female"))),
+      lane = factor(
+        lane_name(source, ranked_in), lane_name(c("female", "male"), c("male", "female"))
+      ),
       side = if_else(direction == "up", 1, -1),
       ranks = map2(members, ranked_in, \(m, target) {
         order <- rank(-ranks[[target]], ties.method = "first")
@@ -247,7 +256,9 @@ signature_barcode <- function(signatures, ranks, span = 0.12, floor = 0.34) {
     mutate(y = side * height, y0 = side * floor)
   labels <- lanes |>
     mutate(
-      text = sprintf("%s (n = %d), %.0f%% same way, p %.2g", direction, n_ranked, 100 * same_way, p),
+      text = sprintf(
+        "%s (n = %d), %.0f%% same way, p %.2g", direction, n_ranked, 100 * same_way, p
+      ),
       x = if_else(direction == "up", n_total * 0.995, n_total * 0.005),
       hjust = if_else(direction == "up", 1, 0), y = side * 0.97, vjust = if_else(side > 0, 1, 0)
     )

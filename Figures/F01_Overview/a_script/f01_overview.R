@@ -31,7 +31,9 @@ permanova_text <- \(tab) {
 # a: the design, generated from assets/design_spec and checked label by label.
 panel_design <- ggplot() +
   annotation_custom(grid::rasterGrob(png::readPNG(inputs[["design"]]), interpolate = TRUE)) +
-  labs(title = "Design", subtitle = "20 mice, n = 5 per group; contrast colours carry through b to g") +
+  labs(
+    title = "Design", subtitle = "20 mice, n = 5 per group; contrast colours carry through b to g"
+  ) +
   theme_void(base_size = 7) +
   theme(
     plot.title = element_text(size = 7.5, face = "bold"),
@@ -67,10 +69,15 @@ bars <- protein_counts |>
     universe = universe_label[universe]
   ) |>
   left_join(select(fdr_text, universe, contrast, row, band), by = c("universe", "contrast")) |>
-  mutate(row = factor(row, unique(fdr_text$row[order(match(fdr_text$contrast, rev(ARC_CONTRASTS)))]))) |>
+  mutate(
+    row = factor(row, unique(fdr_text$row[order(match(fdr_text$contrast, rev(ARC_CONTRASTS)))]))
+  ) |>
   arrange(tier == "pi")
 panel_proteins <- ggplot(bars, aes(signed, row)) +
-  geom_tile(aes(x = 0, fill = I(band)), distinct(bars, row, universe, band), width = Inf, height = 0.95) +
+  geom_tile(
+    aes(x = 0, fill = I(band)), distinct(bars, row, universe, band),
+    width = Inf, height = 0.95
+  ) +
   geom_col(aes(fill = fill), width = 0.6, position = "identity") +
   geom_vline(xintercept = 0, linewidth = 0.25) +
   geom_vline(
@@ -89,7 +96,10 @@ panel_proteins <- ggplot(bars, aes(signed, row)) +
     subtitle = "Light: p ≤ 0.05 or Π ≤ 0.05; dark: Π ≤ 0.05; dashed: chance at p ≤ 0.05"
   ) +
   theme_figure() +
-  theme(legend.position = "bottom", legend.key.size = unit(2.5, "mm"), panel.grid.major.y = element_blank()) +
+  theme(
+    legend.position = "bottom", legend.key.size = unit(2.5, "mm"),
+    panel.grid.major.y = element_blank()
+  ) +
   guides(fill = guide_legend(nrow = 2))
 
 # c: proteome PCA of all twenty mice with the MitoCarta share fitted as a vector (10_Global).
@@ -120,7 +130,8 @@ panel_phenotype <- pca_panel(
 # e: phenotype effects of PAS within each sex, with the interaction p beside each row.
 interaction_p <- with(fit$phenotype_interaction, set_names(P.Value, PHENOTYPE_LABELS[phenotype]))
 panel_effects <- phenotype_effect_plot(fit$phenotype_effects,
-  title = "Phenotype effects", subtitle = "PAS vs vehicle within sex, Welch t on log values; F − M: interaction p"
+  title = "Phenotype effects",
+  subtitle = "PAS vs vehicle within sex, Welch t on log values; F − M: interaction p"
 ) +
   scale_y_discrete(labels = \(x) sprintf("%s\nF − M p %.2g", x, interaction_p[x])) +
   theme(legend.position = "bottom", legend.key.size = unit(2.5, "mm"))
@@ -134,13 +145,17 @@ selected <- enr$results |>
   arrange(selected_by, p) |>
   distinct(term, .keep_all = TRUE) |>
   transmute(
-    term, collection, selected_by, order = row_number(),
-    label = paste0(enrichVolcano::clean_label(term, width = 48), if_else(score_p > ALPHA, " †", ""))
+    term, collection, selected_by,
+    order = row_number(),
+    label = paste0(
+      enrichVolcano::clean_label(term, width = 48), if_else(score_p > ALPHA, " †", "")
+    )
   )
 pathways <- enr$results |>
   inner_join(select(selected, term, selected_by, order, label), by = "term") |>
   mutate(
-    column = factor(SHORT[contrast], SHORT), facet = factor(SHORT[as.character(selected_by)], SHORT),
+    column = factor(SHORT[contrast], SHORT),
+    facet = factor(SHORT[as.character(selected_by)], SHORT),
     log_fdr = pmin(-log10(padj), 4), row = reorder(term, -order)
   )
 nes_limit <- ceiling(max(abs(pathways$NES)) * 10) / 10
@@ -160,11 +175,20 @@ panel_pathways <- ggplot(pathways, aes(column, row)) +
     low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
     limits = c(-nes_limit, nes_limit), name = "NES"
   ) +
-  scale_size_area(max_size = 3, limits = c(0, 4), breaks = c(1, 2, 4), labels = c("1", "2", "4+"), name = "-log10 FDR") +
-  guides(fill = guide_colourbar(order = 1), size = guide_legend(order = 2), colour = guide_legend(order = 3)) +
+  scale_size_area(
+    max_size = 3, limits = c(0, 4), breaks = c(1, 2, 4), labels = c("1", "2", "4+"),
+    name = "-log10 FDR"
+  ) +
+  guides(
+    fill = guide_colourbar(order = 1), size = guide_legend(order = 2),
+    colour = guide_legend(order = 3)
+  ) +
   labs(
     x = NULL, y = NULL, title = "Pathways at FDR ≤ 0.05",
-    subtitle = "fgsea, GO:BP and Reactome (full proteome), MitoCarta (mitochondrial); grouped by the contrast that selects them; † singscore p > 0.05"
+    subtitle = paste(
+      "fgsea, GO:BP and Reactome (full proteome), MitoCarta (mitochondrial);",
+      "grouped by the contrast that selects them; † singscore p > 0.05"
+    )
   ) +
   theme_figure() +
   theme(
@@ -179,7 +203,10 @@ target_ranks <- list(
 )
 panel_barcode <- signature_barcode(enr$signatures, target_ranks) +
   labs(
-    x = sprintf("rank in the other sex's ranking (n = %s)", format(length(target_ranks$male), big.mark = ",")),
+    x = sprintf(
+      "rank in the other sex's ranking (n = %s)",
+      format(length(target_ranks$male), big.mark = ",")
+    ),
     y = NULL, title = "Cross-sex signatures",
     subtitle = "Each sex's p ≤ 0.05 proteins in the other's ranking; fgsea p"
   )
@@ -190,7 +217,10 @@ summary_counts <- filter(fit$protein_contrasts, contrast %in% ARC_CONTRASTS) |>
 fgsea_counts <- filter(enr$summary, fdr_le_0.05 > 0) |>
   summarise(n = sum(fdr_le_0.05), .by = contrast)
 stopifnot(
-  identical(summarise(protein_counts, fdr = sum(fdr), .by = c(universe, contrast))$fdr, summary_counts$fdr),
+  identical(
+    summarise(protein_counts, fdr = sum(fdr), .by = c(universe, contrast))$fdr,
+    summary_counts$fdr
+  ),
   nrow(scores) == 20, nrow(phenotype_scores) == 20,
   all(count(pathways, term)$n == 3),
   all(selected$term %in% filter(enr$results, padj <= ALPHA)$term),
@@ -215,11 +245,16 @@ write_workbook(
     ),
     phenotype_effects = fit$phenotype_effects,
     phenotype_interaction = fit$phenotype_interaction,
-    pathways = select(pathways, term, label, collection, selected_by, contrast, NES, p, padj, score_p, r_group),
+    pathways = select(
+      pathways, term, label, collection, selected_by, contrast, NES, p, padj, score_p, r_group
+    ),
     signatures = select(enr$signatures, -members)
   ),
   c(
-    "Panel b: per universe, contrast and direction, proteins at p or Π ≤ 0.05, at Π ≤ 0.05, at FDR ≤ 0.05.",
+    paste(
+      "Panel b: per universe, contrast and direction, proteins at p or Π ≤ 0.05,",
+      "at Π ≤ 0.05, at FDR ≤ 0.05."
+    ),
     "Panel c: proteome PC1 to PC4 per mouse, with technical variables.",
     "Panel d: phenotype PC1 and PC2 per mouse.",
     "Panels c, d: PERMANOVA for the proteome and the phenotypes.",

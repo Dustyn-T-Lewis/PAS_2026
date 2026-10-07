@@ -1,6 +1,7 @@
 # Runs the pipeline end to end, each script in its own R session so no step inherits objects or
 # masked functions from the one before. Every script also runs alone; this file is a convenience.
-# The trunk runs first and computes everything; the arcs then slice its results; the figures read both.
+# The trunk runs first and computes everything; the arcs slice its results; the figures read
+# both.
 #
 #   Rscript run_all.R
 
