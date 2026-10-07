@@ -8,33 +8,35 @@ The project asks three questions:
 2. Does PAS change males? PAS_M − VEH_M.
 3. Does the PAS response differ by sex? (PAS_F − VEH_F) − (PAS_M − VEH_M).
 
-Differences between females and males at baseline are not a question here. They dominate the proteome (PERMANOVA R² 0.38), so they appear as context in `00_Trunk/10_Global` and Figure 1.
+Differences between females and males at baseline are not a question here. They dominate the proteome (PERMANOVA R² 0.38), so they appear as context in `02_Statistics/04_PCA` and Figure 1.
 
-![Figure 1](Figures/F01_Overview/b_reports/f01_overview.png)
+![Figure 1](06_Figures/F01_Overview/b_reports/f01_overview.png)
 
 ## Layout
 
 | Folder | Holds |
 |---|---|
-| [`00_Trunk/`](00_Trunk/README.md) | the input data and every computation: filtering, quantification, design, gene sets, scores, modules, the shared fit, pathway tests, classification, global structure |
-| [`01_Female/`](01_Female/README.md) | question 1: proteins, pathways, phenotype effects and associations, classification |
-| [`02_Male/`](02_Male/README.md) | question 2: the same four substages |
-| [`03_Sex_Difference/`](03_Sex_Difference/README.md) | question 3: proteins and pathways |
-| [`Figures/`](Figures/README.md) | figures built from saved outputs only |
-| `R/` | `helpers.R` (constants, writers, shared rules), `arc.R` (the arc steps), `figures.R` (theme, colours and the plots several steps draw) |
+| [`00_Input/`](00_Input/README.md) | the delivered data, MitoCarta, CORUM 5.3 and STRING v12; nothing is downloaded at run time |
+| [`01_Processing/`](01_Processing/README.md) | filtering, quantification, design, gene sets, scores, modules |
+| [`02_Statistics/`](02_Statistics/README.md) | the shared fit, pathway tests, classification, PCA |
+| [`03_Female/`](03_Female/README.md) | question 1: proteins, pathways, phenotypes, classification |
+| [`04_Male/`](04_Male/README.md) | question 2: the same four steps |
+| [`05_Sex_Difference/`](05_Sex_Difference/README.md) | question 3: proteins and pathways |
+| [`06_Figures/`](06_Figures/README.md) | figures built from saved outputs only |
+| `R/` | `helpers.R` (constants, paths, writers, shared rules), `comparisons.R` (the report steps of the three comparisons), `figures.R` (theme, colours and the plots several steps draw) |
 | `Supplementary/` | submission files, once a manuscript is drafted |
 
-Data flows one way: the trunk computes, the arcs slice and report, the figures read both. No arc reads another arc. Every step holds `a_script/` (one script), `b_reports/` (one PDF, where there is something to draw), `c_data/` (one workbook, plus any `.rds` a later step reads) and a README naming what it reads and writes.
+Data flows one way: processing feeds statistics, the comparisons slice and report the statistics, and the figures read both. No comparison reads another. Every step reads only saved files from earlier steps, so it reruns alone once those exist. Every step holds `a_script/` (one script), `b_reports/` (one PDF, where there is something to draw), `c_data/` (one workbook, plus any `.rds` a later step reads) and a README naming what it reads and writes.
 
 ## Reading the results by hand
 
 | Question | Proteins | Pathways | Phenotypes | Classification |
 |---|---|---|---|---|
-| 1. Female | `01_Female/01_Proteins` | `01_Female/02_Pathways` | `01_Female/03_Associations` | `01_Female/04_Classification` |
-| 2. Male | `02_Male/01_Proteins` | `02_Male/02_Pathways` | `02_Male/03_Associations` | `02_Male/04_Classification` |
-| 3. Sex difference | `03_Sex_Difference/01_Proteins` | `03_Sex_Difference/02_Pathways` | `00_Trunk/07_Fit`, sheet `phenotype_interaction` | none |
+| 1. Female | `03_Female/01_Proteins` | `03_Female/02_Pathways` | `03_Female/03_Phenotypes` | `03_Female/04_Classification` |
+| 2. Male | `04_Male/01_Proteins` | `04_Male/02_Pathways` | `04_Male/03_Phenotypes` | `04_Male/04_Classification` |
+| 3. Sex difference | `05_Sex_Difference/01_Proteins` | `05_Sex_Difference/02_Pathways` | `02_Statistics/01_Fit`, sheet `phenotype_interaction` | none |
 
-In each folder, the PDF in `b_reports/` opens on overview pages and ends with a grid of every feature at p ≤ 0.05. The workbook in `c_data/` opens on `read_me`, which says what each sheet holds; it ends with `input_manifest` (files read, with md5) and `package_versions`. Which protein belongs to which pathway, complex or cluster is in `00_Trunk/04_Gene_Sets/c_data/04_gene_sets.xlsx`, sheet `membership`.
+In each folder, the PDF in `b_reports/` opens on overview pages and ends with a grid of every feature at p ≤ 0.05. The workbook in `c_data/` opens on `read_me`, which says what each sheet holds; it ends with `input_manifest` (files read, with md5) and `package_versions`. Which protein belongs to which pathway, complex or cluster is in `01_Processing/04_Gene_Sets/c_data/04_gene_sets.xlsx`, sheet `membership`.
 
 ## Conventions
 
@@ -53,11 +55,11 @@ Rscript -e 'renv::restore()'
 Rscript run_all.R
 ```
 
-About 5 minutes on a laptop. R 4.6.0. `renv.lock` pins every package; enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. The CORUM and STRING downloads land in `00_Trunk/04_Gene_Sets/cache/`, which is not committed; the CORUM file is pinned to release 5.3 by checksum. limpa's quantification is checkpointed; `00_Trunk/02_Quantification/README.md` says how to refit it.
+About 5 minutes on a laptop. R 4.6.0. `renv.lock` pins every package; enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. It needs no network: CORUM and STRING are read from `00_Input/`. limpa's quantification is checkpointed; `01_Processing/02_Quantification/README.md` says how to refit it.
 
 ## Open with Dr. Ismaeel
 
-Whether the measured limb is the ligated one; the muscle, marker and units of the histology; the capillary density definition; and the respiratory conductance units (`00_Trunk/00_Input/phenotypes.xlsx`, sheet `notes`). The proteome comes from gastrocnemius, while respirometry comes from soleus and plantaris.
+Whether the measured limb is the ligated one; the muscle, marker and units of the histology; the capillary density definition; and the respiratory conductance units (`00_Input/phenotypes.xlsx`, sheet `notes`). The proteome comes from gastrocnemius, while respirometry comes from soleus and plantaris.
 
 ## Version 1
 

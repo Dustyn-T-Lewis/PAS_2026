@@ -14,25 +14,26 @@ ALPHA <- 0.05
 CONTRASTS <- c(
   "PAS_vs_VEH_female", "PAS_vs_VEH_male", "treatment_by_sex", "sex_in_VEH", "sex_in_PAS"
 )
-# Each arc reads one contrast of the shared fit; the two baseline sex contrasts are trunk context.
-ARCS <- list(
-  female = list(dir = "01_Female", contrast = "PAS_vs_VEH_female", sex = "F", label = "Female"),
-  male = list(dir = "02_Male", contrast = "PAS_vs_VEH_male", sex = "M", label = "Male"),
+# Each comparison reads one contrast of the shared fit; the two baseline sex contrasts are context.
+COMPARISONS <- list(
+  female = list(dir = "03_Female", contrast = "PAS_vs_VEH_female", sex = "F", label = "Female"),
+  male = list(dir = "04_Male", contrast = "PAS_vs_VEH_male", sex = "M", label = "Male"),
   sex_difference = list(
-    dir = "03_Sex_Difference", contrast = "treatment_by_sex", sex = NA, label = "Sex difference"
+    dir = "05_Sex_Difference", contrast = "treatment_by_sex", sex = NA, label = "Sex difference"
   )
 )
-ARC_CONTRASTS <- map_chr(ARCS, "contrast")
-ARC_OF_CONTRAST <- c(
+COMPARISON_CONTRASTS <- map_chr(COMPARISONS, "contrast")
+COMPARISON_OF_CONTRAST <- c(
   PAS_vs_VEH_female = "female", PAS_vs_VEH_male = "male", treatment_by_sex = "sex_difference",
-  sex_in_VEH = "trunk", sex_in_PAS = "trunk"
+  sex_in_VEH = "context", sex_in_PAS = "context"
 )
 PHENOTYPES <- c(
   "capillary_density", "csa_mean", "satellite_cells_per_fiber",
   "conductance_sol_pyr", "conductance_pla_pyr", "conductance_sol_oct"
 )
 
-input_path <- \(...) here("00_Trunk", "00_Input", ...)
+input_path <- \(...) here("00_Input", ...)
+output_path <- \(stage, step, file) here(stage, step, "c_data", file)
 
 stage_paths <- function(stage, step) {
   root <- here(stage, step)
@@ -45,7 +46,7 @@ stage_paths <- function(stage, step) {
 }
 
 # A set is tested when this many of its genes are detected in the universe (enrichVolcano's
-# min_size and max_size); 04_Gene_Sets trims the lists to it and 08_Enrichment passes it to fgsea.
+# min_size and max_size); 04_Gene_Sets trims the lists to it and 02_Enrichment passes it to fgsea.
 TEST_WINDOW <- list(full = c(15, 500), mito = c(10, 500))
 
 # DIA-NN lists every gene of a protein group; the first names the group.
@@ -54,11 +55,11 @@ first_symbol <- \(genes) str_split_i(genes, ";", 1)
 # Set names in MSigDB style: upper case, runs of other characters as one underscore.
 set_id <- \(x) str_to_upper(str_replace_all(x, "[^A-Za-z0-9]+", "_"))
 
-# STRING v12, mouse, medium confidence, with downloads cached beside the gene sets.
+# STRING v12, mouse, medium confidence, read from the copies in 00_Input/STRING_v12.
 string_db <- function() {
   STRINGdb::STRINGdb$new(
     version = "12.0", species = 10090, score_threshold = 400, network_type = "full",
-    input_directory = here("00_Trunk", "04_Gene_Sets", "cache")
+    input_directory = input_path("STRING_v12")
   )
 }
 
