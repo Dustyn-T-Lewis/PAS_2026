@@ -1,4 +1,4 @@
-# Figures
+# 06_Figures
 
 Figures that cross the comparisons. Each figure folder holds one script that reads saved outputs only, its PDF and PNG in `b_reports/`, a workbook of every plotted number in `c_data/`, and a README with a panel table.
 

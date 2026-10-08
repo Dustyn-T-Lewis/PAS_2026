@@ -1,6 +1,6 @@
 # 05_Scores
 
-One singscore per mouse per tested set, complex and cluster: a set's mean within-mouse rank, which uses no group label. 07 tests these scores.
+One singscore per mouse per tested set, complex and cluster: a set's mean within-mouse rank, which uses no group label. `02_Statistics/01_Fit` tests these scores.
 
 | | |
 |---|---|

@@ -1,4 +1,4 @@
-# Figure style and the plots more than one script draws, for figures and substage reports alike.
+# Figure style and the plots more than one script draws, for figures and step reports alike.
 # Sourced by R/helpers.R.
 
 library(ggplot2)
@@ -53,7 +53,7 @@ save_figure <- function(figure, dir, name, width_mm, height_mm) {
   save(".png", dpi = 600)
 }
 
-# A substage report: one landscape page per named ggplot, cairo so Π and ≤ render. Returns the
+# A step report: one landscape page per named ggplot, cairo so Π and ≤ render. Returns the
 # rows of the workbook's plot_index sheet.
 write_report <- function(file, pages) {
   cairo_pdf(file, width = 7, height = 5, onefile = TRUE)

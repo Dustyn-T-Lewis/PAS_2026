@@ -61,7 +61,7 @@ paginate <- function(data, draw, per_page = GRID_PER_PAGE) {
 strip_factor <- function(label) factor(label, unique(label))
 short <- \(x, width = 34) str_trunc(enrichVolcano::clean_label(x, width = 200), width)
 
-# Per-mouse values of many features, one facet each, grouped and coloured by group.
+# Values by mouse for many features, one facet each, grouped and coloured by group.
 mouse_grid <- function(long, title, subtitle, y = "log2 abundance") {
   paginate(long, \(d) {
     ggplot(d, aes(group, value, colour = group, shape = sex)) +
@@ -186,7 +186,7 @@ report_proteins <- function(comparison) {
       "volcanoes, every protein" = volcano, "proteins per tier" = counts,
       "heatmap of proteins at p ≤ 0.05" = heatmap
     ),
-    set_names(grids, sprintf("per-mouse grid, page %d", seq_along(grids)))
+    set_names(grids, sprintf("values by mouse, page %d", seq_along(grids)))
   ))
 
   saveRDS(
