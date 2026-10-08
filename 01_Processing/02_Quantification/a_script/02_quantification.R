@@ -16,13 +16,12 @@ inputs <- c(
   precursors = here("01_Processing", "01_Filtering", "c_data", "precursors_filtered.rds"),
   mitocarta = input_path("Mouse.MitoCarta3.0.xls")
 )
-checkpoint <- file.path(out$data, "dpcQuant", sprintf("proteins_slope_%s.rds", DPC_SLOPE))
+checkpoint <- file.path(out$data, sprintf("dpcquant_slope_%s.rds", DPC_SLOPE))
 y <- readRDS(inputs[["precursors"]])$y
 
 # A checkpoint built from a different filtering run would report old numbers silently.
 fingerprint <- \(y) c(dim(y), sum(y$E, na.rm = TRUE))
 if (REFIT || !file.exists(checkpoint)) {
-  dir.create(dirname(checkpoint), showWarnings = FALSE)
   quantified <- dpcQuant(y, "Protein.Group", dpc.slope = DPC_SLOPE, verbose = FALSE)
   attr(quantified, "source_fingerprint") <- fingerprint(y)
   saveRDS(quantified, checkpoint)

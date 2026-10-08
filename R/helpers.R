@@ -35,9 +35,9 @@ PHENOTYPES <- c(
 input_path <- \(...) here("00_Input", ...)
 output_path <- \(stage, step, file) here(stage, step, "c_data", file)
 
-stage_paths <- function(stage, step) {
+stage_paths <- function(stage, step, reports = TRUE) {
   root <- here(stage, step)
-  dirs <- file.path(root, c("b_reports", "c_data"))
+  dirs <- file.path(root, c("c_data", if (reports) "b_reports"))
   walk(dirs, dir.create, recursive = TRUE, showWarnings = FALSE)
   list(
     root = root, data = file.path(root, "c_data"), reports = file.path(root, "b_reports"),

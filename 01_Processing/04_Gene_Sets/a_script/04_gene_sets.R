@@ -8,7 +8,7 @@
 
 source(here::here("R", "helpers.R"))
 
-out <- stage_paths("01_Processing", "04_Gene_Sets")
+out <- stage_paths("01_Processing", "04_Gene_Sets", reports = FALSE)
 MIN_DETECTED <- 5
 inputs <- c(
   mitocarta = input_path("Mouse.MitoCarta3.0.xls"),

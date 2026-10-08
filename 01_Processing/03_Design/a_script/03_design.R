@@ -5,7 +5,7 @@
 source(here::here("R", "helpers.R"))
 library(limma)
 
-out <- stage_paths("01_Processing", "03_Design")
+out <- stage_paths("01_Processing", "03_Design", reports = FALSE)
 inputs <- c(proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds"))
 proteins <- readRDS(inputs[["proteins"]])$proteins
 

@@ -10,12 +10,12 @@ inputs <- c(
   design = here("06_Figures", "F01_Overview", "assets", "design.png"),
   fit = here("02_Statistics", "01_Fit", "c_data", "fit.rds"),
   enrichment = here("02_Statistics", "02_Enrichment", "c_data", "enrichment.rds"),
-  global = here("02_Statistics", "04_PCA", "c_data", "global.rds"),
+  pca = here("02_Statistics", "04_PCA", "c_data", "pca.rds"),
   fit_workbook = here("02_Statistics", "01_Fit", "c_data", "01_fit.xlsx")
 )
 fit <- readRDS(inputs[["fit"]])
 enr <- readRDS(inputs[["enrichment"]])
-global <- readRDS(inputs[["global"]])
+pca <- readRDS(inputs[["pca"]])
 SHORT <- c(PAS_vs_VEH_female = "Female", PAS_vs_VEH_male = "Male", treatment_by_sex = "F − M")
 n_mice <- nrow(fit$targets)
 per_group <- unique(count(fit$targets, group)$n)
@@ -210,28 +210,28 @@ panel_proteins <- ggplot(bars, aes(signed, row)) +
   guides(fill = guide_legend(nrow = 2))
 
 # c: proteome PCA of all twenty mice with the MitoCarta share fitted as a vector (04_PCA).
-scores <- global$proteome_scores
+scores <- pca$proteome_scores
 reach <- 0.8 * max(abs(c(scores$PC1, scores$PC2)))
-mito_arrow <- with(global$mito_vector, tibble(
+mito_arrow <- with(pca$mito_vector, tibble(
   x = PC1 * reach, y = PC2 * reach, label = sprintf("MitoCarta share, R² %.2f", r2)
 ))
 panel_proteome <- pca_panel(
-  scores, global$proteome_variance, "Proteome",
+  scores, pca$proteome_variance, "Proteome",
   sprintf("%d mice, %s proteins", n_mice, format(universe_size[["full"]], big.mark = ",")),
-  permanova_text(global$permanova), mito_arrow
+  permanova_text(pca$permanova), mito_arrow
 )
 
 # d: phenotype PCA of the six traits, scaled, with their loadings.
-phenotype_scores <- global$phenotype_scores
+phenotype_scores <- pca$phenotype_scores
 reach <- 0.8 * max(abs(c(phenotype_scores$PC1, phenotype_scores$PC2)))
-loadings <- global$phenotype_loadings |>
+loadings <- pca$phenotype_loadings |>
   transmute(
     x = PC1 / max(abs(c(PC1, PC2))) * reach, y = PC2 / max(abs(c(PC1, PC2))) * reach,
     label = PHENOTYPE_LABELS[phenotype]
   )
 panel_phenotype <- pca_panel(
-  phenotype_scores, global$phenotype_variance, "Phenotype", "Six traits, scaled",
-  permanova_text(global$phenotype_permanova), loadings
+  phenotype_scores, pca$phenotype_variance, "Phenotype", "Six traits, scaled",
+  permanova_text(pca$phenotype_permanova), loadings
 ) +
   theme(legend.position = "none")
 
@@ -346,8 +346,8 @@ write_workbook(
     pca_proteome = scores,
     pca_phenotype = phenotype_scores,
     permanova = bind_rows(
-      mutate(global$permanova, data = "proteome", .before = 1),
-      mutate(global$phenotype_permanova, data = "phenotype", .before = 1)
+      mutate(pca$permanova, data = "proteome", .before = 1),
+      mutate(pca$phenotype_permanova, data = "phenotype", .before = 1)
     ),
     phenotype_effects = fit$phenotype_effects,
     phenotype_interaction = fit$phenotype_interaction,

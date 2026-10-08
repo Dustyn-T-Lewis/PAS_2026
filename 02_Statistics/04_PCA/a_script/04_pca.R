@@ -127,7 +127,7 @@ saveRDS(
     phenotype_scores = phenotype_scores, phenotype_variance = phenotype$variance,
     phenotype_permanova = phenotype$permanova, phenotype_loadings = phenotype_loadings
   ),
-  file.path(out$data, "global.rds")
+  file.path(out$data, "pca.rds")
 )
 write_workbook(
   list(
