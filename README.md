@@ -14,6 +14,10 @@ Differences between females and males at baseline are not a question here. They 
 
 ## Layout
 
+![Pipeline](pipeline.png)
+
+`pipeline.png` is redrawn by `run_all.R` from the steps it runs and the `input_manifest` sheet of each workbook.
+
 | Folder | Holds |
 |---|---|
 | [`00_Input/`](00_Input/README.md) | the delivered data, MitoCarta, CORUM 5.3 and STRING v12; nothing is downloaded at run time |
@@ -25,7 +29,7 @@ Differences between females and males at baseline are not a question here. They 
 | [`06_Figures/`](06_Figures/README.md) | figures built from saved outputs only |
 | `R/` | `helpers.R` (constants, paths, writers, shared rules), `comparisons.R` (the report steps of the three comparisons), `figures.R` (theme, colours and the plots several steps draw) |
 
-Data flows one way: processing feeds statistics, the comparisons slice and report the statistics, and the figures read both. No comparison reads another. Every step reads only saved files from earlier steps, so it reruns alone once those exist. Every step holds `a_script/` (one script), `b_reports/` (one PDF, where there is something to draw), `c_data/` (one workbook, plus any `.rds` a later step reads) and a README naming what it reads and writes.
+Data flows one way: processing feeds statistics, the comparisons slice and report the statistics, and the figures read the statistics. No comparison reads another. Every step reads only saved files from earlier steps, so it reruns alone once those exist. Every step holds `a_script/` (one script), `b_reports/` (one PDF, where there is something to draw), `c_data/` (one workbook, plus any `.rds` a later step reads) and a README naming what it reads and writes.
 
 ## Reading the results by hand
 

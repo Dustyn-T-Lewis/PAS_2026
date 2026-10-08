@@ -127,3 +127,104 @@ phenotype_effect_plot <- function(effects, title, subtitle) {
     ) +
     theme_figure()
 }
+
+# pipeline.png: one box per stage folder listing its steps (00_Input lists the inputs read), and
+# an arrow wherever one stage reads another's saved files, taken from the input_manifest sheet of
+# every step's workbook. A stage sits one column right of the furthest stage it reads; an arrow
+# that skips a column runs below the boxes it passes.
+draw_pipeline <- function(steps, file) {
+  step_dirs <- dirname(dirname(steps))
+  stage_of <- \(path) str_extract(path, "^[^/]+")
+  reads <- map(step_dirs, \(d) {
+    workbook <- here(d, "c_data", paste0(tolower(basename(d)), ".xlsx"))
+    tibble(stage = stage_of(d), path = readxl::read_excel(workbook, "input_manifest")$path)
+  }) |>
+    list_rbind()
+  edges <- reads |>
+    distinct(from = stage_of(path), to = stage) |>
+    filter(from != to)
+  inputs <- sort(unique(na.omit(str_extract(reads$path, "(?<=^00_Input/)[^/]+"))))
+  items <- tibble(stage = c(rep("00_Input", length(inputs)), stage_of(step_dirs))) |>
+    mutate(item = c(inputs, basename(step_dirs)))
+
+  # Steps run in dependency order, so every stage's sources already have a column.
+  stages <- unique(items$stage)
+  column <- set_names(rep(0, length(stages)), stages)
+  for (s in stages) {
+    sources <- edges$from[edges$to == s]
+    if (length(sources) > 0) column[[s]] <- 1 + max(column[sources])
+  }
+
+  width <- 2.6
+  step_x <- 4
+  gap_y <- 0.5
+  boxes <- items |>
+    summarise(text = paste(item, collapse = "\n"), n = n(), .by = stage) |>
+    mutate(column = column[stage], x = column * step_x, height = 0.5 + 0.22 * n) |>
+    mutate(
+      top = -lag(cumsum(height + gap_y), default = 0),
+      bottom = top - height,
+      shift = (max(top) + min(bottom)) / 2,
+      top = top - shift,
+      bottom = bottom - shift,
+      .by = column
+    )
+
+  lane_below <- \(from_col, to_col) min(boxes$bottom[between(boxes$column, from_col, to_col - 1)])
+  paths <- edges |>
+    left_join(select(boxes, from = stage, fx = x, fbottom = bottom, ftop = top, fcol = column),
+      by = "from"
+    ) |>
+    left_join(select(boxes, to = stage, tx = x, ttop = top, tbottom = bottom, tcol = column),
+      by = "to"
+    ) |>
+    mutate(
+      fy = (ftop + fbottom) / 2, ty = (ttop + tbottom) / 2, skip = tcol - fcol > 1,
+      bus = tx - width / 2 - 0.3 * dense_rank(desc(fcol)), .by = tcol
+    ) |>
+    mutate(lane = map2_dbl(fcol, tcol, lane_below) - 0.3 * dense_rank(fcol), .by = skip) |>
+    mutate(id = row_number()) |>
+    pmap(\(id, from, fx, fy, fbottom, tx, ty, bus, lane, skip, ...) {
+      start <- if (skip) list(c(fx, fx), c(fbottom, lane)) else list(fx + width / 2, fy)
+      tibble(
+        id = id, from = from,
+        x = c(start[[1]], bus, bus, tx - width / 2),
+        y = c(start[[2]], if (skip) lane else fy, ty, ty)
+      )
+    }) |>
+    list_rbind()
+
+  colours <- set_names(grDevices::palette.colors(length(stages) + 1, "Okabe-Ito")[-1], stages)
+  figure <- ggplot() +
+    geom_path(aes(x, y, group = id, colour = from),
+      data = paths, linewidth = 0.45,
+      arrow = arrow(length = unit(1.6, "mm"), type = "closed")
+    ) +
+    geom_rect(aes(
+      xmin = x - width / 2, xmax = x + width / 2, ymin = bottom, ymax = top,
+      colour = stage
+    ), data = boxes, fill = "white", linewidth = 0.7) +
+    geom_text(aes(x - width / 2 + 0.12, top - 0.12, label = stage),
+      data = boxes, hjust = 0, vjust = 1, size = 3, fontface = "bold"
+    ) +
+    geom_text(aes(x - width / 2 + 0.12, top - 0.45, label = text),
+      data = boxes, hjust = 0, vjust = 1, size = 2.4, lineheight = 0.95, colour = "grey25"
+    ) +
+    scale_colour_manual(values = colours, guide = "none") +
+    labs(
+      title = "Pipeline: Rscript run_all.R",
+      caption = paste(
+        "Arrows: a stage reads saved files of another (input_manifest sheet of each workbook).",
+        "Each step folder holds a_script/ (script), b_reports/ (PDF) and c_data/ (workbook, .rds).",
+        sep = "\n"
+      )
+    ) +
+    coord_equal(clip = "off") +
+    theme_void(base_size = 9, base_family = "Helvetica") +
+    theme(
+      plot.title = element_text(face = "bold"), plot.caption = element_text(hjust = 0),
+      plot.background = element_rect(fill = "white", colour = NA),
+      plot.margin = margin(8, 8, 8, 8)
+    )
+  ggsave(file, figure, width = 250, height = 140, units = "mm", dpi = 300)
+}
