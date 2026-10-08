@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # One singscore per mouse per tested GO:BP and Reactome set, CORUM complex and STRING cluster on
 # the full matrix, and per tested MitoCarta pathway on the mitochondrial matrix. The GO:BP,
 # Reactome and MitoCarta sets are the ones fgsea tests in 02_Enrichment. A score is the mean

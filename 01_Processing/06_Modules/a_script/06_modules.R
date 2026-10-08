@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # Co-abundance modules by WGCNA's standard workflow, built after removing sex and keeping treatment
 # (limma::removeBatchEffect), so the network follows co-variation within each sex instead of the
 # sex difference that dominates this proteome (Johnson et al. 2020, Nat Med; 2022, Nat Neurosci).

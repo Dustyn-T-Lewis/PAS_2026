@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # Which single scores separate PAS from vehicle in males.
 # The step is report_classification() in R/comparisons.R.
 

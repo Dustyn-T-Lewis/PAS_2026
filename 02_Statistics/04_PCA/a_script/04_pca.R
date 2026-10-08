@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # What shapes the whole proteome and the phenotypes. Proteome: PCA of the twenty mice on the
 # normalised full universe (centred, not scaled), PERMANOVA (vegan::adonis2, Euclidean, 999
 # permutations, sequential terms) for sex, treatment and their interaction, a dispersion check

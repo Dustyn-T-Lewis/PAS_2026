@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # DIA-NN precursors to a filtered, contaminant-free matrix. The README gives the reason for each
 # filter.
 

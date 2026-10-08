@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # Every model the comparisons read, fitted once on all 20 mice. Proteins: limpa's dpcDE with
 # precision and sample weights, quantile-normalised per universe. GO:BP, Reactome, MitoCarta,
 # complex and cluster scores and module eigengenes: limma. Each level gets the five contrasts and,

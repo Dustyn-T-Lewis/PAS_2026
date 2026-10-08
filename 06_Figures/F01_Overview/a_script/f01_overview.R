@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # Figure 1: the design, then the three questions side by side (PAS vs vehicle in females, in males,
 # and the treatment-by-sex interaction) before any single result. Reads saved outputs only and
 # computes nothing beyond counting and scaling; the README lists each panel's source.

@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # Every pathway test the comparisons read, run once. fgsea (enrichVolcano::run_enrichment) on the
 # moderated t of each comparison's contrast: GO:BP and Reactome in the full proteome, MitoCarta in
 # the mitochondrial universe, BH within contrast and collection over every tested set, with the same

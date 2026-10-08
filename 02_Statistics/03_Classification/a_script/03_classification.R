@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # How well each pathway score, module eigengene, complex score and cluster score alone separates
 # PAS from vehicle mice within each sex (five against five): AUC (pROC; 1 = higher in PAS) with
 # DeLong's 95% interval, left empty at perfect separation where it is undefined, the exact Wilcoxon

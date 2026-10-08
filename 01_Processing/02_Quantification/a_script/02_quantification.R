@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # Precursors to a quantified, MitoCarta-annotated protein matrix, normalised once for the full
 # proteome and once for the mitochondrial universe. The README gives the reasons. dpcQuant() takes
 # about two and a half minutes, so its result is checkpointed in c_data/dpcQuant/ and refitted only

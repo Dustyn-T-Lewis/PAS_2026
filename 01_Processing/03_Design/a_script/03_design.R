@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # The model and the questions asked of it. 01_Fit reads what this writes and changes neither; the
 # README gives the reasons.
 

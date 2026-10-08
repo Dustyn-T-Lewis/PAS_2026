@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # Which proteins PAS changed in males.
 # The step is report_proteins() in R/comparisons.R.
 

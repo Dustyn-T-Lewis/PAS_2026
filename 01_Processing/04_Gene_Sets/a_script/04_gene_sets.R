@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 # Every protein grouping the later steps test. Tested pathways: GO:BP and Reactome (disease and
 # infection branch left out) in the full proteome, MitoCarta in the mitochondrial universe, each
 # trimmed to TEST_WINDOW detected genes, the same list for fgsea and singscore. Also GO Slim
