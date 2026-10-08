@@ -12,6 +12,7 @@ MIN_DETECTED <- 5
 inputs <- c(
   mitocarta = input_path("Mouse.MitoCarta3.0.xls"),
   corum = input_path("corum_complete.txt"),
+  STRING_FILES,
   proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds")
 )
 

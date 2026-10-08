@@ -23,7 +23,8 @@ study_files <- expand_grid(
 inputs <- c(
   gene_sets = here("01_Processing", "04_Gene_Sets", "c_data", "gene_sets.rds"),
   fit = here("02_Statistics", "01_Fit", "c_data", "fit.rds"),
-  study_files
+  study_files,
+  STRING_FILES
 )
 gs <- readRDS(inputs[["gene_sets"]])
 fit <- readRDS(inputs[["fit"]])

@@ -56,6 +56,10 @@ first_symbol <- \(genes) str_split_i(genes, ";", 1)
 set_id <- \(x) str_to_upper(str_replace_all(x, "[^A-Za-z0-9]+", "_"))
 
 # STRING v12, mouse, medium confidence, read from the copies in 00_Input/STRING_v12.
+STRING_FILES <- set_names(
+  list.files(input_path("STRING_v12"), full.names = TRUE),
+  c("string_aliases", "string_info", "string_links")
+)
 string_db <- function() {
   STRINGdb::STRINGdb$new(
     version = "12.0", species = 10090, score_threshold = 400, network_type = "full",
