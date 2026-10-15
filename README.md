@@ -52,7 +52,7 @@ Every workbook opens on `read_me`, which says what each sheet holds, and ends wi
 - **Π** = p^|log2 FC| (Xiao et al. 2014). It ranks on p and fold change together, controls no error rate, and is counted on its own.
 - **r** sits beside every test: r with group (PAS = 1) for a contrast; r across the sex's ten mice, and within vehicle and PAS, for an association.
 - **Phenotype effect** means what PAS did to a phenotype, as % change against the same sex's vehicle. **Phenotype association** means a feature moving with a phenotype within one sex, reported pooled across PAS and vehicle mice and within treatment; it is co-movement, not a PAS effect.
-- **Pathways:** fgsea through enrichVolcano on GO:BP and Reactome (full proteome) and MitoCarta (mitochondrial universe). The same sets are scored per mouse with singscore, and that mouse-level test sits beside every fgsea row. fgsea permutes genes, so where the two disagree the singscore result is the conservative one.
+- **Pathways:** fgsea through enrichVolcano on GO:BP, Reactome, Hallmark and KEGG LEGACY (full proteome) and MitoCarta (mitochondrial universe). The same sets are scored per mouse with singscore, and that mouse-level test sits beside every fgsea row. fgsea permutes genes, so where the two disagree the singscore result is the conservative one.
 - **Seed:** 20260910 for every stochastic step.
 
 ## Run

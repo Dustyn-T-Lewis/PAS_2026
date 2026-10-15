@@ -20,7 +20,7 @@ The script reads saved outputs only and computes nothing beyond counts and arrow
 | d | Phenotype PCA of the six traits, scaled, with loadings and PERMANOVA. | `pca.rds` |
 | e | Phenotype effects: PAS vs vehicle within each sex, % change with 95% CI on a log axis (Welch t on log values); the interaction p under each trait. | `fit.rds`: `phenotype_effects`, `phenotype_interaction` |
 | f | Every set at fgsea FDR ≤ 0.05 in any contrast that the EnrichmentMap flag keeps, listed once under the first contrast that selects it and drawn in all three. Square: collection. † : the same set's singscore contrast, tested across mice, has p > 0.05. | `enrichment.rds`: `results` |
-| g | Each sex's p ≤ 0.05 up and down proteins placed in the other sex's ranking, as limma's barcode (Wu & Smyth 2012); each lane gives size, the share ranked the same way and the fgsea p. | `enrichment.rds`: `signatures`, `ranks` |
+| g | Each sex's p ≤ 0.05 up and down proteins placed in the other sex's ranking, as limma's barcode (Wu & Smyth 2012); each lane gives size, the share moving the same way and the fry p (across mice). | `enrichment.rds`: `signatures`, `ranks` |
 
 Π is p^|log2 FC| (Xiao et al. 2014). It ranks a protein on p and fold change together and controls no error rate; Π ≤ 0.05 can include proteins with p > 0.05.
 
