@@ -50,15 +50,16 @@ PLASMA <- c(
 )
 
 # Protein.Ids is added for the cRAP check. log = TRUE is the default, so y$E is already log2.
+# The q-value columns are limpa's set for a search with match-between-runs (vignette, "Data
+# input"): every Q.Value and Lib.Q.Value in the report is already below 0.01, so DIA-NN
+# filtered on the library pass. To confirm with the facility.
 y <- readDIANN(
   inputs[["report"]],
   annotation.columns = c(
     "Protein.Group", "Protein.Ids", "Protein.Names", "Genes", "Proteotypic"
   ),
-  q.columns = c(
-    "Q.Value", "Lib.Q.Value", "Lib.PG.Q.Value", "Global.Q.Value", "Global.PG.Q.Value"
-  ),
-  q.cutoffs = rep(0.01, 5)
+  q.columns = c("Q.Value", "Lib.Q.Value", "Lib.PG.Q.Value"),
+  q.cutoffs = 0.01
 )
 
 metadata <- read_csv(inputs[["metadata"]], show_col_types = FALSE) |>
@@ -75,8 +76,11 @@ colnames(y) <- metadata$sample_id
 y$targets <- as.data.frame(metadata)
 rownames(y$targets) <- metadata$sample_id
 
-all_na <- sum(rowSums(!is.na(y$E)) == 0)
-y <- removeNARows(y)
+# The subset limpa::removeNARows() performs, written out: in limpa 1.4.0 its EList method indexes
+# with an extra empty subscript, which limma's `[.EList` rejects once any row is all missing.
+detected <- rowSums(!is.na(y$E)) > 0
+all_na <- sum(!detected)
+y <- y[detected, ]
 
 signal_start <- total_signal(y$E)
 precursors_start <- nrow(y)
