@@ -4,11 +4,11 @@
 # set's singscore contrast from 01_Fit beside it. GO Slim compartments, and the literature-informed
 # and ROS sets as one list in the full proteome. Every term carries an EnrichmentMap redundancy flag
 # (enrichVolcano::dedup_terms, similarity >= 0.375, the stronger term kept) that only picks display
-# terms; nothing is dropped. fgsea also runs on each protein-phenotype association t per sex, beside
-# the same set's singscore association. Cross-sex signatures: each sex's proteins at p <= 0.05, up
-# and down, tested by fgsea in the other sex's ranking. STRING v12 connectivity of each contrast's Π
-# and FDR lists is descriptive: subunits of one complex vary together, so connected lists are
-# expected.
+# terms; nothing is dropped. fgsea also runs on each protein-phenotype association t per sex and
+# association model, beside the same set's singscore association. Cross-sex signatures: each
+# sex's proteins at p <= 0.05, up and down, tested by fgsea in the other sex's ranking. STRING
+# v12 connectivity of each contrast's Π and FDR lists is descriptive: subunits of one complex vary
+# together, so connected lists are expected.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -94,13 +94,27 @@ results <- imap(enrichment_objects, \(by_universe, cn) {
   arrange(factor(contrast, COMPARISON_CONTRASTS), universe, collection, p)
 stopifnot(!anyNA(results$score_p), !anyNA(results$dedup_status))
 
+# The side lists run on fgsea directly, on the ranking the main tests used: enrichVolcano keeps
+# fgsea's default nPermSimple, and at that default a set with unbalanced gene-level statistics
+# gets no p-value and drops out. fgsea's own advice is nPermSimple = 10000.
 side_list <- function(collection, size) {
-  map(COMPARISON_CONTRASTS, \(cn) fgsea_of(studies$full, collection, cn, size)@results) |>
+  side_sets <- unlist(unname(collection), recursive = FALSE)
+  out <- map(COMPARISON_CONTRASTS, \(cn) {
+    set.seed(SEED)
+    fgsea::fgsea(side_sets, ranks[[cn]]$full,
+      minSize = size[1], maxSize = size[2], nPermSimple = 10000
+    ) |>
+      as_tibble() |>
+      mutate(contrast = cn)
+  }) |>
     list_rbind() |>
     transmute(
       contrast,
-      set = term, NES = score, p, padj, size, direction, leading_edge = flatten(leading_edge)
+      set = pathway, NES, p = pval, padj, size, direction = if_else(NES > 0, "up", "down"),
+      leading_edge = flatten(leadingEdge)
     )
+  stopifnot(!anyNA(out$p), all(count(out, contrast)$n == n_distinct(out$set)))
+  out
 }
 compartments <- side_list(gs$compartments, c(15, Inf))
 literature <- side_list(list(Literature = gs$literature_sets), c(5, Inf)) |>
@@ -108,13 +122,16 @@ literature <- side_list(list(Literature = gs$literature_sets), c(5, Inf)) |>
   left_join(gs$literature, by = "set") |>
   relocate(hypothesis, expected, .after = contrast)
 
-# Pathway associations: fgsea on each protein's association t with one phenotype across one sex's
-# PAS and vehicle mice (genes permuted, so its FDR runs optimistic), beside the same set's singscore
-# association, which is tested across mice.
-association_fgsea <- expand_grid(sex = c("female", "male"), u = names(gs$tested)) |>
-  pmap(\(sex, u) {
+# Pathway associations: fgsea on each protein's association t with one phenotype within one sex,
+# under both association models (genes permuted, so its FDR runs optimistic), beside the same set's
+# singscore association under the same model, which is tested across mice.
+ASSOCIATION_MODELS <- c("pooled", "treatment")
+association_fgsea <- expand_grid(
+  model = ASSOCIATION_MODELS, sex = c("female", "male"), u = names(gs$tested)
+) |>
+  pmap(\(model, sex, u) {
     da <- fit$protein_associations |>
-      filter(!adjusted, sex == !!sex, universe == u) |>
+      filter(model == !!model, sex == !!sex, universe == u) |>
       transmute(
         protein = feature, gene, contrast = phenotype, logFC = estimate, t, P.Value, adj.P.Val,
         abundance = AveExpr
@@ -124,24 +141,24 @@ association_fgsea <- expand_grid(sex = c("female", "male"), u = names(gs$tested)
     suppressMessages(enrichVolcano::run_enrichment(da, gs$tested[[u]],
       tests = "fgsea", min_size = TEST_WINDOW[[u]][1], max_size = TEST_WINDOW[[u]][2]
     ))$fgsea@results |>
-      mutate(sex = sex, universe = u, .before = 1)
+      mutate(model = model, sex = sex, universe = u, .before = 1)
   }) |>
   list_rbind() |>
   transmute(
-    sex, universe,
+    model, sex, universe,
     collection = database, phenotype = contrast, term, NES = score, fgsea_p = p,
     fgsea_fdr = padj, size, leading_edge = flatten(leading_edge)
   ) |>
   left_join(
     fit$score_associations |>
-      filter(!adjusted, level == "pathway") |>
-      select(sex, phenotype,
+      filter(model %in% ASSOCIATION_MODELS, level == "pathway") |>
+      select(model, sex, phenotype,
         term = feature, score_slope = estimate, score_r = r,
         score_r_veh = r_veh, score_r_pas = r_pas, score_p = P.Value, score_fdr = adj.P.Val
       ),
-    by = c("sex", "phenotype", "term")
+    by = c("model", "sex", "phenotype", "term")
   ) |>
-  arrange(sex, phenotype, collection, fgsea_p)
+  arrange(model, sex, phenotype, collection, fgsea_p)
 stopifnot(!anyNA(association_fgsea$score_p))
 
 stringdb <- string_db()
@@ -210,7 +227,8 @@ tier_table <- results |>
 association_summary <- association_fgsea |>
   reframe(tier_counts(fgsea_p, fgsea_fdr),
     singscore_p_le_0.05 = sum(score_p <= ALPHA),
-    singscore_fdr_le_0.05 = sum(score_fdr <= ALPHA), .by = c(sex, universe, collection, phenotype)
+    singscore_fdr_le_0.05 = sum(score_fdr <= ALPHA),
+    .by = c(model, sex, universe, collection, phenotype)
   ) |>
   select(-pi_le_0.05)
 
@@ -241,17 +259,18 @@ summary_page <- tier_table |>
 association_page <- association_summary |>
   mutate(
     sex = if_else(sex == "female", "Female", "Male"),
+    model = factor(model, ASSOCIATION_MODELS, c("Pooled", "Within treatment")),
     trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS)),
     collection = factor(collection, c("GO:BP", "Reactome", "MitoCarta"))
   ) |>
   ggplot(aes(collection, trait, fill = p_le_0.05 / expected_by_chance)) +
   geom_tile(colour = "white") +
   geom_text(aes(label = str_glue("{p_le_0.05} / {tests}\nFDR {fdr_le_0.05}")), size = 1.9) +
-  facet_wrap(~sex) +
+  facet_grid(model ~ sex) +
   scale_fill_gradient(low = "white", high = "grey35", name = "p ≤ 0.05 /\nchance") +
   labs(
     x = NULL, y = NULL, title = "Pathways moving with each phenotype",
-    subtitle = "fgsea on protein association t across one sex's PAS and vehicle mice (co-movement)"
+    subtitle = "fgsea on protein association t within one sex, pooled and within treatment"
   ) +
   theme_figure()
 string_page <- string_tests |>
@@ -304,10 +323,10 @@ write_workbook(
     ),
     "GO Slim cellular compartments, fgsea per contrast, full proteome.",
     "Literature-informed and ROS sets, fgsea per contrast, full proteome, BH across the list.",
-    "Per sex, collection and phenotype: fgsea and singscore association counts.",
+    "Per model, sex, collection and phenotype: fgsea and singscore association counts.",
     paste(
-      "Every set's fgsea on protein association t per sex and phenotype,",
-      "beside its singscore association (slope, r, p, FDR)."
+      "Every set's fgsea on protein association t per model (pooled, treatment), sex and",
+      "phenotype, beside its singscore association (slope, r, p, FDR)."
     ),
     paste(
       "Each sex's p ≤ 0.05 up and down proteins in the other sex's ranking:",

@@ -51,7 +51,8 @@ robust_example <- function(associations, E, x, mice, max_tries = 50) {
 # phenotype in this sex (% change against vehicle, a treatment effect). Phenotype associations:
 # which proteins, pathway scores (GO:BP, Reactome, MitoCarta), modules, complexes and clusters move
 # with each phenotype across this sex's ten PAS and vehicle mice (01_Fit; r pooled and within each
-# group beside every test). An association is co-movement, not a PAS effect. Pathway patterns also
+# group beside every test), under two models: pooled across PAS and vehicle, and within treatment
+# (treatment in the model). An association is co-movement, not a PAS effect. Pathway patterns also
 # come from fgsea on the protein association t (02_Enrichment); that test permutes genes, so its FDR
 # runs optimistic against the mouse-level singscore association of the same set.
 report_phenotypes <- function(comparison) {
@@ -74,10 +75,21 @@ report_phenotypes <- function(comparison) {
     filter(sex == comparison) |>
     mutate(label = coalesce(gene, feature), .after = feature)
   association_summary <- associations |>
-    reframe(tier_counts(P.Value, adj.P.Val), .by = c(level, universe, phenotype, adjusted)) |>
+    reframe(tier_counts(P.Value, adj.P.Val), .by = c(level, universe, phenotype, model)) |>
     select(-pi_le_0.05)
-  associations <- filter(associations, !adjusted) |>
-    arrange(level, phenotype, P.Value)
+  associations <- filter(associations, model != "pooled_mito") |>
+    arrange(level, phenotype, model, P.Value)
+  # One row per feature and phenotype: the pooled association with the within-treatment p beside it.
+  pooled <- filter(associations, model == "pooled") |>
+    left_join(
+      associations |>
+        filter(model == "treatment") |>
+        select(level, universe, feature, phenotype,
+          p_treatment = P.Value, fdr_treatment = adj.P.Val
+        ),
+      by = c("level", "universe", "feature", "phenotype"), relationship = "one-to-one",
+      unmatched = "error"
+    )
   r_group <- bind_rows(
     mutate(fit$protein_contrasts, level = "protein"), fit$score_contrasts
   ) |>
@@ -88,7 +100,7 @@ report_phenotypes <- function(comparison) {
     select(-sex)
 
   examples <- map(PHENOTYPES, \(p) {
-    associations |>
+    pooled |>
       filter(level == "protein", universe == "full", phenotype == !!p) |>
       robust_example(fit$E_norm$full, phenotype_of(p), mice)
   }) |>
@@ -99,8 +111,9 @@ report_phenotypes <- function(comparison) {
     subtitle = "% change against vehicle, Welch t on log values, n = 5 v 5"
   )
   grid_page <- association_summary |>
-    filter(!adjusted) |>
+    filter(model != "pooled_mito") |>
     mutate(
+      model = factor(model, c("pooled", "treatment"), c("Pooled", "Within treatment")),
       level = factor(
         paste0(LEVEL_LABELS[level], if_else(universe == "mito" & level == "protein", ", mito", "")),
         c("Proteins", "Proteins, mito", LEVEL_LABELS[-1])
@@ -109,29 +122,30 @@ report_phenotypes <- function(comparison) {
     ) |>
     summarise(
       across(c(tests, p_le_0.05, expected_by_chance, fdr_le_0.05), sum),
-      .by = c(level, trait)
+      .by = c(model, level, trait)
     ) |>
     mutate(ratio = p_le_0.05 / expected_by_chance) |>
     ggplot(aes(level, trait, fill = ratio)) +
     geom_tile(colour = "white") +
     geom_text(aes(label = str_glue("{p_le_0.05} / {tests}\nFDR {fdr_le_0.05}")), size = 1.9) +
+    facet_wrap(~model) +
     scale_fill_gradient(low = "white", high = "grey35", name = "p ≤ 0.05 /\nchance") +
     labs(
       x = NULL, y = NULL, title = str_glue("{label}: phenotype associations by level"),
       subtitle = paste(
-        "Co-movement across PAS and vehicle mice of this sex (n = 10);",
-        "p ≤ 0.05 of tests; BH within level and phenotype"
+        "This sex's ten mice, pooled across PAS and vehicle or within treatment;",
+        "p ≤ 0.05 of tests; BH within level, phenotype and model"
       )
     ) +
     theme_figure()
   check_page <- association_summary |>
-    filter(level == "protein", universe == "full") |>
-    select(phenotype, adjusted, p_le_0.05, fdr_le_0.05) |>
+    filter(level == "protein", universe == "full", model %in% c("pooled", "pooled_mito")) |>
+    select(phenotype, model, p_le_0.05, fdr_le_0.05) |>
     pivot_longer(c(p_le_0.05, fdr_le_0.05), names_to = "count") |>
     mutate(
       trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS)),
       count = if_else(count == "p_le_0.05", "p ≤ 0.05", "FDR ≤ 0.05"),
-      model = if_else(adjusted, "with pellet mito share", "without")
+      model = if_else(model == "pooled_mito", "with pellet mito share", "without")
     ) |>
     ggplot(aes(value, trait, fill = model)) +
     geom_col(position = position_dodge(width = 0.8), width = 0.75) +
@@ -145,7 +159,7 @@ report_phenotypes <- function(comparison) {
       subtitle = "Share centred within group, added to the association model"
     ) +
     theme_figure()
-  group_rows <- associations |>
+  group_rows <- pooled |>
     filter(level %in% c("module", "complex", "cluster"), universe == "full") |>
     select(level, universe, feature, phenotype, r, adj.P.Val) |>
     left_join(r_group, by = c("level", "universe", "feature"), relationship = "many-to-one")
@@ -217,8 +231,8 @@ report_phenotypes <- function(comparison) {
   feature_matrix <- \(level, universe) {
     if (level == "protein") fit$E_norm[[universe]] else score_matrix
   }
-  hits <- associations |>
-    filter(P.Value <= ALPHA) |>
+  hits <- pooled |>
+    filter(P.Value <= ALPHA | p_treatment <= ALPHA) |>
     arrange(match(level, names(LEVEL_LABELS)), match(phenotype, PHENOTYPES), P.Value)
   page_key <- paste(hits$level, hits$phenotype)
   association_pages <- split(hits, factor(page_key, unique(page_key))) |>
@@ -227,9 +241,9 @@ report_phenotypes <- function(comparison) {
       level <- d$level[1]
       p <- d$phenotype[1]
       strips <- sprintf(
-        "%s%s\nr %.2f (VEH %.2f, PAS %.2f)\np %.2g, FDR %.2g", short(d$label, 32),
+        "%s%s\nr %.2f (VEH %.2f, PAS %.2f)\np %.2g pooled, %.2g within", short(d$label, 32),
         if_else(level == "protein" & d$universe == "mito", " (mito)", ""),
-        d$r, d$r_veh, d$r_pas, d$P.Value, d$adj.P.Val
+        d$r, d$r_veh, d$r_pas, d$P.Value, d$p_treatment
       )
       long <- pmap(list(d$feature, d$universe, strips), \(f, u, s) {
         tibble(
@@ -244,13 +258,13 @@ report_phenotypes <- function(comparison) {
       pages <- association_grid(long,
         title = str_glue(
           "{label}: {LEVEL_LABELS[level]} associated with {PHENOTYPE_LABELS[p]}, ",
-          "every association at p ≤ 0.05 (n = {nrow(d)})"
+          "p ≤ 0.05 in either model (n = {nrow(d)})"
         ),
         subtitle = sprintf(
           paste0(
             "Phenotype effect of PAS in this sex: %+.0f%% (p %.2g)%s.\n",
-            "Lines within vehicle and within PAS (5 mice each); dashed: all 10 mice, ",
-            "the tested association"
+            "Lines within vehicle and within PAS (5 mice each), the within-treatment model; ",
+            "dashed: all 10 mice, the pooled model"
           ),
           effect$pct_change, effect$P.Value,
           if (effect$P.Value > ALPHA) {
@@ -298,19 +312,19 @@ report_phenotypes <- function(comparison) {
     c(
       "Phenotype effects: PAS vs vehicle per phenotype in this sex, % change, 95% CI, Welch p.",
       paste(
-        "Per level, universe and phenotype: associations at p ≤ 0.05, chance, FDR tiers;",
-        "adjusted rows add pellet mito share."
+        "Per level, universe, phenotype and model: associations at p ≤ 0.05, chance, FDR tiers;",
+        "pooled_mito adds the pellet mito share to the pooled model."
       ),
       paste(
-        "Every protein's association with each phenotype across this sex's ten mice:",
-        "slope (log2 per SD), 95% CI, t, p, BH FDR, r pooled, r in VEH, r in PAS."
+        "Every protein's association with each phenotype across this sex's ten mice, pooled and",
+        "within treatment: slope (log2 per SD), 95% CI, t, p, BH FDR, r pooled, in VEH, in PAS."
       ),
       paste(
         "Every pathway, module, complex and cluster score's association with each phenotype,",
         "same columns."
       ),
       paste(
-        "fgsea on protein association t per phenotype (gene permutation),",
+        "fgsea on protein association t per phenotype and model (gene permutation),",
         "beside the same set's singscore association (mouse level)."
       ),
       paste(
