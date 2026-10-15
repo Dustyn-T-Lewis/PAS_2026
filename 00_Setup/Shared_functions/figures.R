@@ -296,6 +296,22 @@ phenotype_effect_plot <- function(effects, title, subtitle) {
     theme_figure()
 }
 
+# Dot size and ring shared by the dot matrices: area grows with -log10 FDR from a visible minimum,
+# and a thick ring marks fgsea FDR <= 0.05.
+fdr_scales <- function(fdr_cap) {
+  list(
+    scale_size(
+      range = c(0.5, 3.2), limits = c(0, fdr_cap), breaks = c(1, 2, fdr_cap),
+      labels = c("1", "2", paste0(fdr_cap, "+")), name = "-log10 FDR"
+    ),
+    scale_discrete_manual(
+      "stroke",
+      values = c(`TRUE` = 0.7, `FALSE` = 0.15), breaks = "TRUE", labels = "FDR ≤ 0.05",
+      name = NULL, guide = guide_legend(override.aes = list(size = 2.4, fill = "white"))
+    )
+  )
+}
+
 # Pathway sets as a dot matrix, after F01's old panel f: NES as fill (magenta down, green up),
 # -log10 FDR as size, the collection as a square before the first column. cells holds term,
 # column, col_group, NES and fdr; rows holds term, label, collection and row_group, one row per
@@ -311,7 +327,7 @@ pathway_matrix <- function(cells, rows, title, subtitle, strip = ggh4x::strip_va
   squares <- mutate(rows, col_group = factor(levels(cells$col_group)[1], levels(cells$col_group)))
   nes_limit <- nes_limit %||% (ceiling(max(abs(cells$NES)) * 10) / 10)
   ggplot(cells, aes(column, row)) +
-    geom_point(aes(size = log_fdr, fill = NES), shape = 21, stroke = 0.2) +
+    geom_point(aes(size = log_fdr, fill = NES, stroke = fdr <= ALPHA), shape = 21, colour = "grey15") +
     geom_point(aes(x = 0.3, colour = collection), squares, shape = 15, size = 1.5) +
     # Every collection once, invisible, so each has a key even where a matrix lacks it and two
     # matrices' keys match.
@@ -335,10 +351,7 @@ pathway_matrix <- function(cells, rows, title, subtitle, strip = ggh4x::strip_va
       low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
       limits = c(-nes_limit, nes_limit), breaks = c(-2, 0, 2), name = "NES"
     ) +
-    scale_size_area(
-      max_size = 2.6, limits = c(0, fdr_cap), breaks = c(1, 2, fdr_cap),
-      labels = c("1", "2", paste0(fdr_cap, "+")), name = "-log10 FDR"
-    ) +
+    fdr_scales(fdr_cap) +
     guides(
       fill = guide_colourbar(order = 1, barwidth = unit(14, "mm"), barheight = unit(2, "mm")),
       size = guide_legend(order = 2),
@@ -515,7 +528,7 @@ set_dot_matrix <- function(cells, title, subtitle, fdr_cap = 4, nes_limit = 2.5)
       log_fdr = pmin(-log10(fdr), fdr_cap)
     ) |>
     ggplot(aes(column, row)) +
-    geom_point(aes(size = log_fdr, fill = NES), shape = 21, stroke = 0.2) +
+    geom_point(aes(size = log_fdr, fill = NES, stroke = fdr <= ALPHA), shape = 21, colour = "grey15") +
     facet_grid(row_group ~ ., scales = "free_y", space = "free_y", switch = "y") +
     scale_y_discrete(labels = deframe(distinct(cells, row, label))) +
     scale_fill_gradient2(
@@ -523,10 +536,7 @@ set_dot_matrix <- function(cells, title, subtitle, fdr_cap = 4, nes_limit = 2.5)
       limits = c(-nes_limit, nes_limit), breaks = c(-2, 0, 2), name = "NES",
       guide = guide_colourbar(barwidth = unit(14, "mm"), barheight = unit(2, "mm"))
     ) +
-    scale_size_area(
-      max_size = 2.6, limits = c(0, fdr_cap), breaks = c(1, 2, fdr_cap),
-      labels = c("1", "2", paste0(fdr_cap, "+")), name = "-log10 FDR"
-    ) +
+    fdr_scales(fdr_cap) +
     labs(x = NULL, y = NULL, title = title, subtitle = subtitle) +
     theme_figure() +
     theme(
