@@ -22,7 +22,7 @@ statistics <- file.path("02_Statistics", c(
 comparisons <- file.path(
   "03_Comparisons", c("Female", "Male", "Sex_Difference"), "a_script", "run_comparison.R"
 )
-figures <- "04_Figures/F01_Overview/a_script/f01_overview.R"
+figures <- "04_Figures/F01_Global/a_script/F01_composite.R"
 
 root <- here::here()
 log_file <- file.path(root, "run_all.log")

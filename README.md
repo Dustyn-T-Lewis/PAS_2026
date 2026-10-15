@@ -8,7 +8,7 @@ The project asks three questions:
 2. Does PAS change males? PAS_M − VEH_M.
 3. Does the PAS response differ by sex? (PAS_F − VEH_F) − (PAS_M − VEH_M).
 
-Differences between females and males at baseline are not a question here. They dominate the proteome (PERMANOVA R² 0.39), so they appear as context in `02_Statistics/04_PCA` and [Figure 1](04_Figures/F01_Overview/README.md).
+Differences between females and males at baseline are not a question here. They dominate the proteome (PERMANOVA R² 0.39), so they appear as context in `02_Statistics/04_PCA` and [Figure 1](04_Figures/F01_Global/README.md).
 
 ![The pipeline: inputs, processing, statistics run once on all 20 mice, the three comparisons and the figures](pipeline.png)
 

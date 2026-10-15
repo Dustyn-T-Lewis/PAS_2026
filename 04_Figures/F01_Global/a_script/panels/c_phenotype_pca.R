@@ -12,12 +12,12 @@ loadings <- pca$phenotype_loadings |>
   )
 
 plot <- pca_panel(
-  scores, pca$phenotype_variance, "Phenotype PCA", "Six traits, scaled",
-  permanova_text(pca$phenotype_permanova), loadings
-) +
-  theme(legend.position = "none")
+  scores, pca$phenotype_variance, "Phenotype PCA",
+  str_glue("Six traits, scaled; {nrow(scores)} mice"), permanova_text(pca$phenotype_permanova),
+  loadings
+)
 
-save_panel(plot, "F01_Global", "c_phenotype_pca", 54, 62)
+save_panel(plot, "F01_Global", "c_phenotype_pca", 60, 62)
 list(
   plot = plot,
   data = bind_rows(

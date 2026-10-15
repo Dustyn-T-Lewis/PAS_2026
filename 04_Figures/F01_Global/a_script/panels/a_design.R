@@ -10,13 +10,15 @@ groups <- count(targets, group, name = "mice")
 stopifnot(length(unique(groups$mice)) == 1)
 
 plot <- ggplot() +
-  annotation_custom(grid::rasterGrob(png::readPNG(inputs[["design"]]), interpolate = TRUE)) +
+  annotation_custom(grid::rasterGrob(png::readPNG(inputs[["design"]]),
+    y = grid::unit(1, "npc"), vjust = 1, interpolate = TRUE
+  )) +
   labs(
     title = "Design",
-    subtitle = str_glue("{nrow(targets)} mice, n = {groups$mice[1]} per group")
+    subtitle = str_glue("{nrow(targets)} mice, {groups$mice[1]} per group")
   ) +
   theme_figure() +
   theme(axis.text = element_blank(), axis.title = element_blank(), panel.grid = element_blank())
 
-save_panel(plot, "F01_Global", "a_design", 72, 62)
+save_panel(plot, "F01_Global", "a_design", 60, 62)
 list(plot = plot, data = groups, inputs = inputs)

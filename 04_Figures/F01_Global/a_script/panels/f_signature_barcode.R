@@ -10,10 +10,10 @@ stopifnot(nrow(enr$signatures) == 4)
 plot <- signature_barcode(enr$signatures, ranks) +
   labs(
     x = sprintf(
-      "rank in the other sex's ranking (n = %s)", format(length(ranks$male), big.mark = ",")
+      "rank in the other sex (n = %s)", format(length(ranks$male), big.mark = ",")
     ),
     y = NULL, title = "Cross-sex signatures",
-    subtitle = "Each sex's p ≤ 0.05 proteins in the other sex; fry across mice"
+    subtitle = "Each sex's p ≤ 0.05 proteins, ranked in the other sex"
   )
 
 save_panel(plot, "F01_Global", "f_signature_barcode", 60, 62)

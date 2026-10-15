@@ -9,6 +9,9 @@ SEX_COLOURS <- c(Female = "#D55E00", Male = "#0072B2")
 SEX_SHAPES <- c(F = 16, M = 17)
 FIGURE_GROUPS <- c("VEH_F", "PAS_F", "VEH_M", "PAS_M")
 GROUP_COLOURS <- c(VEH_F = "#FDB863", PAS_F = "#D55E00", VEH_M = "#92C5DE", PAS_M = "#0072B2")
+GROUP_LABELS <- c(
+  VEH_F = "Female VEH", PAS_F = "Female PAS", VEH_M = "Male VEH", PAS_M = "Male PAS"
+)
 # Up and down in green and magenta (PiYG), so direction never borrows a group's orange or blue.
 DIRECTION_COLOURS <- c(Down = "#C51B7D", Up = "#4D9221")
 DIRECTION_LIGHT <- c(Down = "#F1B6DA", Up = "#B8E186")
@@ -36,7 +39,8 @@ contrast_tone <- \(tone) set_names(CONTRAST_PALETTE[[tone]], CONTRAST_PALETTE$co
 DATABASE_COLOURS <- c("GO:BP" = "#999999", Reactome = "#56B4E9", MitoCarta = "#009E73")
 
 # HRvLR's figure theme: minimal, a light major grid, bold title and a plain grey subtitle, with the
-# panel letter in a left margin column level with the title.
+# panel letter in a left margin column level with the title. Keys sit under the plot, small, so
+# panels in a row share their plot area once aligned.
 theme_figure <- function() {
   theme_minimal(base_size = 7, base_family = "Helvetica") +
     theme(
@@ -45,7 +49,11 @@ theme_figure <- function() {
       plot.title.position = "plot",
       panel.grid.minor = element_blank(),
       panel.grid.major = element_line(linewidth = 0.2),
-      legend.key.size = unit(3, "mm"),
+      legend.position = "bottom",
+      legend.key.size = unit(2.5, "mm"),
+      legend.text = element_text(size = 6, margin = margin(l = 1, r = 4)),
+      legend.margin = margin(0), legend.box.spacing = unit(1.5, "mm"),
+      legend.spacing.y = unit(0.5, "mm"),
       plot.tag = element_text(face = "bold", size = 9, vjust = 1, margin = margin(r = 2)),
       plot.tag.location = "margin", plot.tag.position = "left"
     )
@@ -106,11 +114,15 @@ pca_panel <- function(scores, variance, title, subtitle, stats, arrows) {
     ) +
     geom_point(aes(colour = group, shape = sex), size = 1.3) +
     annotate(
-      "text",
-      x = -Inf, y = Inf, label = stats, hjust = -0.05, vjust = 1.3, size = 1.9,
-      lineheight = 0.95, colour = "grey20"
+      "label",
+      x = -Inf, y = Inf, label = stats, hjust = 0, vjust = 1, size = 1.9, lineheight = 0.95,
+      colour = "grey20", fill = alpha("white", 0.75), linewidth = 0,
+      label.padding = unit(1, "mm")
     ) +
-    scale_colour_manual(values = GROUP_COLOURS, aesthetics = c("colour", "fill"), name = NULL) +
+    scale_colour_manual(
+      values = GROUP_COLOURS, labels = GROUP_LABELS, aesthetics = c("colour", "fill"), name = NULL,
+      guide = guide_legend(nrow = 2, byrow = TRUE)
+    ) +
     scale_shape_manual(values = SEX_SHAPES, guide = "none") +
     scale_y_continuous(expand = expansion(mult = c(0.05, 0.32))) +
     labs(x = axis(1), y = axis(2), title = title, subtitle = subtitle) +
@@ -119,9 +131,14 @@ pca_panel <- function(scores, variance, title, subtitle, stats, arrows) {
       aes(0, 0, xend = x, yend = y), arrows,
       arrow = grid::arrow(length = grid::unit(1, "mm")), linewidth = 0.3, colour = "grey30"
     ) +
-    ggrepel::geom_text_repel(
-      aes(x, y, label = label), arrows,
-      size = 1.7, colour = "grey20", min.segment.length = Inf, box.padding = 0.15, seed = SEED
+    # The points join the repel layer as empty labels, so the arrow labels move off the mice; a
+    # pale backing keeps them legible over the ellipse outlines.
+    ggrepel::geom_label_repel(
+      aes(x, y, label = label),
+      bind_rows(arrows, transmute(scores, x = PC1, y = PC2, label = "")),
+      size = 1.7, colour = "grey20", fill = alpha("white", 0.75), linewidth = 0,
+      label.padding = 0.08, min.segment.length = Inf, box.padding = 0.2, point.padding = 0.1,
+      max.overlaps = Inf, seed = SEED
     )
 }
 
@@ -168,10 +185,13 @@ signature_barcode <- function(signatures, ranks, span = 0.12, min_height = 0.34)
     geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.3) +
     geom_segment(
       aes(rank, side * 0.06, xend = rank, yend = side * 0.3, colour = direction), ticks,
-      linewidth = 0.2, alpha = 0.8
+      linewidth = 0.2, alpha = 0.8, show.legend = FALSE
     ) +
-    geom_ribbon(aes(rank, ymin = y0, ymax = y, fill = direction), worms, alpha = 0.25) +
-    geom_line(aes(rank, y, colour = direction), worms, linewidth = 0.4) +
+    geom_ribbon(
+      aes(rank, ymin = y0, ymax = y, fill = direction, colour = direction), worms,
+      alpha = 0.25, linewidth = 0, key_glyph = "rect"
+    ) +
+    geom_line(aes(rank, y, colour = direction), worms, linewidth = 0.4, show.legend = FALSE) +
     geom_text(
       aes(x, y, label = text, hjust = hjust, vjust = vjust, colour = direction), labels,
       size = 1.9, fontface = "bold", show.legend = FALSE
@@ -179,13 +199,16 @@ signature_barcode <- function(signatures, ranks, span = 0.12, min_height = 0.34)
     facet_wrap(~lane, ncol = 1, strip.position = "left") +
     scale_colour_manual(
       values = c(up = DIRECTION_COLOURS[["Up"]], down = DIRECTION_COLOURS[["Down"]]),
-      aesthetics = c("colour", "fill"), guide = "none"
+      labels = c(up = "Up in its own sex", down = "Down in its own sex"),
+      aesthetics = c("colour", "fill"), name = NULL,
+      guide = guide_legend(nrow = 2, reverse = TRUE)
     ) +
     scale_x_continuous(expand = expansion(mult = 0.02)) +
     scale_y_continuous(limits = c(-1.42, 1.42), breaks = NULL, expand = expansion(0)) +
     theme_figure() +
     theme(
-      strip.placement = "outside", strip.text.y.left = element_text(angle = 90, size = 5.5),
+      # Inside, not outside: patchwork then puts this axis in the same row as its neighbours'.
+      strip.placement = "inside", strip.text.y.left = element_text(angle = 90, size = 5.5),
       panel.grid.major = element_blank(), panel.spacing.y = unit(2, "mm")
     )
 }
@@ -211,8 +234,8 @@ contrast_labels <- function(data, ...) {
       colour = I(contrast_tone("line")[contrast])
     ),
     data,
-    text.colour = "black", fontface = "bold", size = 2, linewidth = 0.4,
-    label.r = unit(0.6, "mm"), label.padding = unit(0.7, "mm"), lineheight = 0.9,
+    text.colour = "black", fontface = "bold", size = 1.8, linewidth = 0.4,
+    label.r = unit(0.5, "mm"), label.padding = unit(0.45, "mm"), lineheight = 0.85,
     inherit.aes = FALSE, show.legend = FALSE, ...
   )
 }
