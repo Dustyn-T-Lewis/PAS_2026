@@ -5,7 +5,7 @@ Runs every pathway test once, so the comparisons only slice the results.
 | | |
 |---|---|
 | Reads | `01_Processing/04_Gene_Sets/c_data/gene_sets.rds`, `02_Statistics/01_Fit/c_data/fit.rds`, `02_Statistics/01_Fit/c_data/study_full/`, `02_Statistics/01_Fit/c_data/study_mito/` |
-| Writes | `c_data/02_enrichment.xlsx`, `c_data/enrichment.rds` (read by the comparisons and `06_Figures/`), `b_reports/02_enrichment.pdf` |
+| Writes | `c_data/02_enrichment.xlsx`, `c_data/enrichment.rds` (read by `03_Comparisons` and `04_Figures/`), `b_reports/02_enrichment.pdf` |
 | Run | `Rscript 02_Statistics/02_Enrichment/a_script/02_enrichment.R` |
 
 - **Contrasts:** `enrichVolcano::run_enrichment(tests = "fgsea")` on the moderated t of each comparison's contrast, one contrast at a time, seed 20260910. GO:BP and Reactome in the full proteome, MitoCarta in the mitochondrial universe; BH within contrast and collection. Each row carries the same set's singscore contrast from `02_Statistics/01_Fit` (log2 FC, p, FDR, r with group), which is tested across mice.

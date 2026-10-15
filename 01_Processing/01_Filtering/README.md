@@ -4,7 +4,7 @@ Turns DIA-NN precursors into a filtered, contaminant-free precursor matrix. No m
 
 | | |
 |---|---|
-| Reads | `00_Input/report.parquet`, `00_Input/metadata.csv`, `00_Input/report_stats.xlsx` |
+| Reads | `00_Setup/Input/report.parquet`, `00_Setup/Input/metadata.csv`, `00_Setup/Input/report_stats.xlsx` |
 | Writes | `c_data/01_filtering.xlsx`, `c_data/precursors_filtered.rds` (read by 02_Quantification and 02_Statistics/04_PCA), `b_reports/01_filtering.pdf` |
 | Run | `Rscript 01_Processing/01_Filtering/a_script/01_filtering.R` |
 

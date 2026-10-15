@@ -4,8 +4,8 @@ Every model the comparisons read, fitted once on all 20 mice.
 
 | | |
 |---|---|
-| Reads | `01_Processing/02_Quantification/c_data/proteins.rds`, `01_Processing/03_Design/c_data/design.rds`, `01_Processing/05_Scores/c_data/scores.rds`, `01_Processing/06_Modules/c_data/modules.rds`, `00_Input/phenotypes.xlsx` |
-| Writes | `c_data/01_fit.xlsx`, `c_data/fit.rds` (read by 02_Enrichment to 04_PCA, the comparisons and `06_Figures/`), `c_data/study_full/` and `c_data/study_mito/` (enrichVolcano study tables read by 02_Enrichment), `b_reports/01_fit.pdf` |
+| Reads | `01_Processing/02_Quantification/c_data/proteins.rds`, `01_Processing/03_Design/c_data/design.rds`, `01_Processing/05_Scores/c_data/scores.rds`, `01_Processing/06_Modules/c_data/modules.rds`, `00_Setup/Input/phenotypes.xlsx` |
+| Writes | `c_data/01_fit.xlsx`, `c_data/fit.rds` (read by 02_Enrichment to 04_PCA, `03_Comparisons` and `04_Figures/`), `c_data/study_full/` and `c_data/study_mito/` (enrichVolcano study tables read by 02_Enrichment), `b_reports/01_fit.pdf` |
 | Run | `Rscript 02_Statistics/01_Fit/a_script/01_fit.R` |
 
 - **Proteins:** `limpa::dpcDE(sample.weights = TRUE)` per universe, `contrasts.fit()`, `eBayes()`; BH within universe and contrast; Π = p^|log2 FC| beside p and FDR; r with group (first group = 1) beside each two-group contrast.

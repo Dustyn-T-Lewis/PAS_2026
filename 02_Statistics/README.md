@@ -2,6 +2,8 @@
 
 Every model and test, run once on all 20 mice. The three comparisons read these results; nothing here is computed again downstream.
 
+![The four statistics steps, the five contrasts and who reads the results](schematic.png)
+
 | Step | Asks | Method |
 |---|---|---|
 | [`01_Fit`](01_Fit/README.md) | contrasts, phenotype effects and phenotype associations | limpa `dpcDE`, limma |

@@ -2,6 +2,8 @@
 
 Turns the DIA-NN report into protein values per mouse, and builds every protein grouping later steps test. Nothing here compares groups.
 
+![The six processing steps, their methods and the files they write](schematic.png)
+
 | Step | Does | Method |
 |---|---|---|
 | [`01_Filtering`](01_Filtering/README.md) | keeps trustworthy precursors | limpa `readDIANN`, q ≤ 0.01, contaminant and shared-peptide filters |

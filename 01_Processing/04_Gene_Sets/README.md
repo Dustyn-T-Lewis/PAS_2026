@@ -4,8 +4,8 @@ Builds every protein grouping the later steps test, before any result is read, a
 
 | | |
 |---|---|
-| Reads | `00_Input/Mouse.MitoCarta3.0.xls`, `00_Input/corum_complete.txt`, `00_Input/STRING_v12/`, `01_Processing/02_Quantification/c_data/proteins.rds` |
-| Writes | `c_data/04_gene_sets.xlsx`, `c_data/gene_sets.rds` (read by 05_Scores, 06_Modules, 02_Statistics/02_Enrichment and the comparisons' 02_Pathways). No PDF. |
+| Reads | `00_Setup/Input/Mouse.MitoCarta3.0.xls`, `00_Setup/Input/corum_complete.txt`, `00_Setup/Input/STRING_v12/`, `01_Processing/02_Quantification/c_data/proteins.rds` |
+| Writes | `c_data/04_gene_sets.xlsx`, `c_data/gene_sets.rds` (read by 05_Scores, 06_Modules, 02_Statistics/02_Enrichment and `03_Comparisons` step 02). No PDF. |
 | Run | `Rscript 01_Processing/04_Gene_Sets/a_script/04_gene_sets.R` |
 
 - **Tested pathways:** GO:BP and Reactome (disease and infection branch excluded) through `enrichVolcano::load_gene_sets()` in the full proteome; MitoCarta 3.0 pathways in the mitochondrial universe. A set is tested when 15 to 500 of its genes are detected (MitoCarta 10 to 500), counted on the symbols enrichVolcano maps, so fgsea (02_Statistics/02_Enrichment) and singscore (05_Scores) use the same list: 727 GO:BP, 119 Reactome, 43 MitoCarta.

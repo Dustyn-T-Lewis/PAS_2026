@@ -1,4 +1,4 @@
-# 00_Input
+# Input
 
 Study data and the reference files the pipeline reads, so it runs without a network connection. Nothing here runs.
 

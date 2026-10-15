@@ -6,7 +6,7 @@ Figure 1: the design and the three questions side by side (PAS vs vehicle in fem
 |---|---|
 | Reads | `assets/design.png`, `02_Statistics/01_Fit/c_data/fit.rds`, `02_Statistics/02_Enrichment/c_data/enrichment.rds`, `02_Statistics/04_PCA/c_data/pca.rds` |
 | Writes | `b_reports/f01_overview.pdf` and `.png` (300 × 190 mm), `c_data/f01_overview.xlsx` |
-| Run | `Rscript 06_Figures/F01_Overview/a_script/f01_overview.R` |
+| Run | `Rscript 04_Figures/F01_Overview/a_script/f01_overview.R` |
 
 The script reads saved outputs only and computes nothing beyond counts and arrow scaling. Before writing, it checks the panel b FDR counts against `protein_contrasts`, the mouse counts, that every pathway row has all three columns, and that every selected set is at FDR ≤ 0.05 in its source.
 
