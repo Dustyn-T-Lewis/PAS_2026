@@ -91,32 +91,38 @@ stopifnot(identical(
   left_join(select(perfect, comparison, level), tier_table, by = c("comparison", "level"))$perfect
 ))
 
-comparison_label <- \(x) map_chr(COMPARISONS[x], "label")
-perfect_page <- perfect |>
-  mutate(level = factor(LEVELS[level], rev(LEVELS)), comparison = comparison_label(comparison)) |>
-  ggplot(aes(observed, level)) +
-  geom_errorbar(aes(xmin = 0, xmax = null_q95), width = 0.3, colour = "grey60", orientation = "y") +
-  geom_point(aes(x = null_median), shape = 124, size = 3, colour = "grey40") +
-  geom_point(size = 2) +
-  geom_text(aes(label = sprintf("%d, p %.3f", observed, p)), nudge_y = 0.3, hjust = 0, size = 2) +
-  facet_wrap(~comparison) +
-  labs(
-    x = "Features separating PAS from vehicle perfectly", y = NULL,
-    title = "Perfect separations against chance, PAS vs vehicle within sex",
-    subtitle = "Dot: observed; grey: median and 95th percentile over all 252 relabellings"
-  ) +
-  theme_figure()
-auc_page <- roc |>
-  mutate(level = factor(LEVELS[level], LEVELS), comparison = comparison_label(comparison)) |>
-  ggplot(aes(auc)) +
-  geom_histogram(breaks = seq(0, 1, 0.05), fill = "grey65", colour = "white", linewidth = 0.2) +
-  facet_grid(level ~ comparison, scales = "free_y") +
-  labs(
-    x = "AUC (1: higher in PAS)", y = "Features", title = "AUC of every feature, PAS vs vehicle"
-  ) +
-  theme_figure()
-plot_index <- write_report(file.path(out$reports, "03_classification.pdf"), list(
-  "perfect separations against chance" = perfect_page, "AUC distributions" = auc_page
+# pROC's own curves for the four pathway scores with the smallest p in one sex.
+roc_curves <- \(comparison) {
+  \() {
+    code <- COMPARISONS[[comparison]]$sex
+    in_sex <- targets$sex == code
+    case <- targets$treatment[in_sex] == "PAS"
+    best <- roc |>
+      filter(comparison == !!comparison, level == "pathway") |>
+      slice_min(p, n = 4, with_ties = FALSE)
+    walk2(best$feature, seq_along(best$feature), \(f, i) {
+      pROC::plot.roc(case, features$pathway[f, in_sex],
+        levels = c(FALSE, TRUE), direction = "<", quiet = TRUE, add = i > 1, col = i,
+        main = COMPARISONS[[comparison]]$label
+      )
+    })
+    legend("bottomright", str_trunc(best$feature, 45),
+      col = seq_along(best$feature), lwd = 2,
+      bty = "n", cex = 0.6
+    )
+  }
+}
+plot_index <- preview_pdf(file.path(out$reports, "03_classification.pdf"), list(
+  "AUC of every pathway score" = \() {
+    par(mfrow = c(1, 2))
+    walk(c("female", "male"), \(cmp) {
+      hist(roc$auc[roc$comparison == cmp & roc$level == "pathway"],
+        breaks = seq(0, 1, 0.05), main = COMPARISONS[[cmp]]$label, xlab = "AUC (1: higher in PAS)"
+      )
+    })
+  },
+  "best pathway separators, female" = roc_curves("female"),
+  "best pathway separators, male" = roc_curves("male")
 ))
 
 saveRDS(

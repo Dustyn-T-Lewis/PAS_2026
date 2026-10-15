@@ -51,11 +51,11 @@ ordinate <- function(x, scale) {
     as_tibble() |>
     select(term, df = Df, r2 = R2, f = `F`, p = `Pr(>F)`)
   set.seed(SEED)
-  dispersion <- vegan::betadisper(distances, samples$group) |>
-    vegan::permutest(permutations = PERMUTATIONS)
+  dispersion <- vegan::betadisper(distances, samples$group)
+  dispersion_test <- vegan::permutest(dispersion, permutations = PERMUTATIONS)
   list(
     pca = pca, variance = pca$sdev^2 / sum(pca$sdev^2), permanova = permanova,
-    dispersion_p = dispersion$tab[1, "Pr(>F)"]
+    dispersion = dispersion, dispersion_p = dispersion_test$tab[1, "Pr(>F)"]
   )
 }
 proteome <- ordinate(t(fit$E_norm$full[, samples$sample_id]), scale = FALSE)
@@ -88,33 +88,18 @@ proteome_scores <- scores(proteome, N_COMPONENTS)
 phenotype_scores <- scores(phenotype, 2)
 phenotype_loadings <- as_tibble(phenotype$pca$rotation[, 1:2], rownames = "phenotype")
 
-pca_page <- function(s, o, title) {
-  ggplot(s, aes(PC1, PC2, colour = factor(group, FIGURE_GROUPS), shape = sex)) +
-    geom_point(size = 2) +
-    scale_colour_manual(values = GROUP_COLOURS, name = NULL) +
-    scale_shape_manual(values = SEX_SHAPES, guide = "none") +
-    labs(
-      x = sprintf("PC1 (%.1f%%)", 100 * o$variance[1]),
-      y = sprintf("PC2 (%.1f%%)", 100 * o$variance[2]), title = title,
-      subtitle = with(o$permanova, paste(
-        sprintf("%s R² %.2f, p = %.3f", term[1:3], r2[1:3], p[1:3]),
-        collapse = "; "
-      ))
-    ) +
-    theme_figure()
-}
-r2_page <- ggplot(component_r2, aes(pc, factor(factor, rev(names(codes))), fill = r2)) +
-  geom_tile(colour = "white") +
-  geom_text(aes(label = sprintf("%.2f", r2)), size = 2.4) +
-  scale_fill_gradient(low = "white", high = "grey25", limits = c(0, 1)) +
-  labs(
-    x = NULL, y = NULL, title = "What each component tracks", subtitle = "R² of each factor alone"
-  ) +
-  theme_figure()
-plot_index <- write_report(file.path(out$reports, "04_pca.pdf"), list(
-  "proteome PCA" = pca_page(proteome_scores, proteome, "Proteome PCA"),
-  "component R²" = r2_page,
-  "phenotype PCA" = pca_page(phenotype_scores, phenotype, "Phenotype PCA, six traits scaled")
+group <- factor(samples$group, FIGURE_GROUPS)
+plot_index <- preview_pdf(file.path(out$reports, "04_pca.pdf"), list(
+  "proteome PCA" = \() {
+    xy <- proteome$pca$x[, 1:2]
+    vegan::ordiplot(xy, type = "n", main = "Proteome PCA")
+    points(xy, pch = c(F = 16, M = 17)[samples$sex], col = GROUP_COLOURS[as.character(group)])
+    vegan::ordiellipse(xy, group, kind = "sd", col = GROUP_COLOURS[levels(group)])
+    plot(mito_fit, col = "grey20")
+    legend("topleft", levels(group), col = GROUP_COLOURS[levels(group)], pch = 16, bty = "n")
+  },
+  "phenotype PCA" = \() biplot(phenotype$pca, xlabs = samples$group, cex = 0.6),
+  "proteome dispersion by group" = \() plot(proteome$dispersion, main = "Proteome dispersion")
 ))
 
 saveRDS(

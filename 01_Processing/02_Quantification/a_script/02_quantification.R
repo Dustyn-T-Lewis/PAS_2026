@@ -32,11 +32,8 @@ quantified <- readRDS(checkpoint)
 stopifnot(identical(attr(quantified, "source_fingerprint"), fingerprint(y)))
 inputs <- c(inputs, dpcquant_checkpoint = checkpoint)
 
-pdf(file.path(out$reports, "02_quantification.pdf"), width = 7, height = 5)
 dpc_cn <- dpcCN(y$E)
 dpc_on <- dpcON(y$E, robust = TRUE)
-plotDPC(dpc_cn)
-plotAveVsMis(y)
 
 dpc_parameters <- tibble(
   estimator = c("dpcCN", "dpcON(robust)"),
@@ -73,10 +70,6 @@ mito_share <- tibble(
   sample_id = colnames(proteins), treatment = proteins$targets$treatment,
   sex = proteins$targets$sex, group = proteins$targets$group, pct_mito_signal = pct_mito
 )
-boxplot(pct_mito_signal ~ group,
-  data = mito_share, outline = FALSE, ylab = "% signal from MitoCarta proteins"
-)
-stripchart(pct_mito_signal ~ group, data = mito_share, vertical = TRUE, add = TRUE, pch = 16)
 
 mito_share_tests <- tibble(
   factor = c("treatment", "sex"),
@@ -86,10 +79,6 @@ mito_share_tests <- tibble(
   )
 )
 
-boxplot(proteins$E,
-  las = 2, cex.axis = 0.6, outline = FALSE,
-  col = as.integer(factor(proteins$targets$group)), ylab = "log2 protein abundance"
-)
 normalization_evidence <- tibble(
   sample_id = colnames(proteins), group = proteins$targets$group,
   median = apply(proteins$E, 2, median), iqr = apply(proteins$E, 2, IQR)
@@ -140,23 +129,35 @@ E_norm <- set_names(
   chosen$universe
 )[names(universes)]
 
-print(
-  ggplot(normalization, aes(method, pmad, fill = eligible)) +
-    geom_col() +
-    geom_text(aes(label = if_else(chosen, "chosen", "")), vjust = -0.3, size = 3) +
-    facet_wrap(~universe, scales = "free_y") +
-    scale_fill_manual(values = c(`TRUE` = "grey30", `FALSE` = "grey75")) +
-    labs(
-      x = NULL, y = "PMAD (mean within-group MAD, log2)", fill = "keeps limpa SEs",
-      title = "Normalisation benchmark: replicate spread within groups"
-    ) +
-    theme_figure()
-)
-
-group <- factor(proteins$targets$group)
-plotMDSUsingSEs(proteins, pch = 16, col = as.integer(group))
-legend("bottomleft", levels(group), col = seq_along(levels(group)), pch = 16, bty = "n")
-invisible(dev.off())
+group <- factor(proteins$targets$group, FIGURE_GROUPS)
+plot_index <- preview_pdf(file.path(out$reports, "02_quantification.pdf"), list(
+  "detection probability curve" = \() plotDPC(dpc_cn),
+  "detection against average intensity" = \() plotAveVsMis(y),
+  "MitoCarta share by group" = \() {
+    boxplot(pct_mito_signal ~ group,
+      data = mito_share, outline = FALSE, ylab = "% signal from MitoCarta proteins"
+    )
+    stripchart(pct_mito_signal ~ group, data = mito_share, vertical = TRUE, add = TRUE, pch = 16)
+  },
+  "protein abundance per mouse, before normalisation" = \() {
+    limma::plotDensities(proteins$E,
+      group = group, col = GROUP_COLOURS[levels(group)], main = "before normalisation"
+    )
+  },
+  "protein abundance per mouse, chosen normalisation" = \() {
+    limma::plotDensities(E_norm$full,
+      group = group, col = GROUP_COLOURS[levels(group)], main = "full proteome, as used"
+    )
+  },
+  "normalisation benchmark" = \() {
+    pmad <- xtabs(pmad ~ universe + method, normalization)
+    barplot(pmad, beside = TRUE, legend.text = TRUE, ylab = "PMAD (mean within-group MAD)")
+  },
+  "MDS using standard errors" = \() {
+    plotMDSUsingSEs(proteins, pch = 16, col = GROUP_COLOURS[as.character(group)])
+    legend("bottomleft", levels(group), col = GROUP_COLOURS[levels(group)], pch = 16, bty = "n")
+  }
+))
 
 saveRDS(
   list(
@@ -170,7 +171,7 @@ write_workbook(
   list(
     dpc_parameters = dpc_parameters, mito_share = mito_share,
     mito_share_tests = mito_share_tests, normalization_evidence = normalization_evidence,
-    normalization = normalization
+    normalization = normalization, plot_index = plot_index
   ),
   c(
     "Detection-probability curve intercept and slope, by estimator.",
@@ -180,7 +181,8 @@ write_workbook(
     paste(
       "Normalisation benchmark per universe: PMAD, PEV, PCV within groups; eligible = keeps",
       "limpa's standard errors valid; chosen = lowest PMAD among eligible."
-    )
+    ),
+    "Which PDF page shows what."
   ),
   out$workbook, inputs
 )

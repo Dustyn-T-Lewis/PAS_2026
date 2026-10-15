@@ -90,40 +90,28 @@ scale_free <- tibble(
   mean_connectivity = sft$fitIndices$mean.k.
 )
 
-fit_plot <- scale_free |>
-  pivot_longer(-power, names_to = "measure") |>
-  mutate(measure = if_else(measure == "r2", "Signed scale-free R²", "Mean connectivity")) |>
-  ggplot(aes(power, value)) +
-  geom_line(linewidth = 0.3) +
-  geom_point(size = 1.2) +
-  geom_vline(xintercept = power, linetype = "dashed", linewidth = 0.3) +
-  facet_wrap(~measure, scales = "free_y") +
-  labs(
-    x = "Soft-threshold power", y = NULL, title = "Soft-threshold choice",
-    subtitle = str_glue("Power used: {power}; R² cut {RSQ_CUT}")
-  ) +
-  theme_figure()
-eigengene_plot <- as_tibble(eigengenes, rownames = "sample_id") |>
-  pivot_longer(-sample_id, names_to = "module", values_to = "eigengene") |>
-  left_join(select(targets, sample_id, group, sex), by = "sample_id") |>
-  mutate(group = factor(group, FIGURE_GROUPS)) |>
-  ggplot(aes(group, eigengene, colour = group, shape = sex)) +
-  stat_summary(fun = median, geom = "crossbar", width = 0.5, linewidth = 0.25, colour = "grey40") +
-  geom_point(position = position_jitter(width = 0.12, seed = SEED), size = 1.4) +
-  facet_wrap(~module) +
-  scale_colour_manual(values = GROUP_COLOURS, guide = "none") +
-  scale_shape_manual(values = SEX_SHAPES, guide = "none") +
-  labs(
-    x = NULL, y = "Eigengene (unadjusted data)", title = "Module eigengenes by mouse",
-    subtitle = "Modules built with sex removed; eigengenes keep sex and treatment for testing"
-  ) +
-  theme_figure()
-plot_index <- write_report(file.path(out$reports, "06_modules.pdf"), list(
-  "soft threshold: scale-free fit and connectivity" = fit_plot,
-  "eigengenes by group" = eigengene_plot,
-  "eigengene heatmap" = group_heatmap(t(eigengenes), targets,
-    title = "Module eigengenes", subtitle = "Rows z-scored; clustered for display only"
-  )
+plot_index <- preview_pdf(file.path(out$reports, "06_modules.pdf"), list(
+  "soft threshold: scale-free fit and connectivity" = \() {
+    par(mfrow = c(1, 2))
+    plot(scale_free$power, scale_free$r2,
+      type = "b", pch = 16, xlab = "Soft-threshold power", ylab = "Signed scale-free R²"
+    )
+    abline(h = RSQ_CUT, v = power, lty = 2)
+    plot(scale_free$power, scale_free$mean_connectivity,
+      type = "b", pch = 16, xlab = "Soft-threshold power", ylab = "Mean connectivity"
+    )
+    abline(v = power, lty = 2)
+  },
+  "module dendrogram" = \() {
+    plotDendroAndColors(net$dendrograms[[1]], net$colors[net$blockGenes[[1]]], "Module",
+      dendroLabels = FALSE, hang = 0.03, addGuide = TRUE, guideHang = 0.05
+    )
+  },
+  "eigengene network" = \() {
+    plotEigengeneNetworks(orderMEs(moduleEigengenes(t(expr), net$colors)$eigengenes), "",
+      marDendro = c(0, 4, 1, 2), marHeatmap = c(3, 4, 1, 2), xLabelsAngle = 90
+    )
+  }
 ))
 
 saveRDS(

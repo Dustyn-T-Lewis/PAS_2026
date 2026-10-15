@@ -53,6 +53,19 @@ save_figure <- function(figure, dir, name, width_mm, height_mm) {
   save(".png", dpi = 600)
 }
 
+# A step's preview PDF: one landscape page per named function, each drawing with a package's own
+# plot or base graphics; cairo, so Π and ≤ render. Returns the rows of the workbook's plot_index.
+preview_pdf <- function(file, pages) {
+  cairo_pdf(file, width = 7, height = 5, onefile = TRUE)
+  on.exit(dev.off())
+  defaults <- par(no.readonly = TRUE)
+  walk(pages, \(draw) {
+    draw()
+    par(defaults)
+  })
+  tibble(file = basename(file), page = seq_along(pages), shows = names(pages))
+}
+
 # A step report: one landscape page per named ggplot, cairo so Π and ≤ render. Returns the
 # rows of the workbook's plot_index sheet.
 write_report <- function(file, pages) {

@@ -232,73 +232,28 @@ association_summary <- association_fgsea |>
   ) |>
   select(-pi_le_0.05)
 
-summary_page <- tier_table |>
-  select(contrast, collection, tests, p_le_0.05, expected_by_chance, fdr_le_0.05) |>
-  pivot_longer(c(p_le_0.05, fdr_le_0.05), names_to = "tier", values_to = "n") |>
-  mutate(
-    contrast = factor(CONTRAST_LABELS[contrast], CONTRAST_LABELS[COMPARISON_CONTRASTS]),
-    tier = factor(tier, c("p_le_0.05", "fdr_le_0.05"), c("p ≤ 0.05", "FDR ≤ 0.05")),
-    collection = factor(collection, c("GO:BP", "Reactome", "MitoCarta"))
-  ) |>
-  ggplot(aes(n, collection, fill = tier)) +
-  geom_col(position = position_dodge(width = 0.8), width = 0.75) +
-  geom_point(
-    aes(x = expected_by_chance),
-    data = \(d) filter(d, tier == "p ≤ 0.05"), shape = 124, size = 3,
-    position = position_nudge(y = -0.2)
-  ) +
-  geom_text(aes(label = n), position = position_dodge(width = 0.8), hjust = -0.2, size = 2.2) +
-  facet_wrap(~contrast, ncol = 1) +
-  scale_fill_manual(values = c("p ≤ 0.05" = "grey65", "FDR ≤ 0.05" = "black"), name = NULL) +
-  scale_x_continuous(expand = expansion(mult = c(0, 0.15))) +
-  labs(
-    x = "Sets", y = NULL, title = "fgsea, each comparison's contrast",
-    subtitle = "BH within contrast and collection; bar mark: sets at p ≤ 0.05 expected by chance"
-  ) +
-  theme_figure()
-association_page <- association_summary |>
-  mutate(
-    sex = if_else(sex == "female", "Female", "Male"),
-    model = factor(model, ASSOCIATION_MODELS, c("Pooled", "Within treatment")),
-    trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS)),
-    collection = factor(collection, c("GO:BP", "Reactome", "MitoCarta"))
-  ) |>
-  ggplot(aes(collection, trait, fill = p_le_0.05 / expected_by_chance)) +
-  geom_tile(colour = "white") +
-  geom_text(aes(label = str_glue("{p_le_0.05} / {tests}\nFDR {fdr_le_0.05}")), size = 1.9) +
-  facet_grid(model ~ sex) +
-  scale_fill_gradient(low = "white", high = "grey35", name = "p ≤ 0.05 /\nchance") +
-  labs(
-    x = NULL, y = NULL, title = "Pathways moving with each phenotype",
-    subtitle = "fgsea on protein association t within one sex, pooled and within treatment"
-  ) +
-  theme_figure()
-string_page <- string_tests |>
-  filter(expected > 0) |>
-  mutate(contrast = factor(CONTRAST_LABELS[contrast], CONTRAST_LABELS[COMPARISON_CONTRASTS])) |>
-  ggplot(aes(fold, list)) +
-  geom_vline(xintercept = 1, linetype = "dashed", linewidth = 0.3) +
-  geom_point(aes(size = n_proteins), colour = "grey30") +
-  geom_text(
-    aes(label = sprintf("%d edges, p %s", edges, if_else(p == 0, "< 1e-16", sprintf("%.2g", p)))),
-    nudge_y = 0.3, size = 2
-  ) +
-  facet_wrap(~contrast, ncol = 1) +
-  scale_size_area(max_size = 4, name = "Proteins") +
-  scale_x_continuous(expand = expansion(mult = 0.12)) +
-  labs(
-    x = "STRING edges / expected", y = NULL, title = "STRING connectivity of each protein list",
-    subtitle = paste(
-      "v12, score ≥ 400, against the detected proteome; descriptive;",
-      "lists with no expected edges omitted"
-    )
-  ) +
-  theme_figure()
-plot_index <- write_report(file.path(out$reports, "02_enrichment.pdf"), list(
-  "fgsea sets per tier, each contrast" = summary_page,
-  "pathway associations per phenotype" = association_page,
-  "STRING connectivity" = string_page
-))
+# fgsea's own table of running scores: the five strongest sets each way per comparison contrast.
+gsea_table <- \(cn) {
+  \() {
+    top <- results |>
+      filter(contrast == cn, universe == "full") |>
+      slice_min(p, n = 5, by = direction, with_ties = FALSE) |>
+      arrange(desc(NES)) |>
+      transmute(pathway = term, NES, pval = p, padj)
+    short <- str_trunc(enrichVolcano::clean_label(top$pathway, width = 200), 36)
+    pathways <- set_names(sets$full[top$pathway], short)
+    print(fgsea::plotGseaTable(pathways, ranks[[cn]]$full, mutate(top, pathway = short),
+      gseaParam = 1
+    ))
+  }
+}
+plot_index <- preview_pdf(
+  file.path(out$reports, "02_enrichment.pdf"),
+  set_names(
+    map(COMPARISON_CONTRASTS, gsea_table),
+    paste("strongest sets,", CONTRAST_LABELS[COMPARISON_CONTRASTS])
+  )
+)
 
 saveRDS(
   list(

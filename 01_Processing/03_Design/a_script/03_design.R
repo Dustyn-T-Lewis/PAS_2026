@@ -82,24 +82,17 @@ surrogate_r <- tibble(
     t.test(sv1[keep] ~ proteins$targets$treatment[keep])$p.value
   }))
 )
-plot_index <- write_report(file.path(out$reports, "03_design.pdf"), list(
-  "surrogate variable against run depth" = ggplot(
-    surrogate, aes(run_depth_log2, sv1, colour = group, shape = sex)
-  ) +
-    geom_point(size = 2.4) +
-    scale_colour_manual(values = GROUP_COLOURS, breaks = FIGURE_GROUPS) +
-    scale_shape_manual(values = SEX_SHAPES) +
-    labs(
-      x = "Run depth (log2 precursors identified)", y = "Surrogate variable 1",
-      title = "The surrogate variable follows run depth",
-      subtitle = sprintf(
-        "r = %.2f across all mice; %.2f in females, %.2f in males",
-        surrogate_r$r_with_run_depth[1], surrogate_r$r_with_run_depth[2],
-        surrogate_r$r_with_run_depth[3]
-      ),
-      colour = NULL, shape = NULL
-    ) +
-    theme_figure()
+plot_index <- preview_pdf(file.path(out$reports, "03_design.pdf"), list(
+  "surrogate variable against run depth" = \() {
+    plot(run_depth, sv1,
+      pch = c(F = 16, M = 17)[surrogate$sex], col = GROUP_COLOURS[surrogate$group],
+      xlab = "Run depth (log2 precursors identified)", ylab = "Surrogate variable 1",
+      main = sprintf("r = %.2f", surrogate_r$r_with_run_depth[1])
+    )
+    legend("topleft", FIGURE_GROUPS,
+      col = GROUP_COLOURS[FIGURE_GROUPS], pch = c(16, 16, 17, 17), bty = "n"
+    )
+  }
 ))
 
 saveRDS(list(design = design, contrasts = contrasts), file.path(out$data, "design.rds"))

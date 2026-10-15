@@ -300,63 +300,24 @@ association_summary <- protein_associations |>
   bind_rows(score_associations) |>
   reframe(tier_counts(P.Value, adj.P.Val), .by = c(level, universe, phenotype, sex, model))
 
-volcano_page <- protein_contrasts |>
-  filter(universe == "full") |>
-  mutate(
-    contrast = factor(CONTRAST_LABELS[contrast], CONTRAST_LABELS),
-    tier = case_when(
-      adj.P.Val <= ALPHA ~ "FDR ≤ 0.05", pi_score <= ALPHA ~ "Π ≤ 0.05",
-      P.Value <= ALPHA ~ "p ≤ 0.05",
-      .default = "p > 0.05"
+sa_page <- \(universe) \() plotSA(protein_fits[[universe]][[1]], main = universe)
+volcano <- \(cn) {
+  \() {
+    f <- protein_fits$full[[cn]]
+    volcanoplot(f,
+      coef = 1, highlight = sum(p.adjust(f$p.value[, 1], "BH") <= ALPHA),
+      names = first_symbol(f$genes$Genes), main = CONTRAST_LABELS[[cn]]
     )
-  ) |>
-  ggplot(aes(logFC, -log10(P.Value), colour = tier)) +
-  geom_point(size = 0.5) +
-  geom_hline(yintercept = -log10(ALPHA), linetype = "dashed", linewidth = 0.3) +
-  facet_wrap(~contrast, nrow = 1) +
-  scale_colour_manual(values = c(
-    "p > 0.05" = "grey80", "p ≤ 0.05" = "grey50", "Π ≤ 0.05" = "#E08214",
-    "FDR ≤ 0.05" = "black"
-  ), name = NULL) +
-  labs(
-    x = "log2 fold change", y = "-log10 p", title = "Proteins, every contrast",
-    subtitle = "Full proteome; dashed line p = 0.05"
-  ) +
-  theme_figure() +
-  theme(legend.position = "bottom")
-grid_page <- association_summary |>
-  filter(level == "protein", universe == "full") |>
-  mutate(
-    ratio = p_le_0.05 / expected_by_chance,
-    column = factor(
-      paste(if_else(sex == "female", "Female", "Male"), str_replace(model, "_", " + ")),
-      paste(rep(c("Female", "Male"), each = 3), str_replace(ASSOCIATION_MODELS, "_", " + "))
-    ),
-    trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS))
-  ) |>
-  ggplot(aes(column, trait, fill = ratio)) +
-  geom_tile(colour = "white") +
-  geom_text(aes(label = str_glue("{p_le_0.05}\nFDR {fdr_le_0.05}")), size = 2.2) +
-  scale_fill_gradient(low = "white", high = "grey35", name = "p ≤ 0.05 /\nchance") +
-  labs(
-    x = NULL, y = NULL, title = "Proteins associated with each phenotype",
-    subtitle = str_glue(
-      "Within each sex; pooled, within treatment, pooled + mito share; ",
-      "{round(ALPHA * sum(quant$universes$full))} at p ≤ 0.05 by chance"
-    )
-  ) +
-  theme_figure()
-effects_page <- phenotype_effect_plot(phenotype_effects,
-  title = "Phenotype effects of PAS",
-  subtitle = str_glue(
-    "Welch t on log values within sex, n = {min(phenotype_effects$n_pas)} v ",
-    "{min(phenotype_effects$n_veh)}"
+  }
+}
+plot_index <- preview_pdf(file.path(out$reports, "01_fit.pdf"), c(
+  list(
+    "protein variance against abundance, full proteome" = sa_page("full"),
+    "protein variance against abundance, MitoCarta" = sa_page("mito")
+  ),
+  set_names(
+    map(COMPARISON_CONTRASTS, volcano), paste("volcano,", CONTRAST_LABELS[COMPARISON_CONTRASTS])
   )
-)
-plot_index <- write_report(file.path(out$reports, "01_fit.pdf"), list(
-  "protein volcanoes, every contrast" = volcano_page,
-  "protein-phenotype association counts" = grid_page,
-  "phenotype effects" = effects_page
 ))
 
 saveRDS(

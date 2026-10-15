@@ -182,6 +182,24 @@ saveRDS(
   file.path(out$data, "precursors_filtered.rds")
 )
 
+group <- factor(raw_totals$group, FIGURE_GROUPS)
+plot_index <- preview_pdf(file.path(out$reports, "01_filtering.pdf"), list(
+  "precursor intensity per run" = \() limma::plotDensities(y, legend = FALSE),
+  "precursors after each filter" = \() {
+    par(mar = c(4, 13, 1, 1))
+    barplot(rev(filter_log$precursors),
+      names.arg = rev(filter_log$step), horiz = TRUE, las = 1, xlab = "precursors"
+    )
+  },
+  "raw signal against protein groups" = \() {
+    plot(raw_totals$proteins, raw_totals$raw_rel,
+      col = GROUP_COLOURS[as.character(group)], pch = 16,
+      xlab = "protein groups identified", ylab = "raw signal / cohort median"
+    )
+    legend("topleft", levels(group), col = GROUP_COLOURS[levels(group)], pch = 16, bty = "n")
+  }
+))
+
 write_workbook(
   list(
     filter_log = filter_log,
@@ -189,7 +207,8 @@ write_workbook(
     crap_detected = crap_detected,
     contaminant_share = contaminant_share,
     contaminant_per_run = contaminant_per_run,
-    run_qc = raw_totals
+    run_qc = raw_totals,
+    plot_index = plot_index
   ),
   c(
     "Precursors, protein groups and share of signal after each filter.",
@@ -197,19 +216,12 @@ write_workbook(
     "cRAP entries the search appended, with precursors and share of signal.",
     "Median contaminant and plasma share of signal per group.",
     "Contaminant and plasma share of signal per mouse, before removal.",
-    "Per run: raw signal, precursors and protein groups identified."
+    "Per run: raw signal, precursors and protein groups identified.",
+    "Which PDF page shows what."
   ),
   out$workbook, inputs
 )
 
-pdf(file.path(out$reports, "01_filtering.pdf"), width = 7, height = 5)
-group <- factor(raw_totals$group)
-plot(raw_totals$proteins, raw_totals$raw_rel,
-  col = as.integer(group), pch = 16,
-  xlab = "protein groups identified", ylab = "raw signal / cohort median"
-)
-legend("topleft", levels(group), col = seq_along(levels(group)), pch = 16, bty = "n")
-invisible(dev.off())
 
 tibble(
   runs_dropped = str_c(runs_dropped, collapse = ", "), samples = ncol(y),

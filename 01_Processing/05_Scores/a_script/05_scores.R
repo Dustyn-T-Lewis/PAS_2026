@@ -45,16 +45,21 @@ catalog <- imap(scores, \(s, universe) {
 }) |>
   list_rbind()
 
-pages <- distinct(catalog, universe, collection) |>
-  pmap(\(universe, collection) {
-    rows <- catalog$set[catalog$universe == universe & catalog$collection == collection]
-    group_heatmap(scores[[universe]][rows, , drop = FALSE], targets,
-      title = str_glue("{collection} singscores"),
-      subtitle = "Rows z-scored and clustered on 1 - Pearson r (display only); mice by group"
-    )
+collections <- distinct(catalog, universe, collection)
+plot_index <- preview_pdf(
+  file.path(out$reports, "05_scores.pdf"),
+  pmap(collections, \(universe, collection) {
+    \() {
+      rows <- catalog$set[catalog$universe == universe & catalog$collection == collection]
+      heatmap(scores[[universe]][rows, , drop = FALSE],
+        scale = "row", labRow = NA, cexCol = 0.6, main = collection,
+        col = hcl.colors(50, "Blue-Red 3"),
+        ColSideColors = unname(GROUP_COLOURS[targets$group])
+      )
+    }
   }) |>
-  set_names(str_glue("singscore heatmap, {distinct(catalog, universe, collection)$collection}"))
-plot_index <- write_report(file.path(out$reports, "05_scores.pdf"), pages)
+    set_names(str_glue("singscore heatmap, {collections$collection}"))
+)
 
 saveRDS(list(scores = scores, collection = collection_of), file.path(out$data, "scores.rds"))
 write_workbook(
