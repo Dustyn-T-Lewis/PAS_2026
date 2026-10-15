@@ -64,6 +64,8 @@ y <- readDIANN(
 
 metadata <- read_csv(inputs[["metadata"]], show_col_types = FALSE) |>
   filter(include)
+raw_quantity <- read_parquet(inputs[["report"]], col_select = c("Run", "Precursor.Quantity"))
+report_stats <- read_excel(inputs[["report_stats"]])
 
 i <- match(metadata$run, colnames(y))
 stopifnot(!anyNA(i))
@@ -85,14 +87,11 @@ y <- y[detected, ]
 signal_start <- total_signal(y$E)
 precursors_start <- nrow(y)
 
-raw_totals <- read_parquet(
-  inputs[["report"]],
-  col_select = c("Run", "Precursor.Quantity")
-) |>
+raw_totals <- raw_quantity |>
   summarise(raw_total = sum(Precursor.Quantity), .by = Run) |>
   rename(run = Run) |>
   inner_join(
-    read_excel(inputs[["report_stats"]]) |>
+    report_stats |>
       transmute(
         run = str_remove(str_extract(File.Name, "[^\\\\]+$"), "\\.raw$"),
         precursors = Precursors.Identified,

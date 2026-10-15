@@ -62,6 +62,7 @@ report_phenotypes <- function(comparison) {
     enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds")
   )
   fit <- readRDS(inputs[["fit"]])
+  enrichment <- readRDS(inputs[["enrichment"]])
   sex_code <- COMPARISONS[[comparison]]$sex
   label <- COMPARISONS[[comparison]]$label
   targets <- filter(fit$targets, sample_id %in% comparison_mice(comparison, fit$targets))
@@ -95,7 +96,7 @@ report_phenotypes <- function(comparison) {
   ) |>
     filter(contrast == COMPARISONS[[comparison]]$contrast) |>
     select(level, universe, feature, r_group, group_p = P.Value, group_fdr = adj.P.Val)
-  fgsea <- readRDS(inputs[["enrichment"]])$association_fgsea |>
+  fgsea <- enrichment$association_fgsea |>
     filter(sex == comparison) |>
     select(-sex)
 
