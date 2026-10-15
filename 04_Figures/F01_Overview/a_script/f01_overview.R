@@ -255,7 +255,7 @@ selected <- enr$results |>
     term, collection, selected_by,
     order = row_number(),
     label = paste0(
-      enrichVolcano::clean_label(term, width = 48), if_else(score_p > ALPHA, " †", "")
+      str_trunc(enrichVolcano::clean_label(term, width = 200), 46), if_else(score_p > ALPHA, " †", "")
     )
   )
 pathways <- enr$results |>
