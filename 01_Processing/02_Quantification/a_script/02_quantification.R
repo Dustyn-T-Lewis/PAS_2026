@@ -1,13 +1,16 @@
 # Precursors to a quantified, MitoCarta-annotated protein matrix, normalised once for the full
-# proteome and once for the mitochondrial universe. The README gives the reasons. dpcQuant() takes
-# about two and a half minutes, so its result is checkpointed in c_data/dpcQuant/ and refitted only
-# with REFIT_DPCQUANT=TRUE.
+# proteome and once for the mitochondrial universe by the method a replicate-spread benchmark
+# picks. The README gives the reasons. dpcQuant() takes about two and a half minutes, so its result
+# is checkpointed in c_data/ and refitted only with REFIT_DPCQUANT=TRUE.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(limpa)
 
 DPC_SLOPE <- 0.7
-NORMALIZATION <- "quantile"
+# Candidate normalisations and whether each keeps dpcQuant's standard errors valid. An additive
+# shift per mouse does; quantile and cyclic loess reshape each mouse's values, so the standard
+# errors dpcDE weights by no longer match them. Fixed before the benchmark first ran.
+NORMALIZATIONS <- c(none = TRUE, median = TRUE, quantile = FALSE, cyclicloess = FALSE)
 REFIT <- isTRUE(as.logical(Sys.getenv("REFIT_DPCQUANT", "FALSE")))
 
 out <- stage_paths("01_Processing", "02_Quantification")
@@ -92,10 +95,63 @@ normalization_evidence <- tibble(
   median = apply(proteins$E, 2, median), iqr = apply(proteins$E, 2, IQR)
 )
 
+# Median centring is written out: limma's "scale" divides by column medians, which suits unlogged
+# intensities, not log2 values.
+normalize <- function(E, method) {
+  switch(method,
+    none = E,
+    median = sweep(E, 2, apply(E, 2, median)) + mean(apply(E, 2, median)),
+    normalizeBetweenArrays(E, method)
+  )
+}
+
+# Replicate spread within each of the four groups, as NormalyzerDE scores normalisations
+# (Willforss et al. 2019): PMAD, the mean within-group median absolute deviation; PEV, the pooled
+# within-group variance; PCV, the mean within-group CV on the linear scale. No contrast is used.
+replicate_spread <- function(E, group) {
+  by_group <- map(split(seq_len(ncol(E)), group), \(j) E[, j, drop = FALSE])
+  pooled_var <- Reduce(`+`, map(by_group, \(m) (ncol(m) - 1) * apply(m, 1, var))) /
+    (ncol(E) - length(by_group))
+  tibble(
+    pmad = mean(map_dbl(by_group, \(m) mean(apply(m, 1, mad)))),
+    pev = mean(pooled_var),
+    pcv = mean(map_dbl(by_group, \(m) mean(apply(2^m, 1, \(v) sd(v) / mean(v)))))
+  )
+}
+
 # Each universe is normalised on its own proteins, so the mitochondrial results do not depend on
-# how much non-mitochondrial protein each pellet carried.
+# how much non-mitochondrial protein each pellet carried. The eligible method with the lowest PMAD
+# is used in each universe.
 universes <- list(full = rep(TRUE, nrow(proteins)), mito = proteins$genes$is_mito)
-E_norm <- map(universes, \(keep) normalizeBetweenArrays(proteins$E[keep, ], NORMALIZATION))
+candidates <- expand_grid(universe = names(universes), method = names(NORMALIZATIONS)) |>
+  mutate(E = map2(universe, method, \(u, m) normalize(proteins$E[universes[[u]], ], m)))
+normalization <- candidates |>
+  mutate(
+    eligible = NORMALIZATIONS[method],
+    spread = map(E, replicate_spread, group = proteins$targets$group)
+  ) |>
+  select(-E) |>
+  unnest(spread) |>
+  mutate(chosen = eligible & pmad == min(pmad[eligible]), .by = universe)
+stopifnot(all(count(filter(normalization, chosen), universe)$n == 1))
+chosen <- filter(normalization, chosen)
+E_norm <- set_names(
+  map2(chosen$universe, chosen$method, \(u, m) normalize(proteins$E[universes[[u]], ], m)),
+  chosen$universe
+)[names(universes)]
+
+print(
+  ggplot(normalization, aes(method, pmad, fill = eligible)) +
+    geom_col() +
+    geom_text(aes(label = if_else(chosen, "chosen", "")), vjust = -0.3, size = 3) +
+    facet_wrap(~universe, scales = "free_y") +
+    scale_fill_manual(values = c(`TRUE` = "grey30", `FALSE` = "grey75")) +
+    labs(
+      x = NULL, y = "PMAD (mean within-group MAD, log2)", fill = "keeps limpa SEs",
+      title = "Normalisation benchmark: replicate spread within groups"
+    ) +
+    theme_figure()
+)
 
 group <- factor(proteins$targets$group)
 plotMDSUsingSEs(proteins, pch = 16, col = as.integer(group))
@@ -105,20 +161,26 @@ invisible(dev.off())
 saveRDS(
   list(
     proteins = proteins, E_norm = E_norm, universes = universes, pct_mito = pct_mito,
-    mito_share = mito_share, normalization = NORMALIZATION, dpc_slope = DPC_SLOPE
+    mito_share = mito_share, normalization = set_names(chosen$method, chosen$universe),
+    dpc_slope = DPC_SLOPE
   ),
   file.path(out$data, "proteins.rds")
 )
 write_workbook(
   list(
     dpc_parameters = dpc_parameters, mito_share = mito_share,
-    mito_share_tests = mito_share_tests, normalization_evidence = normalization_evidence
+    mito_share_tests = mito_share_tests, normalization_evidence = normalization_evidence,
+    normalization = normalization
   ),
   c(
     "Detection-probability curve intercept and slope, by estimator.",
     "MitoCarta share of signal per mouse.",
     "Welch t-tests of the MitoCarta share against sex and against treatment.",
-    "Median and IQR of log2 abundance per mouse before normalisation."
+    "Median and IQR of log2 abundance per mouse before normalisation.",
+    paste(
+      "Normalisation benchmark per universe: PMAD, PEV, PCV within groups; eligible = keeps",
+      "limpa's standard errors valid; chosen = lowest PMAD among eligible."
+    )
   ),
   out$workbook, inputs
 )
