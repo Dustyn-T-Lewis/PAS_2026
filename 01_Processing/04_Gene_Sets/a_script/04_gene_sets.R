@@ -1,9 +1,10 @@
-# Every protein grouping the later steps test. Tested pathways: GO:BP and Reactome (disease and
-# infection branch left out) in the full proteome, MitoCarta in the mitochondrial universe, each
-# trimmed to TEST_WINDOW detected genes, the same list for fgsea and singscore. Also GO Slim
-# cellular components, CORUM complexes, STRING clusters, the literature and ROS sets, and a table of
-# every detected protein with every tested group it belongs to. Hallmark names clusters and modules
-# and supplies four of the literature and ROS sets. None of this looks at the samples.
+# Every protein grouping the later steps test. Tested pathways: GO:BP, Reactome (disease and
+# infection branch left out), Hallmark and KEGG LEGACY in the full proteome, MitoCarta in the
+# mitochondrial universe, each trimmed to TEST_WINDOW detected genes, the same list for fgsea and
+# singscore. Also GO Slim cellular components, CORUM complexes, STRING clusters, the literature and
+# ROS sets, and a table of every detected protein with every tested group it belongs to. Hallmark
+# also names clusters and modules and supplies four of the literature and ROS sets. None of this
+# looks at the samples.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -33,6 +34,13 @@ detected_in <- map(quant$universes, \(keep) {
 })
 
 full <- enrichVolcano::load_gene_sets(c("Hallmark", "Reactome", "GO:BP"), species = "Mus musculus")
+# KEGG LEGACY is human-only in MSigDB; msigdbr maps it to mouse orthologs, as it does every other
+# collection here. enrichVolcano offers only KEGG MEDICUS, so this one is read directly.
+kegg <- msigdbr::msigdbr(
+  species = "Mus musculus", collection = "C2", subcollection = "CP:KEGG_LEGACY"
+) |>
+  distinct(gs_name, gene_symbol)
+kegg <- split(kegg$gene_symbol, kegg$gs_name)
 mitocarta <- readxl::read_excel(inputs[["mitocarta"]], sheet = 4)
 mito <- list(MitoCarta = set_names(
   str_split(mitocarta$Genes, ",\\s*"),
@@ -47,7 +55,10 @@ in_window <- function(sets, universe) {
 }
 reactome <- full$Reactome[!str_detect(names(full$Reactome), REACTOME_DISEASE)]
 tested <- list(
-  full = list(`GO:BP` = in_window(full[["GO:BP"]], "full"), Reactome = in_window(reactome, "full")),
+  full = list(
+    `GO:BP` = in_window(full[["GO:BP"]], "full"), Reactome = in_window(reactome, "full"),
+    Hallmark = in_window(full$Hallmark, "full"), KEGG = in_window(kegg, "full")
+  ),
   mito = list(MitoCarta = in_window(mito$MitoCarta, "mito"))
 )
 
@@ -171,7 +182,7 @@ LITERATURE_SETS <- tribble(
 all_sets <- unlist(unname(c(full, mito)), recursive = FALSE)
 literature_sets <- all_sets[intersect(LITERATURE_SETS$set, names(all_sets))]
 
-collections <- c(full, mito, compartments, complexes, clusters)
+collections <- c(full, list(KEGG = kegg), mito, compartments, complexes, clusters)
 tested_names <- unlist(map(tested, \(u) map(u, names)))
 catalog <- collections |>
   imap(\(sets, db) {
