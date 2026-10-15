@@ -8,7 +8,7 @@ PANELS <- c(
   "a_design", "b_phenotype_effects", "c_phenotype_pca", "d_proteome_pca", "e_protein_bars",
   "f_signature_barcode"
 )
-panels <- map(set_names(PANELS), \(name) source_panel("F01_Global", name))
+panels <- run_panels("F01_Global", PANELS)
 
 fit_workbook <- output_path("02_Statistics", "01_Fit", "01_fit.xlsx")
 fit_summary <- readxl::read_excel(fit_workbook, "contrast_summary") |>
@@ -23,15 +23,13 @@ stopifnot(
 )
 
 # One 2 x 3 grid: patchwork lines up titles, plot areas, axes and keys along each row and plot
-# edges down each column. Each letter goes on its own plot, where theme_figure() places it beside
-# the title.
-tagged <- imap(panels, \(panel, name) panel$plot + labs(tag = letters[match(name, PANELS)]))
-figure <- wrap_plots(tagged, ncol = 3, heights = c(60, 68))
+# edges down each column.
+figure <- wrap_plots(map(panels, "plot"), ncol = 3, heights = c(60, 68))
 out <- stage_paths("04_Figures", "F01_Global")
 save_figure(figure, out$reports, "F01_composite", width_mm = 180, height_mm = 128)
 
-write_workbook(
-  map(panels, "data"),
+write_figure_workbook(
+  panels,
   c(
     "Panel a: mice per group.",
     "Panel b: PAS vs vehicle per phenotype and sex, % change, 95% CI, Welch p, interaction p.",
@@ -40,8 +38,7 @@ write_workbook(
     "Panel e: per universe, contrast and direction, proteins at p or Π, Π and FDR ≤ 0.05.",
     "Panel f: each sex's p ≤ 0.05 up and down lists in the other sex, fry direction and p."
   ),
-  file.path(out$data, "F01.xlsx"),
-  unlist(unname(map(panels, "inputs")))[!duplicated(unlist(unname(map(panels, "inputs"))))]
+  file.path(out$data, "F01.xlsx")
 )
 
 sessionInfo()
