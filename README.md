@@ -27,11 +27,17 @@ Data flows one way: processing feeds statistics, each comparison slices the stat
 ## Every step
 
 ```
-01_Processing/NN_Step/, 02_Statistics/NN_Step/, 04_Figures/F0N_Name/
+01_Processing/NN_Step/, 02_Statistics/NN_Step/
 ├── a_script/   one R script
 ├── b_reports/  one preview PDF from package plots, where there is something to draw
 ├── c_data/     one workbook, plus any .rds a later step reads
 └── README.md   what the step reads, writes and finds
+
+04_Figures/F0N_Name/, 04_Figures/S0N_Name/
+├── a_script/   panels/ (one script per panel) and the composite script that stitches them
+├── b_reports/  panels/ and the composite, as PDF and PNG
+├── c_data/     one workbook, a sheet per panel
+└── README.md   the figure's question and a panel table
 
 03_Comparisons/
 ├── code/       01_proteins.R … 04_classification.R, each step written once
