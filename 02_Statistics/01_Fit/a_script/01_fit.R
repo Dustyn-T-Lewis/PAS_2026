@@ -69,7 +69,12 @@ tidy <- function(fit, coefs) {
     list_rbind()
 }
 
-# Proteins, one dpcDE fit per universe and design.
+# Proteins: one dpcDE fit per universe, design and contrast. contrasts.fit() takes the correlation
+# between coefficients as common to all proteins, which is exact only for an orthogonal design or
+# equal weights (limma's help page); limpa's weights differ by protein and the surrogate variable
+# makes the design non-orthogonal. So each contrast is refitted as the first coefficient of an
+# equivalent design (limma::contrastAsCoef): the fitted values and weights are unchanged and the
+# contrast's standard error is exact.
 protein_elist <- function(universe) {
   p <- quant$proteins[quant$universes[[universe]], ]
   p$E <- quant$E_norm[[universe]]
@@ -77,15 +82,23 @@ protein_elist <- function(universe) {
 }
 fit_proteins <- function(design, contrasts) {
   map(set_names(names(quant$universes)), \(universe) {
-    dpc <- dpcDE(protein_elist(universe), design, sample.weights = TRUE, plot = FALSE)
-    list(dpc = dpc, fit = eBayes(contrasts.fit(dpc, contrasts)))
+    y <- protein_elist(universe)
+    map(set_names(colnames(contrasts)), \(cn) {
+      reparametrised <- contrastAsCoef(design, contrasts[, cn])$design
+      eBayes(dpcDE(y, reparametrised, sample.weights = TRUE, plot = FALSE))
+    })
   })
 }
+tidy_proteins <- function(fits) {
+  imap(fits, \(by_contrast, universe) {
+    imap(by_contrast, \(f, cn) mutate(tidy(f, 1), coef = cn)) |>
+      list_rbind() |>
+      mutate(universe = universe, .before = 1)
+  }) |>
+    list_rbind()
+}
 protein_fits <- fit_proteins(d$design, d$contrasts)
-protein_contrasts <- imap(protein_fits, \(f, universe) {
-  tidy(f$fit, CONTRASTS) |> mutate(universe = universe, .before = 1)
-}) |>
-  list_rbind() |>
+protein_contrasts <- tidy_proteins(protein_fits) |>
   rename(contrast = coef, logFC = estimate) |>
   left_join(genes, by = "feature") |>
   mutate(pi_score = pi_score(P.Value, logFC))
@@ -93,11 +106,8 @@ protein_contrasts <- imap(protein_fits, \(f, universe) {
 protein_associations <- expand_grid(phenotype = PHENOTYPES, model = ASSOCIATION_MODELS) |>
   pmap(\(phenotype, model) {
     design <- association_design(ph[[phenotype]], model)
-    imap(fit_proteins(design, slope_contrasts(design)), \(f, universe) {
-      tidy(f$fit, c("female", "male")) |>
-        mutate(universe = universe, phenotype = phenotype, model = model, .before = 1)
-    }) |>
-      list_rbind()
+    tidy_proteins(fit_proteins(design, slope_contrasts(design))) |>
+      mutate(phenotype = phenotype, model = model, .before = 1)
   }) |>
   list_rbind() |>
   rename(sex = coef) |>
@@ -267,7 +277,7 @@ iwalk(quant$universes, \(keep, universe) {
     readr::write_csv(file.path(dir, "da_results.csv"))
   as_tibble(quant$E_norm[[universe]], rownames = "protein") |>
     readr::write_csv(file.path(dir, "matrix.csv"))
-  as_tibble(protein_fits[[universe]]$dpc$EList$weights, rownames = "protein") |>
+  as_tibble(protein_fits[[universe]][[1]]$EList$weights, rownames = "protein") |>
     set_names(c("protein", targets$sample_id)) |>
     readr::write_csv(file.path(dir, "weights.csv"))
   tibble(sample = targets$sample_id, group = targets$group) |>
