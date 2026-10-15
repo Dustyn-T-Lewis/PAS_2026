@@ -130,7 +130,8 @@ literature <- side_list(list(Literature = gs$literature_sets), c(5, Inf)) |>
 
 # Pathway associations: fgsea on each protein's association t with one phenotype within one sex,
 # under both association models (genes permuted, so its FDR runs optimistic), beside the same set's
-# singscore association under the same model, which is tested across mice.
+# singscore association under the same model, which is tested across mice. Each phenotype column
+# carries the same collapsePathways flag as the contrasts.
 ASSOCIATION_MODELS <- c("pooled", "treatment")
 association_fgsea <- expand_grid(
   model = ASSOCIATION_MODELS, sex = c("female", "male"), u = names(gs$tested)
@@ -144,16 +145,21 @@ association_fgsea <- expand_grid(
       ) |>
       enrichVolcano::as_da(species = "Mus musculus")
     set.seed(SEED)
-    suppressMessages(enrichVolcano::run_enrichment(da, gs$tested[[u]],
+    tested <- suppressMessages(enrichVolcano::run_enrichment(da, gs$tested[[u]],
       tests = "fgsea", min_size = TEST_WINDOW[[u]][1], max_size = TEST_WINDOW[[u]][2]
-    ))$fgsea@results |>
+    ))$fgsea
+    set.seed(SEED)
+    enrichVolcano::dedup_terms(tested, sets[[u]],
+      method = "collapse_pathways", term_threshold = ALPHA,
+      stats = map(split(da, da$contrast), gene_ranks)
+    )@results |>
       mutate(model = model, sex = sex, universe = u, .before = 1)
   }) |>
   list_rbind() |>
   transmute(
     model, sex, universe,
     collection = database, phenotype = contrast, term, NES = score, fgsea_p = p,
-    fgsea_fdr = padj, size, leading_edge = flatten(leading_edge)
+    fgsea_fdr = padj, size, dedup_status, merged_into, leading_edge = flatten(leading_edge)
   ) |>
   left_join(
     fit$score_associations |>
@@ -165,7 +171,10 @@ association_fgsea <- expand_grid(
     by = c("model", "sex", "phenotype", "term")
   ) |>
   arrange(model, sex, phenotype, collection, fgsea_p)
-stopifnot(!anyNA(association_fgsea$score_p))
+stopifnot(
+  !anyNA(association_fgsea$score_p),
+  !anyNA(association_fgsea$dedup_status[association_fgsea$fgsea_fdr < ALPHA])
+)
 
 stringdb <- string_db()
 proteome <- filter(fit$protein_contrasts, universe == "full", !is.na(gene), gene != "")
@@ -331,7 +340,8 @@ write_workbook(
     "Per model, sex, collection and phenotype: fgsea and singscore association counts.",
     paste(
       "Every set's fgsea on protein association t per model (pooled, treatment), sex and",
-      "phenotype, beside its singscore association (slope, r, p, FDR)."
+      "phenotype, with its collapsePathways flag, beside its singscore association (slope, r,",
+      "p, FDR)."
     ),
     paste(
       "Each sex's p ≤ 0.05 up and down proteins tested in the other sex's PAS contrast by fry:",

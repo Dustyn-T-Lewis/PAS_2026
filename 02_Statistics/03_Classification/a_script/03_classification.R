@@ -91,6 +91,21 @@ stopifnot(identical(
   left_join(select(perfect, comparison, level), tier_table, by = c("comparison", "level"))$perfect
 ))
 
+# The ROC curve behind each module eigengene's AUC, for the figures.
+module_curves <- imap(comparisons, \(a, comparison) {
+  in_sex <- targets$sex == a$sex
+  y <- factor(targets$treatment[in_sex] == "PAS", levels = c(FALSE, TRUE))
+  m <- features$module[, in_sex]
+  map(rownames(m), \(f) {
+    pROC::roc(y, m[f, ], levels = levels(y), direction = "<", quiet = TRUE) |>
+      pROC::coords("all", ret = c("specificity", "sensitivity"), transpose = FALSE) |>
+      as_tibble() |>
+      mutate(comparison = comparison, feature = f, .before = 1)
+  }) |>
+    list_rbind()
+}) |>
+  list_rbind()
+
 # pROC's own curves for the four pathway scores with the smallest p in one sex.
 roc_curves <- \(comparison) {
   \() {
@@ -126,11 +141,17 @@ plot_index <- preview_pdf(file.path(out$reports, "03_classification.pdf"), list(
 ))
 
 saveRDS(
-  list(roc = roc, perfect = perfect, summary = tier_table, features = features),
+  list(
+    roc = roc, perfect = perfect, summary = tier_table, features = features,
+    module_curves = module_curves
+  ),
   file.path(out$data, "classification.rds")
 )
 write_workbook(
-  list(summary = tier_table, roc = roc, perfect_separations = perfect, plot_index = plot_index),
+  list(
+    summary = tier_table, roc = roc, perfect_separations = perfect, module_curves = module_curves,
+    plot_index = plot_index
+  ),
   c(
     paste(
       "Per comparison and level: features, at p ≤ 0.05, expected by chance, FDR ≤ 0.05,",
@@ -141,6 +162,7 @@ write_workbook(
       "exact Wilcoxon p, BH FDR within comparison and level, r with group (PAS = 1)."
     ),
     "Per comparison and level: perfect separations against all 252 relabellings.",
+    "Per comparison and module: the ROC curve (specificity, sensitivity) behind each AUC.",
     "Which PDF page shows what."
   ),
   out$workbook, inputs

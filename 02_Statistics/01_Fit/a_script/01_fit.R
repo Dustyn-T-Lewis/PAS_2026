@@ -63,7 +63,7 @@ tidy <- function(fit, coefs) {
       as_tibble(rownames = "feature") |>
       transmute(feature,
         coef = k, estimate = logFC, ci_low = CI.L, ci_high = CI.R,
-        AveExpr, t, df = fit$df.total, P.Value, adj.P.Val
+        AveExpr, t, df = fit$df.total, r_equiv = t / sqrt(t^2 + df), P.Value, adj.P.Val
       )
   }) |>
     list_rbind()
