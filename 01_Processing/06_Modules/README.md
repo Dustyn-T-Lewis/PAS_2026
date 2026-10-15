@@ -9,5 +9,6 @@ Co-abundance modules by WGCNA's standard workflow, built after removing sex so t
 | Run | `Rscript 01_Processing/06_Modules/a_script/06_modules.R` |
 
 - **Method:** `limma::removeBatchEffect(batch = sex, design = ~treatment)`, then `pickSoftThreshold` (signed, bicor, R² cut 0.85) and `blockwiseModules` (signed TOM, minModuleSize 20, mergeCutHeight 0.25, deepSplit 2). Eigengenes come from the unadjusted matrix, so `02_Statistics/01_Fit` can test sex and treatment on them. A module is named only by an over-represented Hallmark or Reactome term at FDR ≤ 0.05.
-- **Result:** power 12; 18 modules plus 160 grey proteins. Turquoise is largest (332). `sizes` gives each module's MitoCarta share and its r with the pellet's mitochondrial share, overall and within group.
+- **Result:** power 9; 14 modules plus 236 grey proteins. Turquoise is largest (669, 45% MitoCarta, named by oxidative phosphorylation). `sizes` gives each module's MitoCarta share and its r with the pellet's mitochondrial share, overall and within group.
+- **Basis:** Langfelder & Horvath 2008 (WGCNA) and the WGCNA FAQ: signed networks, biweight midcorrelation, the scale-free fit for the power, and at least 15 samples (here 20).
 - **Note:** Module colours are assigned on each build and change if the input changes.

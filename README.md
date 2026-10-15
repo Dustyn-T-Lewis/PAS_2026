@@ -1,6 +1,6 @@
 # PAS_2026
 
-Gastrocnemius proteomics of pipecolic acid plus succinate (PAS) against vehicle in mice with a ligated femoral artery. 20 mice, five per sex and treatment, one mitochondria-enriched pellet each, DIA mass spectrometry; 1,842 proteins, 568 in MitoCarta. Six phenotypes per mouse: CSA, capillary density and satellite cells by histology, and respiratory conductance in soleus and plantaris.
+Gastrocnemius proteomics of pipecolic acid plus succinate (PAS) against vehicle in mice with a ligated femoral artery. 20 mice, five per sex and treatment, one mitochondria-enriched pellet each, DIA mass spectrometry; 1,962 proteins, 595 in MitoCarta. Six phenotypes per mouse: CSA, capillary density and satellite cells by histology, and respiratory conductance in soleus and plantaris.
 
 The project asks three questions:
 
@@ -8,7 +8,7 @@ The project asks three questions:
 2. Does PAS change males? PAS_M − VEH_M.
 3. Does the PAS response differ by sex? (PAS_F − VEH_F) − (PAS_M − VEH_M).
 
-Differences between females and males at baseline are not a question here. They dominate the proteome (PERMANOVA R² 0.38), so they appear as context in `02_Statistics/04_PCA` and [Figure 1](04_Figures/F01_Overview/README.md).
+Differences between females and males at baseline are not a question here. They dominate the proteome (PERMANOVA R² 0.39), so they appear as context in `02_Statistics/04_PCA` and [Figure 1](04_Figures/F01_Overview/README.md).
 
 ![The pipeline: inputs, processing, statistics run once on all 20 mice, the three comparisons and the figures](pipeline.png)
 
@@ -46,11 +46,12 @@ Every workbook opens on `read_me`, which says what each sheet holds, and ends wi
 
 ## Conventions
 
-- **Model:** one limpa/limma fit on all 20 mice, four cell means, no covariates (run order was randomised). Proteins use limpa `dpcDE` with precision and sample weights; scores and module eigengenes use plain limma.
+- **Model:** one limpa/limma fit on all 20 mice: four group means and one surrogate variable from `sva`, which tracks run depth (r = 0.85) and does not differ by treatment. Proteins use limpa `dpcDE` with precision and sample weights, each contrast read as its own coefficient; scores and module eigengenes use plain limma.
+- **Normalisation:** chosen per universe by replicate spread (NormalyzerDE measures) among methods that keep limpa's standard errors valid: none for the full proteome, median centring for MitoCarta.
 - **Multiple testing:** BH within universe (full or mitochondrial) and contrast for proteins; within contrast and collection for pathways. p ≤ 0.05 is reported beside the number expected by chance.
 - **Π** = p^|log2 FC| (Xiao et al. 2014). It ranks on p and fold change together, controls no error rate, and is counted on its own.
 - **r** sits beside every test: r with group (PAS = 1) for a contrast; r across the sex's ten mice, and within vehicle and PAS, for an association.
-- **Phenotype effect** means what PAS did to a phenotype, as % change against the same sex's vehicle. **Phenotype association** means a feature moving with a phenotype across one sex's PAS and vehicle mice; it is co-movement, not a PAS effect.
+- **Phenotype effect** means what PAS did to a phenotype, as % change against the same sex's vehicle. **Phenotype association** means a feature moving with a phenotype within one sex, reported pooled across PAS and vehicle mice and within treatment; it is co-movement, not a PAS effect.
 - **Pathways:** fgsea through enrichVolcano on GO:BP and Reactome (full proteome) and MitoCarta (mitochondrial universe). The same sets are scored per mouse with singscore, and that mouse-level test sits beside every fgsea row. fgsea permutes genes, so where the two disagree the singscore result is the conservative one.
 - **Seed:** 20260910 for every stochastic step.
 

@@ -9,4 +9,5 @@ One singscore per mouse per tested set, complex and cluster: a set's mean within
 | Run | `Rscript 01_Processing/05_Scores/a_script/05_scores.R` |
 
 - **Method:** `singscore::rankGenes()` and `multiScore()`, one protein per gene (the most abundant). Full matrix: GO:BP, Reactome, CORUM, STRING; mitochondrial matrix: MitoCarta.
-- **Result:** 995 scores per mouse: 727 GO:BP, 119 Reactome, 93 complexes, 13 clusters, 43 MitoCarta.
+- **Result:** 1,043 scores per mouse: 755 GO:BP, 139 Reactome, 98 complexes, 7 clusters, 44 MitoCarta.
+- **Basis:** Foroutan et al. 2018 (*BMC Bioinformatics*), singscore's paper: a single-sample score from within-sample ranks, so it needs no group label and no other sample. Rebuilt by hand from that definition, it matches exactly.
