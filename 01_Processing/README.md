@@ -13,4 +13,4 @@ Turns the DIA-NN report into protein values per mouse, and builds every protein 
 | [`05_Scores`](05_Scores/README.md) | set activity per mouse | singscore |
 | [`06_Modules`](06_Modules/README.md) | co-abundance modules | WGCNA after removing sex |
 
-Steps run in number order. Each holds `a_script/` (one script), `b_reports/` (one PDF, where there is something to draw), `c_data/` (one workbook plus the `.rds` later steps read) and a README naming what it reads and writes.
+Steps run in number order. Each holds `a_script/` (one script), `b_reports/` (one preview PDF from package plots, where there is something to draw), `c_data/` (one workbook plus the `.rds` later steps read) and a README naming what it reads and writes.

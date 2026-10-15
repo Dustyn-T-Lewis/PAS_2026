@@ -29,7 +29,7 @@ Data flows one way: processing feeds statistics, each comparison slices the stat
 ```
 01_Processing/NN_Step/, 02_Statistics/NN_Step/, 04_Figures/F0N_Name/
 ├── a_script/   one R script
-├── b_reports/  one PDF, where there is something to draw
+├── b_reports/  one preview PDF from package plots, where there is something to draw
 ├── c_data/     one workbook, plus any .rds a later step reads
 └── README.md   what the step reads, writes and finds
 
@@ -37,12 +37,12 @@ Data flows one way: processing feeds statistics, each comparison slices the stat
 ├── code/       01_proteins.R … 04_classification.R, each step written once
 └── <comparison>/
     ├── a_script/  run_comparison.R: runs the steps for this contrast
-    ├── b_reports/ one PDF per step
+    ├── b_reports/ one preview PDF per step
     ├── c_data/    one workbook and one .rds per step, named by step
     └── README.md  the comparison's results
 ```
 
-Every workbook opens on `read_me`, which says what each sheet holds, and ends with `input_manifest` (files read, with md5) and `package_versions`. Every PDF opens on overview pages and ends with a grid of every feature at p ≤ 0.05. Which protein belongs to which pathway, complex or cluster is in `01_Processing/04_Gene_Sets/c_data/04_gene_sets.xlsx`, sheet `membership`.
+Every workbook opens on `read_me`, which says what each sheet holds, and ends with `input_manifest` (files read, with md5) and `package_versions`. Every step PDF is a short preview drawn with the package's own plots (limma, limpa, WGCNA, fgsea, pROC, vegan) or base graphics; the styled figures are in `04_Figures`. Which protein belongs to which pathway, complex or cluster is in `01_Processing/04_Gene_Sets/c_data/04_gene_sets.xlsx`, sheet `membership`.
 
 ## Conventions
 

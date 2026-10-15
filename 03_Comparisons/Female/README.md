@@ -11,4 +11,4 @@ Does PAS change the proteome and the phenotypes of females? Every number here co
 | 03 Phenotypes | Phenotype effects: capillary density +138% (p 0.005), CSA +22% (p 0.002), satellite cells per fibre +47% (p 0.009); the three respiratory conductances do not change (p ≥ 0.30). Phenotype associations at p ≤ 0.05, pooled and within treatment: proteins 764 and 779 of 11,772 tests (589 expected), 5 and 2 at FDR ≤ 0.05; pathway scores 348 and 246 of 5,364 (268 expected), 0 and 8 at FDR; complexes 71 and 45 of 588; modules 15 and 2 of 84 (6 pooled at FDR); clusters 2 of 42 in both. | `03_phenotypes` |
 | 04 Classification | Pathway scores: 44 of 938 at p ≤ 0.05 (47 expected). 16 separate PAS from vehicle perfectly, against a median of 3 over all 252 relabellings (p 0.12). Modules 3 of 14 at p ≤ 0.05, 2 of them perfect (null median 0, p 0.016); complexes 6 of 98; clusters 0 of 7. None at FDR ≤ 0.05. | `04_classification` |
 
-Each step's workbook is `c_data/<step>.xlsx` and its report `b_reports/<step>.pdf`.
+Each step's workbook is `c_data/<step>.xlsx` and its preview `b_reports/<step>.pdf`.

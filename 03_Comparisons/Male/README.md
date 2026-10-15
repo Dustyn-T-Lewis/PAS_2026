@@ -11,4 +11,4 @@ Does PAS change the proteome and the phenotypes of males? Every number here come
 | 03 Phenotypes | Phenotype effects: none at p ≤ 0.05; the closest is satellite cells per fibre, +43% (p 0.086). Phenotype associations at p ≤ 0.05, pooled and within treatment: proteins 756 and 706 of 11,772 tests (589 expected), 9 and 3 at FDR ≤ 0.05; pathway scores 138 and 82 of 5,364, fewer than the 268 expected; complexes 19 and 16 of 588; modules 3 and 1 of 84; clusters 1 and 0 of 42. With no phenotype effect, these associations follow variation between mice, not a PAS response. | `03_phenotypes` |
 | 04 Classification | Pathway scores: 22 of 938 at p ≤ 0.05 (47 expected). 3 separate PAS from vehicle perfectly, against a median of 2 over all 252 relabellings (p 0.45). Modules 2 of 14, complexes 3 of 98, clusters 0 of 7. None at FDR ≤ 0.05. | `04_classification` |
 
-Each step's workbook is `c_data/<step>.xlsx` and its report `b_reports/<step>.pdf`.
+Each step's workbook is `c_data/<step>.xlsx` and its preview `b_reports/<step>.pdf`.

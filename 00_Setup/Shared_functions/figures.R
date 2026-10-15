@@ -66,49 +66,9 @@ preview_pdf <- function(file, pages) {
   tibble(file = basename(file), page = seq_along(pages), shows = names(pages))
 }
 
-# A step report: one landscape page per named ggplot, cairo so Π and ≤ render. Returns the
-# rows of the workbook's plot_index sheet.
-write_report <- function(file, pages) {
-  cairo_pdf(file, width = 7, height = 5, onefile = TRUE)
-  on.exit(dev.off())
-  walk(pages, print)
-  tibble(file = basename(file), page = seq_along(pages), shows = names(pages))
-}
-
 # A tint of a colour, moved the given share of the way towards white.
 lighten <- function(colour, amount) {
   grDevices::colorRampPalette(c(colour, "white"))(101)[round(100 * amount) + 1]
-}
-
-# Rows ordered by hierarchical clustering on 1 - Pearson r, average linkage: display only.
-cluster_order <- \(m) hclust(as.dist(1 - cor(t(m), use = "pairwise.complete.obs")), "average")$order
-
-# Rows z-scored, ordered by cluster_order(), mice in group order.
-group_heatmap <- function(m, targets, title, subtitle = NULL, row_labels = nrow(m) <= 60) {
-  z <- t(scale(t(m)))
-  rows <- rownames(z)[cluster_order(z)]
-  limit <- unname(quantile(abs(z), 0.99, na.rm = TRUE))
-  as_tibble(z, rownames = "feature") |>
-    pivot_longer(-feature, names_to = "sample_id", values_to = "z") |>
-    left_join(select(targets, sample_id, group), by = "sample_id") |>
-    mutate(
-      feature = factor(feature, rows), group = factor(group, FIGURE_GROUPS),
-      sample_id = factor(sample_id, targets$sample_id[order(factor(targets$group, FIGURE_GROUPS))])
-    ) |>
-    ggplot(aes(sample_id, feature, fill = z)) +
-    geom_tile() +
-    facet_grid(~group, scales = "free_x", space = "free_x") +
-    scale_fill_gradient2(
-      low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
-      limits = c(-limit, limit), oob = scales::squish
-    ) +
-    labs(x = NULL, y = NULL, title = title, subtitle = subtitle) +
-    theme_figure() +
-    theme(
-      axis.text.x = element_text(angle = 90, size = 5, vjust = 0.5),
-      axis.text.y = if (row_labels) element_text(size = 5) else element_blank(),
-      axis.ticks.y = element_blank(), panel.spacing = unit(1, "mm")
-    )
 }
 
 # PAS against vehicle per phenotype and sex as a % change with its 95% CI, on a log ratio axis so

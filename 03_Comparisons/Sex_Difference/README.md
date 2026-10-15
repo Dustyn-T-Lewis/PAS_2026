@@ -11,4 +11,4 @@ Does the PAS response differ between the sexes? The test is the interaction cont
 
 There are no phenotype or classification steps. The phenotype interaction (capillary density p 0.014; the other five p ≥ 0.22) is in `02_Statistics/01_Fit` (sheet `phenotype_interaction`) and in Figure 1 panel e. Classification needs a label each mouse carries, and the interaction is a difference of differences between groups.
 
-Each step's workbook is `c_data/<step>.xlsx` and its report `b_reports/<step>.pdf`.
+Each step's workbook is `c_data/<step>.xlsx` and its preview `b_reports/<step>.pdf`.
