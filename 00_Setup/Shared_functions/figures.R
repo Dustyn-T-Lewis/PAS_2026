@@ -327,7 +327,10 @@ pathway_matrix <- function(cells, rows, title, subtitle, strip = ggh4x::strip_va
   squares <- mutate(rows, col_group = factor(levels(cells$col_group)[1], levels(cells$col_group)))
   nes_limit <- nes_limit %||% (ceiling(max(abs(cells$NES)) * 10) / 10)
   ggplot(cells, aes(column, row)) +
-    geom_point(aes(size = log_fdr, fill = NES, stroke = fdr <= ALPHA), shape = 21, colour = "grey15") +
+    geom_point(
+      aes(size = log_fdr, fill = NES, stroke = fdr <= ALPHA),
+      shape = 21, colour = "grey15"
+    ) +
     geom_point(aes(x = 0.3, colour = collection), squares, shape = 15, size = 1.5) +
     # Every collection once, invisible, so each has a key even where a matrix lacks it and two
     # matrices' keys match.
@@ -528,7 +531,10 @@ set_dot_matrix <- function(cells, title, subtitle, fdr_cap = 4, nes_limit = 2.5)
       log_fdr = pmin(-log10(fdr), fdr_cap)
     ) |>
     ggplot(aes(column, row)) +
-    geom_point(aes(size = log_fdr, fill = NES, stroke = fdr <= ALPHA), shape = 21, colour = "grey15") +
+    geom_point(
+      aes(size = log_fdr, fill = NES, stroke = fdr <= ALPHA),
+      shape = 21, colour = "grey15"
+    ) +
     facet_grid(row_group ~ ., scales = "free_y", space = "free_y", switch = "y") +
     scale_y_discrete(labels = deframe(distinct(cells, row, label))) +
     scale_fill_gradient2(
