@@ -1,4 +1,4 @@
-# F01 b: what PAS did to each phenotype within each sex, with the treatment-by-sex p per trait.
+# F01 d: what PAS did to each phenotype within each sex, with the treatment-by-sex p per trait.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(fit = output_path("02_Statistics", "01_Fit", "fit.rds"))
@@ -17,7 +17,7 @@ plot <- phenotype_effect_plot(fit$phenotype_effects,
   theme(legend.box = "horizontal", legend.spacing.x = unit(2, "mm")) +
   guides(colour = guide_legend(order = 1), shape = guide_legend(order = 2, reverse = TRUE))
 
-save_panel(plot, "F01_Global", "b_phenotype_effects", 60, 62)
+save_panel(plot, "F01_Global", "d_phenotype_effects", 66, 64)
 list(
   plot = plot,
   data = left_join(fit$phenotype_effects,

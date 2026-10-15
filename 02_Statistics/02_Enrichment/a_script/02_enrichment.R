@@ -7,7 +7,7 @@
 # a term is redundant when it is no longer enriched once a stronger term's genes are conditioned
 # on. The flag only picks display terms; nothing is dropped. fgsea also runs on each
 # protein-phenotype association t per sex and association model. Cross-sex signatures: each
-# sex's proteins at p <= 0.05, up and down, tested by limma::fry in the other sex's contrast
+# sex's proteins at Π < 0.05, up and down, tested by limma::fry in the other sex's contrast
 # across mice. ORA (fgsea::fora) describes each response pattern of the PAS F-test proteins.
 # STRING v12 connectivity of each contrast's Π and FDR lists is descriptive: subunits of one
 # complex vary together.
@@ -208,7 +208,7 @@ string_tests <- map(COMPARISON_CONTRASTS, \(cn) {
   list_rbind() |>
   mutate(fdr = p.adjust(p, "BH"), .by = contrast)
 
-# Does one sex's PAS response carry into the other's? The up and down proteins at p <= 0.05 in one
+# Does one sex's PAS response carry into the other's? The up and down proteins at Π < 0.05 in one
 # sex (full proteome) are tested in the other sex's PAS contrast by limma::fry, which tests across
 # mice with the fit's design and limpa's precision weights. The share of members whose fold change
 # in the other sex points the same way is reported beside it; members are listed by gene for the
@@ -220,7 +220,7 @@ full_weights <- readr::read_csv(inputs[["study_full_weights"]], show_col_types =
   as.matrix()
 stopifnot(identical(rownames(full_weights), rownames(full_matrix)))
 signature_proteins <- imap(SEXES, \(cn, sex) {
-  hits <- filter(proteome, contrast == cn, P.Value <= ALPHA)
+  hits <- filter(proteome, contrast == cn, pi_score < ALPHA)
   list(up = hits$feature[hits$logFC > 0], down = hits$feature[hits$logFC < 0])
 })
 signatures <- imap(SEXES, \(cn, source) {
@@ -344,7 +344,7 @@ write_workbook(
       "p, FDR)."
     ),
     paste(
-      "Each sex's p ≤ 0.05 up and down proteins tested in the other sex's PAS contrast by fry:",
+      "Each sex's Π < 0.05 up and down proteins tested in the other sex's PAS contrast by fry:",
       "size, share moving the same way, fry direction, p and mixed p."
     ),
     paste(

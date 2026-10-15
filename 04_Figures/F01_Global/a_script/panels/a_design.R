@@ -20,5 +20,5 @@ plot <- ggplot() +
   theme_figure() +
   theme(axis.text = element_blank(), axis.title = element_blank(), panel.grid = element_blank())
 
-save_panel(plot, "F01_Global", "a_design", 60, 62)
+save_panel(plot, "F01_Global", "a_design", 66, 64)
 list(plot = plot, data = groups, inputs = inputs)

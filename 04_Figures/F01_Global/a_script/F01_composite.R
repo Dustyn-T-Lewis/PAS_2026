@@ -5,7 +5,7 @@
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 PANELS <- c(
-  "a_design", "b_phenotype_effects", "c_phenotype_pca", "d_proteome_pca", "e_protein_bars",
+  "a_design", "b_phenotype_pca", "c_proteome_pca", "d_phenotype_effects", "e_protein_bars",
   "f_signature_barcode"
 )
 panels <- run_panels("F01_Global", PANELS)
@@ -18,13 +18,16 @@ plotted <- panels$e_protein_bars$data |>
   inner_join(fit_summary, by = c("universe", "contrast"))
 stopifnot(
   nrow(plotted) == 6, plotted$pi == plotted$pi_le_0.05, plotted$fdr == plotted$fdr_le_0.05,
-  nrow(panels$d_proteome_pca$data) == sum(panels$a_design$data$mice),
+  nrow(panels$c_proteome_pca$data) == sum(panels$a_design$data$mice),
   nrow(panels$f_signature_barcode$data) == 4
 )
 
 # One 2 x 3 grid: patchwork lines up titles, plot areas, axes and keys along each row and plot
-# edges down each column.
-figure <- wrap_plots(map(panels, "plot"), ncol = 3, heights = c(60, 68))
+# edges down each column. The design image is wrapped whole so it fills its cell rather than the
+# short plot area the PCA keys leave.
+plots <- map(panels, "plot")
+plots$a_design <- wrap_elements(full = plots$a_design) + theme(plot.margin = margin(t = 0))
+figure <- wrap_plots(plots, ncol = 3, widths = c(66, 57, 57), heights = c(64, 64))
 out <- stage_paths("04_Figures", "F01_Global")
 save_figure(figure, out$reports, "F01_composite", width_mm = 180, height_mm = 128)
 
@@ -32,11 +35,11 @@ write_figure_workbook(
   panels,
   c(
     "Panel a: mice per group.",
-    "Panel b: PAS vs vehicle per phenotype and sex, % change, 95% CI, Welch p, interaction p.",
-    "Panel c: phenotype PC1 and PC2 per mouse, and each trait's loading.",
-    "Panel d: proteome PC1 and PC2 per mouse, with the pellet's MitoCarta share.",
-    "Panel e: per universe, contrast and direction, proteins at p or Π, Π and FDR ≤ 0.05.",
-    "Panel f: each sex's p ≤ 0.05 up and down lists in the other sex, fry direction and p."
+    "Panel b: phenotype PC1 and PC2 per mouse, and each trait's loading.",
+    "Panel c: proteome PC1 and PC2 per mouse, with the pellet's MitoCarta share.",
+    "Panel d: PAS vs vehicle per phenotype and sex, % change, 95% CI, Welch p, interaction p.",
+    "Panel e: per universe, contrast and direction, proteins at p < 0.05, Π < 0.05, FDR ≤ 0.05.",
+    "Panel f: each sex's Π < 0.05 up and down lists in the other sex, fry direction and p."
   ),
   file.path(out$data, "F01.xlsx")
 )

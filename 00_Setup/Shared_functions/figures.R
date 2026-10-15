@@ -22,10 +22,14 @@ PHENOTYPE_LABELS <- c(
   conductance_sol_pyr = "Soleus pyruvate", conductance_pla_pyr = "Plantaris pyruvate",
   conductance_sol_oct = "Soleus octanoyl"
 )
+# One colour per phenotype for loading arrows, away from the group oranges and blues.
 TRAIT_SHORT <- c(
   csa_mean = "CSA", capillary_density = "Capillaries", satellite_cells_per_fiber = "Sat. cells",
   conductance_sol_pyr = "Sol. pyr", conductance_pla_pyr = "Pla. pyr",
   conductance_sol_oct = "Sol. oct"
+)
+PHENOTYPE_COLOURS <- set_names(
+  c("#1B9E77", "#7570B3", "#E6AB02", "#A6761D", "#666666", "#111111"), TRAIT_SHORT
 )
 MODEL_LABELS <- c(pooled = "Pooled", treatment = "Within treatment")
 CONTRAST_LABELS <- c(
@@ -104,58 +108,60 @@ source_panel <- function(figure, name) {
   source(path, local = new.env())$value
 }
 
-# PERMANOVA terms as the three lines a PCA panel prints in its corner.
-permanova_text <- \(tab) {
-  with(filter(tab, term %in% c("sex", "treatment", "sex:treatment")), paste(
-    "PERMANOVA",
-    paste(sprintf("%s R² %.2f, p = %.2g", sub("sex:treatment", "interaction", term), r2, p),
-      collapse = "\n"
-    ),
-    sep = "\n"
-  ))
-}
-
-# PCA scores with a shaded 95% t-ellipse per group, a test summary in the top-left corner, and
-# arrows (x, y, label) from the origin, already scaled to the score axes.
-pca_panel <- function(scores, variance, title, subtitle, stats, arrows) {
-  axis <- \(i) sprintf("PC%d (%.1f%%)", i, 100 * variance[i])
-  scores <- mutate(scores, group = factor(group, FIGURE_GROUPS))
-  ggplot(scores, aes(PC1, PC2)) +
-    stat_ellipse(
-      aes(colour = group, fill = group),
-      geom = "polygon", type = "t", level = 0.95, linewidth = 0.3, alpha = 0.12
-    ) +
-    geom_point(aes(colour = group, shape = sex), size = 1.3) +
-    annotate(
-      "label",
-      x = -Inf, y = Inf, label = stats, hjust = 0, vjust = 1, size = 1.9, lineheight = 0.95,
-      colour = "grey20", fill = alpha("white", 0.75), linewidth = 0,
-      label.padding = unit(1, "mm")
-    ) +
-    scale_colour_manual(
-      values = GROUP_COLOURS, labels = GROUP_LABELS, aesthetics = c("colour", "fill"), name = NULL,
-      guide = guide_legend(nrow = 2, byrow = TRUE)
-    ) +
-    scale_shape_manual(values = SEX_SHAPES, guide = "none") +
-    scale_y_continuous(expand = expansion(mult = c(0.05, 0.32))) +
-    labs(x = axis(1), y = axis(2), title = title, subtitle = subtitle) +
-    theme_figure() +
-    geom_segment(
-      aes(0, 0, xend = x, yend = y), arrows,
-      arrow = grid::arrow(length = grid::unit(1, "mm")), linewidth = 0.3, colour = "grey30"
-    ) +
-    # The points join the repel layer as empty labels, so the arrow labels move off the mice; a
-    # pale backing keeps them legible over the ellipse outlines.
-    ggrepel::geom_label_repel(
-      aes(x, y, label = label),
-      bind_rows(arrows, transmute(scores, x = PC1, y = PC2, label = "")),
-      size = 1.7, colour = "grey20", fill = alpha("white", 0.75), linewidth = 0,
-      label.padding = 0.08, min.segment.length = Inf, box.padding = 0.2, point.padding = 0.1,
-      max.overlaps = Inf, seed = SEED
+# PERMANOVA terms as rows of a small table for a PCA panel's top-right corner, bold at p <= 0.05.
+permanova_rows <- function(tab) {
+  terms <- c(sex = "Sex", treatment = "Treatment", `sex:treatment` = "Sex × treatment")
+  tab |>
+    filter(term %in% names(terms)) |>
+    transmute(
+      text = sprintf("%s  R² %.2f, p %.2g", terms[term], r2, p),
+      face = if_else(p <= ALPHA, "bold", "plain"),
+      vjust = 1.5 + 1.35 * (row_number() - 1)
     )
 }
 
-# One sex's PAS signature (proteins at p <= 0.05, up and down) placed in the other sex's ranking,
+# PCA scores with a shaded 95% t-ellipse per group (fill: group; shape: treatment), the PERMANOVA
+# table in the top-right corner, and arrows (x, y, label) from the origin, already scaled to the
+# score axes, each in its own colour with a key.
+pca_panel <- function(scores, variance, title, subtitle, permanova, arrows, arrow_colours) {
+  axis <- \(i) sprintf("PC%d (%.1f%%)", i, 100 * variance[i])
+  scores <- mutate(scores,
+    group = factor(group, FIGURE_GROUPS), treatment = factor(treatment, c("VEH", "PAS"))
+  )
+  arrows <- mutate(arrows, label = factor(label, names(arrow_colours)))
+  ggplot(scores, aes(PC1, PC2)) +
+    stat_ellipse(
+      aes(fill = group, colour = after_scale(fill)),
+      geom = "polygon", type = "t", level = 0.95, linewidth = 0.3, alpha = 0.12,
+      show.legend = FALSE
+    ) +
+    geom_segment(
+      aes(0, 0, xend = x, yend = y, colour = label), arrows,
+      arrow = grid::arrow(length = grid::unit(1.1, "mm"), type = "closed"), linewidth = 0.45
+    ) +
+    geom_point(aes(fill = group, shape = treatment), size = 1.5, colour = "grey15", stroke = 0.25) +
+    geom_text(
+      aes(Inf, Inf, label = text, fontface = face, vjust = vjust), permanova_rows(permanova),
+      hjust = 1.04, size = 1.6, colour = "grey15", inherit.aes = FALSE
+    ) +
+    scale_fill_manual(
+      values = GROUP_COLOURS, labels = GROUP_LABELS, name = NULL,
+      guide = guide_legend(
+        nrow = 2, byrow = TRUE, order = 1, override.aes = list(shape = c(21, 24, 21, 24))
+      )
+    ) +
+    scale_shape_manual(values = c(VEH = 21, PAS = 24), guide = "none") +
+    scale_colour_manual(
+      values = arrow_colours, name = NULL,
+      guide = guide_legend(ncol = 3, order = 2, override.aes = list(linewidth = 0.5))
+    ) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.3))) +
+    labs(x = axis(1), y = axis(2), title = title, subtitle = subtitle) +
+    theme_figure() +
+    theme(legend.box = "vertical", legend.key.width = unit(4, "mm"))
+}
+
+# One sex's PAS signature (proteins at Π < 0.05, up and down) placed in the other sex's ranking,
 # drawn as limma's barcode (Wu & Smyth 2012): members as ticks, the up list above the axis and
 # the down list below, with a tricube moving average of membership along the rank. ranks holds
 # the named moderated t of each target ranking; signatures comes from 02_Enrichment.
@@ -277,7 +283,7 @@ phenotype_effect_plot <- function(effects, title, subtitle) {
     ) |>
     ggplot(aes(pct_change, trait, colour = sex)) +
     geom_vline(xintercept = 1, colour = "grey50", linewidth = 0.3) +
-    geom_pointrange(aes(xmin = ci_low, xmax = ci_high, shape = P.Value <= ALPHA),
+    geom_pointrange(aes(xmin = ci_low, xmax = ci_high, shape = P.Value < ALPHA),
       position = position_dodge(width = 0.6), size = 0.25, linewidth = 0.4, fill = "white"
     ) +
     scale_x_continuous(
@@ -286,7 +292,7 @@ phenotype_effect_plot <- function(effects, title, subtitle) {
     ) +
     scale_colour_manual(values = SEX_COLOURS, breaks = c("Female", "Male"), name = NULL) +
     scale_shape_manual(
-      values = c(`TRUE` = 16, `FALSE` = 21), labels = c(`TRUE` = "p ≤ 0.05", `FALSE` = "p > 0.05"),
+      values = c(`TRUE` = 16, `FALSE` = 21), labels = c(`TRUE` = "p < 0.05", `FALSE` = "ns"),
       name = NULL
     ) +
     labs(
