@@ -1,14 +1,16 @@
 # Every pathway test the comparisons read, run once. fgsea (enrichVolcano::run_enrichment) on the
-# moderated t of each comparison's contrast: GO:BP and Reactome in the full proteome, MitoCarta in
-# the mitochondrial universe, BH within contrast and collection over every tested set, with the same
-# set's singscore contrast from 01_Fit beside it. GO Slim compartments, and the literature-informed
-# and ROS sets as one list in the full proteome. Every term carries an EnrichmentMap redundancy flag
-# (enrichVolcano::dedup_terms, similarity >= 0.375, the stronger term kept) that only picks display
-# terms; nothing is dropped. fgsea also runs on each protein-phenotype association t per sex and
-# association model, beside the same set's singscore association. Cross-sex signatures: each
-# sex's proteins at p <= 0.05, up and down, tested by fgsea in the other sex's ranking. STRING
-# v12 connectivity of each contrast's Π and FDR lists is descriptive: subunits of one complex vary
-# together, so connected lists are expected.
+# moderated t of each comparison's contrast: GO:BP, Reactome, Hallmark and KEGG in the full
+# proteome, MitoCarta in the mitochondrial universe, BH within contrast and collection over every
+# tested set, with the same set's singscore contrast from 01_Fit beside it. GO Slim compartments,
+# and the literature-informed and ROS sets as one list in the full proteome. Every FDR-level term
+# carries a redundancy flag from fgsea::collapsePathways (through enrichVolcano::dedup_terms):
+# a term is redundant when it is no longer enriched once a stronger term's genes are conditioned
+# on. The flag only picks display terms; nothing is dropped. fgsea also runs on each
+# protein-phenotype association t per sex and association model. Cross-sex signatures: each
+# sex's proteins at p <= 0.05, up and down, tested by limma::fry in the other sex's contrast
+# across mice. ORA (fgsea::fora) describes each response pattern of the PAS F-test proteins.
+# STRING v12 connectivity of each contrast's Π and FDR lists is descriptive: subunits of one
+# complex vary together.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -22,13 +24,14 @@ study_files <- expand_grid(
   ))
 inputs <- c(
   gene_sets = here("01_Processing", "04_Gene_Sets", "c_data", "gene_sets.rds"),
+  design = here("01_Processing", "03_Design", "c_data", "design.rds"),
   fit = here("02_Statistics", "01_Fit", "c_data", "fit.rds"),
   study_files,
   STRING_FILES
 )
 gs <- readRDS(inputs[["gene_sets"]])
 fit <- readRDS(inputs[["fit"]])
-SIMILARITY_CUTOFF <- 0.375
+d <- readRDS(inputs[["design"]])
 
 sets <- map(gs$tested, \(x) unlist(unname(x), recursive = FALSE))
 studies <- map(set_names(names(gs$tested)), \(u) {
@@ -54,15 +57,18 @@ gene_ranks <- function(da) {
 }
 flatten <- \(x) map_chr(x, \(g) paste(g, collapse = ";"))
 
-enrichment_objects <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
-  imap(gs$tested, \(collection, u) {
-    enrichVolcano::dedup_terms(fgsea_of(studies[[u]], collection, cn, TEST_WINDOW[[u]]), sets[[u]],
-      cutoff = SIMILARITY_CUTOFF, term_threshold = Inf
-    )
-  })
-})
 ranks <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
   map(studies, \(s) gene_ranks(s$da[s$da$contrast == cn, ]))
+})
+enrichment_objects <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
+  imap(gs$tested, \(collection, u) {
+    tested <- fgsea_of(studies[[u]], collection, cn, TEST_WINDOW[[u]])
+    set.seed(SEED)
+    enrichVolcano::dedup_terms(tested, sets[[u]],
+      method = "collapse_pathways", term_threshold = ALPHA,
+      stats = set_names(list(ranks[[cn]][[u]]), cn)
+    )
+  })
 })
 
 families <- gs$goslim |>
@@ -92,7 +98,7 @@ results <- imap(enrichment_objects, \(by_universe, cn) {
     leading_edge = flatten(leading_edge)
   ) |>
   arrange(factor(contrast, COMPARISON_CONTRASTS), universe, collection, p)
-stopifnot(!anyNA(results$score_p), !anyNA(results$dedup_status))
+stopifnot(!anyNA(results$score_p), !anyNA(results$dedup_status[results$padj < ALPHA]))
 
 # The side lists run on fgsea directly, on the ranking the main tests used: enrichVolcano keeps
 # fgsea's default nPermSimple, and at that default a set with unbalanced gene-level statistics
@@ -194,32 +200,75 @@ string_tests <- map(COMPARISON_CONTRASTS, \(cn) {
   mutate(fdr = p.adjust(p, "BH"), .by = contrast)
 
 # Does one sex's PAS response carry into the other's? The up and down proteins at p <= 0.05 in one
-# sex (one per gene, full proteome) are placed in the other sex's ranking; fgsea tests each list
-# there, and the share of members ranked on the same side as in the source sex is reported.
+# sex (full proteome) are tested in the other sex's PAS contrast by limma::fry, which tests across
+# mice with the fit's design and limpa's precision weights. The share of members whose fold change
+# in the other sex points the same way is reported beside it; members are listed by gene for the
+# barcode, which places them in the other sex's ranking.
 SEXES <- c(female = "PAS_vs_VEH_female", male = "PAS_vs_VEH_male")
-signature_genes <- imap(SEXES, \(cn, sex) {
+full_matrix <- fit$E_norm$full[, fit$targets$sample_id]
+full_weights <- readr::read_csv(inputs[["study_full_weights"]], show_col_types = FALSE) |>
+  column_to_rownames("protein") |>
+  as.matrix()
+stopifnot(identical(rownames(full_weights), rownames(full_matrix)))
+signature_proteins <- imap(SEXES, \(cn, sex) {
   hits <- filter(proteome, contrast == cn, P.Value <= ALPHA)
-  list(up = unique(hits$gene[hits$logFC > 0]), down = unique(hits$gene[hits$logFC < 0]))
+  list(up = hits$feature[hits$logFC > 0], down = hits$feature[hits$logFC < 0])
 })
 signatures <- imap(SEXES, \(cn, source) {
   target <- setdiff(names(SEXES), source)
-  in_target <- ranks[[SEXES[[target]]]]$full
-  lists <- set_names(signature_genes[[source]], paste(source, names(signature_genes[[source]])))
-  tested <- fgsea_of(studies$full, list(Signature = lists), SEXES[[target]], c(5, Inf))@results
-  imap(lists, \(genes, name) {
-    ranked <- in_target[intersect(genes, names(in_target))]
-    row <- tested[tested$term == name, ]
+  lists <- signature_proteins[[source]]
+  names(lists) <- paste(source, names(lists))
+  tested <- limma::fry(full_matrix, lists, d$design, d$contrasts[, SEXES[[target]]],
+    weights = full_weights
+  )
+  in_target <- filter(proteome, contrast == SEXES[[target]])
+  imap(lists, \(proteins, name) {
+    target_fc <- in_target$logFC[match(proteins, in_target$feature)]
+    up <- str_ends(name, "up")
+    members <- intersect(
+      unique(in_target$gene[match(proteins, in_target$feature)]),
+      names(ranks[[SEXES[[target]]]]$full)
+    )
     tibble(
       source = source, ranked_in = target, direction = str_remove(name, "^\\w+ "),
-      n_proteins = length(genes), n_ranked = length(ranked),
-      same_way = mean(if (str_ends(name, "up")) ranked > 0 else ranked < 0),
-      NES = row$score, p = row$p, members = paste(names(ranked), collapse = ";")
+      n_proteins = length(proteins), n_ranked = length(members),
+      same_way = mean(if (up) target_fc > 0 else target_fc < 0, na.rm = TRUE),
+      fry_direction = tested[name, "Direction"], p = tested[name, "PValue"],
+      p_mixed = tested[name, "PValue.Mixed"], members = paste(members, collapse = ";")
     )
   }) |>
     list_rbind()
 }) |>
   list_rbind()
-stopifnot(nrow(signatures) == 4, !anyNA(signatures$p))
+
+# What the PAS F-test proteins share: ORA (fgsea::fora) of each response pattern's genes against
+# every detected gene, on the full-proteome collections; BH within pattern and collection.
+# Descriptive: the patterns come from proteins chosen for responding.
+full_sets <- gs$tested$full |>
+  imap(\(sets, db) tibble(collection = db, term = names(sets), genes = sets)) |>
+  list_rbind()
+detected_genes <- names(ranks[[1]]$full)
+pattern_genes <- fit$protein_ftest |>
+  filter(universe == "full", P.Value <= ALPHA, !is.na(gene), gene != "") |>
+  summarise(genes = list(unique(gene)), proteins = n(), .by = pattern)
+pattern_ora <- pmap(pattern_genes, \(pattern, genes, proteins) {
+  map(split(full_sets, full_sets$collection), \(sets) {
+    fgsea::fora(set_names(sets$genes, sets$term), genes, detected_genes,
+      minSize = TEST_WINDOW$full[1], maxSize = TEST_WINDOW$full[2]
+    ) |>
+      as_tibble() |>
+      transmute(
+        pattern = pattern, collection = sets$collection[1], term = pathway, overlap, size,
+        p = pval, fdr = p.adjust(pval, "BH"), genes_in_pattern = length(genes),
+        overlap_genes = map_chr(overlapGenes, \(g) paste(g, collapse = ";"))
+      )
+  }) |>
+    list_rbind()
+}) |>
+  list_rbind() |>
+  arrange(pattern, collection, p)
+
+stopifnot(nrow(signatures) == 4, !anyNA(signatures$p), nrow(pattern_ora) > 0)
 
 tier_table <- results |>
   reframe(tier_counts(p, padj), .by = c(contrast, universe, collection)) |>
@@ -260,7 +309,7 @@ saveRDS(
     results = results, objects = enrichment_objects, ranks = ranks, da = map(studies, "da"),
     sets = sets,
     compartments = compartments, literature = literature, association_fgsea = association_fgsea,
-    signatures = signatures, string = string_tests, summary = tier_table
+    signatures = signatures, pattern_ora = pattern_ora, string = string_tests, summary = tier_table
   ),
   file.path(out$data, "enrichment.rds")
 )
@@ -268,12 +317,13 @@ write_workbook(
   list(
     summary = tier_table, fgsea = results, compartments = compartments, literature = literature,
     association_summary = association_summary, association_fgsea = association_fgsea,
-    signatures = signatures, string = string_tests, plot_index = plot_index
+    signatures = signatures, pattern_ora = pattern_ora, string = string_tests,
+    plot_index = plot_index
   ),
   c(
     "Per contrast and collection: sets tested, at p ≤ 0.05, expected by chance, FDR tiers.",
     paste(
-      "Every tested set and contrast: NES, p, BH FDR, size, redundancy flag, singscore",
+      "Every tested set and contrast: NES, p, BH FDR, size, collapsePathways flag, singscore",
       "contrast (log2 FC, p, FDR, r with group), GO Slim families, leading edge."
     ),
     "GO Slim cellular compartments, fgsea per contrast, full proteome.",
@@ -284,8 +334,12 @@ write_workbook(
       "phenotype, beside its singscore association (slope, r, p, FDR)."
     ),
     paste(
-      "Each sex's p ≤ 0.05 up and down proteins in the other sex's ranking:",
-      "size, share ranked the same way, fgsea NES and p."
+      "Each sex's p ≤ 0.05 up and down proteins tested in the other sex's PAS contrast by fry:",
+      "size, share moving the same way, fry direction, p and mixed p."
+    ),
+    paste(
+      "ORA of each response pattern of the PAS F-test proteins (p ≤ 0.05), full-proteome",
+      "collections: overlap, size, p, BH FDR within pattern and collection, overlap genes."
     ),
     "STRING v12 connectivity of each contrast's Π and FDR lists.",
     "Which PDF page shows what."
