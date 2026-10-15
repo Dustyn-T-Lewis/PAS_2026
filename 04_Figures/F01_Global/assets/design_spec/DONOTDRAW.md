@@ -1,0 +1,14 @@
+- surgery, ligation, ischemia or any vessel occlusion (whether the measured limb was ligated is unconfirmed)
+- syringes, injections, pills, food or any route, dose or duration of PAS
+- a chemical structure or an expansion of the abbreviation PAS
+- a timeline or time points
+- which muscle the histology came from
+- numbers other than "n = 5", "1,962" and "595"
+- statistical results, p-values, arrows meaning up or down
+- a contrast between female and male mice at baseline (no "Sex in VEH" or "Sex in PAS")
+- human figures, rats or any species other than mouse
+- logos, watermarks or a figure title
+- any line or connector that touches or crosses the bottom tier (the processing row or the Phenotypes box)
+- a blue or orange line entering "Treatment × sex"
+- any cell with fewer or more than exactly five mouse icons
+- any line from the grid to "Treatment × sex"; it connects only to the two PAS vs VEH boxes

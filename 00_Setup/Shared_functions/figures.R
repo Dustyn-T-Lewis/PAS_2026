@@ -58,7 +58,7 @@ contrast_strips <- function(levels, side = c("x", "y")) {
   boxes <- ggh4x::elem_list_rect(
     fill = unname(coalesce(contrast_tone("fill")[levels], "transparent")),
     colour = unname(coalesce(contrast_tone("line")[levels], "transparent")),
-    linewidth = 0.6
+    linewidth = 0.4
   )
   text <- ggh4x::elem_list_text(colour = "black", face = "bold")
   if (side == "x") {
@@ -66,6 +66,128 @@ contrast_strips <- function(levels, side = c("x", "y")) {
   } else {
     ggh4x::strip_themed(background_y = boxes, text_y = text)
   }
+}
+
+# A figure panel at the size it takes in its composite, as PDF (cairo) and PNG, into the figure's
+# b_reports/panels/; the composite then stitches panels that already look final.
+save_panel <- function(plot, figure, name, width_mm, height_mm) {
+  dir <- here("04_Figures", figure, "b_reports", "panels")
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  save_figure(plot, dir, name, width_mm, height_mm)
+}
+
+# Runs one panel script in its own environment and returns what it returns: list(plot, data,
+# inputs). Composites call this for each panel, as YvO's stitchers do.
+source_panel <- function(figure, name) {
+  path <- here("04_Figures", figure, "a_script", "panels", paste0(name, ".R"))
+  source(path, local = new.env())$value
+}
+
+# PERMANOVA terms as the three lines a PCA panel prints in its corner.
+permanova_text <- \(tab) {
+  with(filter(tab, term %in% c("sex", "treatment", "sex:treatment")), paste(
+    "PERMANOVA",
+    paste(sprintf("%s R² %.2f, p = %.2g", sub("sex:treatment", "interaction", term), r2, p),
+      collapse = "\n"
+    ),
+    sep = "\n"
+  ))
+}
+
+# PCA scores with a shaded 95% t-ellipse per group, a test summary in the top-left corner, and
+# arrows (x, y, label) from the origin, already scaled to the score axes.
+pca_panel <- function(scores, variance, title, subtitle, stats, arrows) {
+  axis <- \(i) sprintf("PC%d (%.1f%%)", i, 100 * variance[i])
+  scores <- mutate(scores, group = factor(group, FIGURE_GROUPS))
+  ggplot(scores, aes(PC1, PC2)) +
+    stat_ellipse(
+      aes(colour = group, fill = group),
+      geom = "polygon", type = "t", level = 0.95, linewidth = 0.3, alpha = 0.12
+    ) +
+    geom_point(aes(colour = group, shape = sex), size = 1.3) +
+    annotate(
+      "text",
+      x = -Inf, y = Inf, label = stats, hjust = -0.05, vjust = 1.3, size = 1.9,
+      lineheight = 0.95, colour = "grey20"
+    ) +
+    scale_colour_manual(values = GROUP_COLOURS, aesthetics = c("colour", "fill"), name = NULL) +
+    scale_shape_manual(values = SEX_SHAPES, guide = "none") +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.32))) +
+    labs(x = axis(1), y = axis(2), title = title, subtitle = subtitle) +
+    theme_figure() +
+    geom_segment(
+      aes(0, 0, xend = x, yend = y), arrows,
+      arrow = grid::arrow(length = grid::unit(1, "mm")), linewidth = 0.3, colour = "grey30"
+    ) +
+    ggrepel::geom_text_repel(
+      aes(x, y, label = label), arrows,
+      size = 1.7, colour = "grey20", min.segment.length = Inf, box.padding = 0.15, seed = SEED
+    )
+}
+
+# One sex's PAS signature (proteins at p <= 0.05, up and down) placed in the other sex's ranking,
+# drawn as limma's barcode (Wu & Smyth 2012): members as ticks, the up list above the axis and
+# the down list below, with a tricube moving average of membership along the rank. ranks holds
+# the named moderated t of each target ranking; signatures comes from 02_Enrichment.
+signature_barcode <- function(signatures, ranks, span = 0.12, min_height = 0.34) {
+  lane_name <- \(source, ranked_in) {
+    sprintf("%s signature\nin %s ranking", str_to_sentence(source), ranked_in)
+  }
+  lanes <- signatures |>
+    mutate(
+      lane = factor(
+        lane_name(source, ranked_in), lane_name(c("female", "male"), c("male", "female"))
+      ),
+      side = if_else(direction == "up", 1, -1),
+      ranks = map2(members, ranked_in, \(m, target) {
+        position <- rank(-ranks[[target]], ties.method = "first")
+        unname(position[str_split_1(m, ";")])
+      })
+    )
+  n_total <- unique(lengths(ranks))
+  stopifnot(length(n_total) == 1, all(lengths(lanes$ranks) == lanes$n_ranked))
+  ticks <- select(lanes, lane, direction, side, rank = ranks) |>
+    unnest(rank)
+  worms <- lanes |>
+    mutate(worm = map(ranks, \(r) {
+      smooth <- limma::tricubeMovingAverage(as.integer(seq_len(n_total) %in% r), span = span)
+      tibble(rank = seq_len(n_total), height = min_height + (1 - min_height) * smooth / max(smooth))
+    })) |>
+    select(lane, direction, side, worm) |>
+    unnest(worm) |>
+    mutate(y = side * height, y0 = side * min_height)
+  labels <- lanes |>
+    mutate(
+      text = sprintf(
+        "%s (n = %d), %.0f%% same way, fry p %.2g", direction, n_ranked, 100 * same_way, p
+      ),
+      x = if_else(direction == "up", n_total * 0.995, n_total * 0.005),
+      hjust = if_else(direction == "up", 1, 0), y = side * 1.38, vjust = if_else(side > 0, 1, 0)
+    )
+  ggplot() +
+    geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.3) +
+    geom_segment(
+      aes(rank, side * 0.06, xend = rank, yend = side * 0.3, colour = direction), ticks,
+      linewidth = 0.2, alpha = 0.8
+    ) +
+    geom_ribbon(aes(rank, ymin = y0, ymax = y, fill = direction), worms, alpha = 0.25) +
+    geom_line(aes(rank, y, colour = direction), worms, linewidth = 0.4) +
+    geom_text(
+      aes(x, y, label = text, hjust = hjust, vjust = vjust, colour = direction), labels,
+      size = 1.9, fontface = "bold", show.legend = FALSE
+    ) +
+    facet_wrap(~lane, ncol = 1, strip.position = "left") +
+    scale_colour_manual(
+      values = c(up = DIRECTION_COLOURS[["Up"]], down = DIRECTION_COLOURS[["Down"]]),
+      aesthetics = c("colour", "fill"), guide = "none"
+    ) +
+    scale_x_continuous(expand = expansion(mult = 0.02)) +
+    scale_y_continuous(limits = c(-1.42, 1.42), breaks = NULL, expand = expansion(0)) +
+    theme_figure() +
+    theme(
+      strip.placement = "outside", strip.text.y.left = element_text(angle = 90, size = 5.5),
+      panel.grid.major = element_blank(), panel.spacing.y = unit(2, "mm")
+    )
 }
 
 # A finished figure as PDF (cairo, which carries Π and ≤) and as a 600 dpi PNG.
@@ -77,6 +199,22 @@ save_figure <- function(figure, dir, name, width_mm, height_mm) {
   }
   save(".pdf", device = grDevices::cairo_pdf)
   save(".png", dpi = 600)
+}
+
+# Boxed contrast labels, as the design panel draws them: the contrast's tint inside a border in its
+# colour, the text in bold black, the box only as large as its text. data holds x, y, label and
+# contrast; extra arguments (hjust, vjust) pass to geom_label.
+contrast_labels <- function(data, ...) {
+  geom_label(
+    aes(x, y,
+      label = label, fill = I(contrast_tone("fill")[contrast]),
+      colour = I(contrast_tone("line")[contrast])
+    ),
+    data,
+    text.colour = "black", fontface = "bold", size = 2, linewidth = 0.4,
+    label.r = unit(0.6, "mm"), label.padding = unit(0.7, "mm"), lineheight = 0.9,
+    inherit.aes = FALSE, show.legend = FALSE, ...
+  )
 }
 
 # A step's preview PDF: one landscape page per named function, each drawing with a package's own
