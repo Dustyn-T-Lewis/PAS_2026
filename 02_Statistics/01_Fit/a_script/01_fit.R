@@ -1,11 +1,13 @@
-# Every model the comparisons read, fitted once on all 20 mice. Proteins: limpa's dpcDE with
-# precision and sample weights, normalised per universe. GO:BP, Reactome, MitoCarta,
-# complex and cluster scores and module eigengenes: limma. Each level gets the five contrasts and,
+# Every model the comparisons read, fitted once on all 20 mice on 01_Processing/03_Design's design:
+# four group means and one surrogate variable for unwanted variation. Proteins: limpa's dpcDE with
+# precision and sample weights, normalised per universe. GO:BP, Reactome, MitoCarta, complex and
+# cluster scores and module eigengenes: limma. Each level gets the five contrasts and,
 # for each phenotype, an association in females and one in males: the feature regressed on the
-# phenotype (z-scored across all 20 mice) within the ten mice of each sex. Two models answer two
-# questions: pooled (~0 + sex + z:female + z:male) asks whether a feature co-varies with the
-# phenotype across PAS and vehicle mice; treatment (~0 + group + z:female + z:male) asks whether it
-# tracks the phenotype among mice given the same treatment (limma User's Guide, covariates). An
+# phenotype (z-scored across all 20 mice) within the ten mice of each sex, the surrogate variable
+# also fitted within each sex. Two models answer two questions: pooled (~0 + sex + z:sex + sv1:sex)
+# asks whether a feature co-varies with the phenotype across PAS and vehicle mice; treatment
+# (~0 + group + z:sex + sv1:sex) asks whether it tracks the phenotype among mice given the same
+# treatment (limma User's Guide, covariates). An
 # association is co-movement, not a PAS effect. A pooled refit with the pellet's mitochondrial
 # share (centred within group) is kept as a check. Phenotype effects are % changes against the
 # same sex's vehicle. Comparisons slice these tables.
@@ -36,6 +38,7 @@ pellet_mito <- quant$pct_mito - ave(quant$pct_mito, targets$group)
 sex_design <- model.matrix(~ 0 + sex, targets)
 colnames(sex_design) <- c("F", "M")
 group_design <- model.matrix(~ 0 + group, targets)
+sv1 <- d$design[, "sv1"]
 ASSOCIATION_MODELS <- c("pooled", "treatment", "pooled_mito")
 genes <- as_tibble(quant$proteins$genes, rownames = "feature") |>
   transmute(feature, gene = first_symbol(Genes), genes = Genes, is_mito)
@@ -46,7 +49,10 @@ genes <- as_tibble(quant$proteins$genes, rownames = "feature") |>
 association_design <- function(x, model) {
   z <- as.numeric(scale(x))
   means <- if (model == "treatment") group_design else sex_design
-  m <- cbind(means, slope_F = z * female, slope_M = z * (1 - female))
+  m <- cbind(means,
+    slope_F = z * female, slope_M = z * (1 - female),
+    sv1_F = sv1 * female, sv1_M = sv1 * (1 - female)
+  )
   if (model == "pooled_mito") cbind(m, pellet_mito = pellet_mito) else m
 }
 slope_contrasts <- \(design) makeContrasts(female = slope_F, male = slope_M, levels = design)
@@ -199,15 +205,16 @@ protein_associations <- protein_associations |>
 score_associations <- score_associations |>
   join_r(score_r(r_associations), c("phenotype", "sex", "feature"), "many-to-one")
 
-# Without weights the joint models' slopes equal regressions within one sex: on the phenotype
-# alone (pooled) and on treatment plus phenotype (treatment).
+# Without weights the joint models' slopes equal regressions within one sex: on the phenotype and
+# surrogate variable (pooled), plus treatment (treatment).
 check <- filter(score_associations, model != "pooled_mito", universe == "full", sex == "female") |>
   slice_head(n = 1, by = c(phenotype, model))
 stopifnot(pmap_lgl(check, \(phenotype, model, feature, estimate, ...) {
   keep <- female == 1
   y <- score_sets$full[feature, keep]
   z <- scale(ph[[phenotype]])[keep]
-  within_sex <- if (model == "treatment") lm(y ~ targets$treatment[keep] + z) else lm(y ~ z)
+  s <- sv1[keep]
+  within_sex <- if (model == "treatment") lm(y ~ targets$treatment[keep] + z + s) else lm(y ~ z + s)
   isTRUE(all.equal(unname(coef(within_sex)[["z"]]), estimate))
 }))
 
