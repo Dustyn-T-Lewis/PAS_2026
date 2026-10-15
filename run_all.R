@@ -1,7 +1,7 @@
 # Runs the pipeline end to end, each script in its own R session so no step inherits objects or
 # masked functions from the one before. Every script also runs alone; this file is a convenience.
 # Processing and statistics run first; the three comparisons report their results; the figures
-# read the statistics. Output from every script goes to run_all.log; pipeline.png is redrawn last.
+# read the statistics. Output from every script goes to run_all.log.
 #
 #   Rscript run_all.R
 
@@ -40,6 +40,4 @@ for (step in c(processing, statistics, comparisons, figures)) {
   status <- system2("Rscript", c(shQuote(file.path(root, step)), ">>", shQuote(log_file), "2>&1"))
   if (status != 0) stop("failed: ", step, " (see run_all.log)")
 }
-source(file.path(root, "R", "helpers.R"))
-draw_pipeline(c(processing, statistics, comparisons, figures), file.path(root, "pipeline.png"))
 message("done")
