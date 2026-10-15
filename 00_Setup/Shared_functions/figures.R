@@ -1,4 +1,5 @@
-# Figure style and the plots more than one script draws, for figures and step reports alike.
+# Figure style, after HRvLR's: colours sampled from the design panel so a contrast looks the same
+# in the schematic and every plot, a minimal theme, and the plots more than one script draws.
 # Sourced by helpers.R.
 
 library(ggplot2)
@@ -8,7 +9,9 @@ SEX_COLOURS <- c(Female = "#D55E00", Male = "#0072B2")
 SEX_SHAPES <- c(F = 16, M = 17)
 FIGURE_GROUPS <- c("VEH_F", "PAS_F", "VEH_M", "PAS_M")
 GROUP_COLOURS <- c(VEH_F = "#FDB863", PAS_F = "#D55E00", VEH_M = "#92C5DE", PAS_M = "#0072B2")
-DIRECTION_COLOURS <- c(Down = "#2166AC", Up = "#B2182B")
+# Up and down in green and magenta (PiYG), so direction never borrows a group's orange or blue.
+DIRECTION_COLOURS <- c(Down = "#C51B7D", Up = "#4D9221")
+DIRECTION_LIGHT <- c(Down = "#F1B6DA", Up = "#B8E186")
 PHENOTYPE_LABELS <- c(
   csa_mean = "CSA", capillary_density = "Capillary density",
   satellite_cells_per_fiber = "Satellite cells / fibre",
@@ -19,27 +22,50 @@ CONTRAST_LABELS <- c(
   PAS_vs_VEH_female = "PAS vs VEH, female", PAS_vs_VEH_male = "PAS vs VEH, male",
   treatment_by_sex = "Treatment × sex", sex_in_VEH = "Sex in VEH", sex_in_PAS = "Sex in PAS"
 )
-CONTRAST_COLOURS <- set_names(
-  c("#D55E00", "#0072B2", "#7B3294", "grey45", "grey70"), CONTRAST_LABELS
+# Each contrast in three tones, as the design panel draws it: line for marks and box borders, fill
+# for the box tint, ink for text on white.
+CONTRAST_PALETTE <- tibble::tribble(
+  ~contrast, ~line, ~fill, ~ink,
+  "PAS_vs_VEH_female", "#D55E00", "#FBDCC8", "#A34400",
+  "PAS_vs_VEH_male", "#0072B2", "#CCE3F0", "#005282",
+  "treatment_by_sex", "#7B3294", "#E8D5EE", "#5A2370",
+  "sex_in_VEH", "#737373", "#E5E5E5", "#525252",
+  "sex_in_PAS", "#A6A6A6", "#F0F0F0", "#737373"
 )
+contrast_tone <- \(tone) set_names(CONTRAST_PALETTE[[tone]], CONTRAST_PALETTE$contrast)
 DATABASE_COLOURS <- c("GO:BP" = "#999999", Reactome = "#56B4E9", MitoCarta = "#009E73")
 
-# Framed panels with a light grid, bold title and italic subtitle.
+# HRvLR's figure theme: minimal, a light major grid, bold title and a plain grey subtitle, with the
+# panel letter in a left margin column level with the title.
 theme_figure <- function() {
-  theme_bw(base_size = 7, base_family = "Helvetica") +
+  theme_minimal(base_size = 7, base_family = "Helvetica") +
     theme(
-      plot.title = element_text(size = 7.5, face = "bold"),
-      plot.subtitle = element_text(size = 5.5, face = "italic", colour = "grey35"),
-      axis.text = element_text(size = 6),
-      plot.tag = element_text(size = 9, face = "bold"),
-      panel.border = element_rect(colour = "grey35", linewidth = 0.4),
-      panel.grid.major = element_line(colour = "grey93", linewidth = 0.25),
+      plot.title = element_text(face = "bold", size = 7.5, margin = margin(b = 1)),
+      plot.subtitle = element_text(size = 6, colour = "grey30", margin = margin(b = 3)),
+      plot.title.position = "plot",
       panel.grid.minor = element_blank(),
-      strip.background = element_blank(),
-      strip.text = element_text(size = 7, face = "bold"),
+      panel.grid.major = element_line(linewidth = 0.2),
       legend.key.size = unit(3, "mm"),
-      legend.background = element_blank()
+      plot.tag = element_text(face = "bold", size = 9, vjust = 1, margin = margin(r = 2)),
+      plot.tag.location = "margin", plot.tag.position = "left"
     )
+}
+
+# Facet strips as the design panel's boxes: the contrast's tint inside a border in its colour, the
+# name in bold black; a level outside the palette gets no box.
+contrast_strips <- function(levels, side = c("x", "y")) {
+  side <- match.arg(side)
+  boxes <- ggh4x::elem_list_rect(
+    fill = unname(coalesce(contrast_tone("fill")[levels], "transparent")),
+    colour = unname(coalesce(contrast_tone("line")[levels], "transparent")),
+    linewidth = 0.6
+  )
+  text <- ggh4x::elem_list_text(colour = "black", face = "bold")
+  if (side == "x") {
+    ggh4x::strip_themed(background_x = boxes, text_x = text)
+  } else {
+    ggh4x::strip_themed(background_y = boxes, text_y = text)
+  }
 }
 
 # A finished figure as PDF (cairo, which carries Π and ≤) and as a 600 dpi PNG.
@@ -64,11 +90,6 @@ preview_pdf <- function(file, pages) {
     par(defaults)
   })
   tibble(file = basename(file), page = seq_along(pages), shows = names(pages))
-}
-
-# A tint of a colour, moved the given share of the way towards white.
-lighten <- function(colour, amount) {
-  grDevices::colorRampPalette(c(colour, "white"))(101)[round(100 * amount) + 1]
 }
 
 # PAS against vehicle per phenotype and sex as a % change with its 95% CI, on a log ratio axis so

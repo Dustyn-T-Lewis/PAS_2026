@@ -97,7 +97,7 @@ signature_barcode <- function(signatures, ranks, span = 0.12, min_height = 0.34)
         "%s (n = %d), %.0f%% same way, p %.2g", direction, n_ranked, 100 * same_way, p
       ),
       x = if_else(direction == "up", n_total * 0.995, n_total * 0.005),
-      hjust = if_else(direction == "up", 1, 0), y = side * 0.97, vjust = if_else(side > 0, 1, 0)
+      hjust = if_else(direction == "up", 1, 0), y = side * 1.38, vjust = if_else(side > 0, 1, 0)
     )
   ggplot() +
     geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.3) +
@@ -117,7 +117,7 @@ signature_barcode <- function(signatures, ranks, span = 0.12, min_height = 0.34)
       aesthetics = c("colour", "fill"), guide = "none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.02)) +
-    scale_y_continuous(limits = c(-1.05, 1.05), breaks = NULL, expand = expansion(0)) +
+    scale_y_continuous(limits = c(-1.42, 1.42), breaks = NULL, expand = expansion(0)) +
     theme_figure() +
     theme(
       strip.placement = "outside", strip.text.y.left = element_text(angle = 90, size = 5.5),
@@ -134,11 +134,8 @@ panel_design <- ggplot() +
       "{n_mice} mice, n = {per_group} per group; contrast colours carry through b to g"
     )
   ) +
-  theme_void(base_size = 7) +
-  theme(
-    plot.title = element_text(size = 7.5, face = "bold"),
-    plot.subtitle = element_text(size = 5.5, face = "italic", colour = "grey35")
-  )
+  theme_figure() +
+  theme(axis.text = element_blank(), axis.title = element_blank(), panel.grid = element_blank())
 
 # b: proteins per contrast. The light bar counts p <= 0.05 or Π <= 0.05; the dark bar, drawn over
 # it from zero, counts Π <= 0.05. Dashed lines: proteins at p <= 0.05 expected by chance per side.
@@ -151,60 +148,51 @@ protein_counts <- fit$protein_contrasts |>
   ) |>
   mutate(tests = sum(tests), .by = c(universe, contrast))
 bar_fills <- c(
-  "Down, p or Π" = "#9ECAE1", "Down, Π" = DIRECTION_COLOURS[["Down"]],
-  "Up, p or Π" = "#FCBBA1", "Up, Π" = DIRECTION_COLOURS[["Up"]]
+  "Down, p or Π" = DIRECTION_LIGHT[["Down"]], "Down, Π" = DIRECTION_COLOURS[["Down"]],
+  "Up, p or Π" = DIRECTION_LIGHT[["Up"]], "Up, Π" = DIRECTION_COLOURS[["Up"]]
 )
 universe_size <- distinct(protein_counts, universe, tests) |> deframe()
 universe_label <- c(
   full = sprintf("Full proteome (%s)", format(universe_size[["full"]], big.mark = ",")),
   mito = sprintf("Mitochondrial (%s)", format(universe_size[["mito"]], big.mark = ","))
 )
-fdr_text <- protein_counts |>
-  summarise(fdr = sum(fdr), chance = ALPHA / 2 * tests[1], .by = c(universe, contrast)) |>
-  mutate(
-    band = map_chr(CONTRAST_COLOURS[CONTRAST_LABELS[contrast]], lighten, amount = 0.79),
-    row = sprintf("%s\nFDR %d", SHORT[contrast], fdr), universe = universe_label[universe]
-  )
+# One row per contrast, boxed in its colour as in the design panel, with its FDR count.
+row_labels <- protein_counts |>
+  filter(universe == "full") |>
+  summarise(fdr = sum(fdr), .by = contrast) |>
+  mutate(label = sprintf("%s\nFDR %d", SHORT[contrast], fdr))
+row_label <- deframe(select(row_labels, contrast, label))[COMPARISON_CONTRASTS]
+chance <- distinct(protein_counts, universe, tests) |>
+  mutate(chance = ALPHA / 2 * tests, universe = universe_label[universe])
 bars <- protein_counts |>
   pivot_longer(c(nominal, pi), names_to = "tier", values_to = "n") |>
   mutate(
     signed = if_else(direction == "Up", n, -n),
     fill = paste0(direction, if_else(tier == "pi", ", Π", ", p or Π")),
-    universe = universe_label[universe]
-  ) |>
-  left_join(select(fdr_text, universe, contrast, row, band), by = c("universe", "contrast")) |>
-  mutate(
-    row = factor(
-      row, unique(fdr_text$row[order(match(fdr_text$contrast, rev(COMPARISON_CONTRASTS)))])
-    )
+    universe = universe_label[universe],
+    row = factor(row_label[contrast], row_label)
   ) |>
   arrange(tier == "pi")
-panel_proteins <- ggplot(bars, aes(signed, row)) +
-  geom_tile(
-    aes(x = 0, fill = I(band)), distinct(bars, row, universe, band),
-    width = Inf, height = 0.95
-  ) +
-  geom_col(aes(fill = fill), width = 0.6, position = "identity") +
+panel_proteins <- ggplot(bars, aes(signed, "")) +
+  geom_col(aes(fill = fill), width = 0.7, position = "identity") +
   geom_vline(xintercept = 0, linewidth = 0.25) +
-  geom_vline(
-    aes(xintercept = chance), distinct(fdr_text, universe, chance),
-    linetype = "dashed", linewidth = 0.25
+  geom_vline(aes(xintercept = chance), chance, linetype = "dashed", linewidth = 0.25) +
+  geom_vline(aes(xintercept = -chance), chance, linetype = "dashed", linewidth = 0.25) +
+  ggh4x::facet_grid2(row ~ universe,
+    scales = "free_x", switch = "y",
+    strip = contrast_strips(COMPARISON_CONTRASTS, "y")
   ) +
-  geom_vline(
-    aes(xintercept = -chance), distinct(fdr_text, universe, chance),
-    linetype = "dashed", linewidth = 0.25
-  ) +
-  facet_wrap(~universe, ncol = 1, scales = "free") +
   scale_fill_manual(values = bar_fills, breaks = names(bar_fills), name = NULL) +
   scale_x_continuous(labels = abs, expand = expansion(mult = 0.08)) +
   labs(
     x = "proteins (down | up)", y = NULL, title = "Proteins per contrast",
-    subtitle = "Light: p ≤ 0.05 or Π ≤ 0.05; dark: Π ≤ 0.05; dashed: chance at p ≤ 0.05"
+    subtitle = "Light: p or Π ≤ 0.05; dark: Π ≤ 0.05; dashed: chance"
   ) +
   theme_figure() +
   theme(
-    legend.position = "bottom", legend.key.size = unit(2.5, "mm"),
-    panel.grid.major.y = element_blank()
+    legend.position = "bottom", panel.grid.major.y = element_blank(),
+    strip.placement = "outside", strip.text.y.left = element_text(angle = 0, size = 6),
+    strip.text.x = element_text(face = "bold")
   ) +
   guides(fill = guide_legend(nrow = 2))
 
@@ -275,7 +263,10 @@ panel_pathways <- ggplot(pathways, aes(column, row)) +
     aes(x = 0.4, colour = collection), databases,
     shape = 15, size = 1.8
   ) +
-  facet_grid(facet ~ ., scales = "free_y", space = "free_y", switch = "y") +
+  ggh4x::facet_grid2(facet ~ .,
+    scales = "free_y", space = "free_y", switch = "y",
+    strip = contrast_strips(COMPARISON_CONTRASTS, "y")
+  ) +
   scale_y_discrete(labels = deframe(distinct(pathways, row, label))) +
   scale_x_discrete(expand = expansion(add = c(0.9, 0.5))) +
   scale_colour_manual(values = DATABASE_COLOURS, name = "Collection") +
@@ -301,7 +292,7 @@ panel_pathways <- ggplot(pathways, aes(column, row)) +
   theme_figure() +
   theme(
     axis.text.y = element_text(size = 5.2), strip.placement = "outside",
-    strip.text.y.left = element_text(angle = 90, size = 5.5, face = "bold"),
+    strip.text.y.left = element_text(angle = 90, size = 6),
     panel.spacing = unit(1, "mm"), legend.key.size = unit(2.5, "mm")
   )
 
@@ -335,8 +326,8 @@ stopifnot(
 
 figure <- (panel_design | panel_proteins | panel_proteome | panel_phenotype) /
   (panel_effects | panel_pathways | panel_barcode) +
-  plot_annotation(tag_levels = "a") &
-  theme(plot.tag = element_text(size = 9, face = "bold"))
+  plot_annotation(tag_levels = "a")
+figure[[1]] <- figure[[1]] + plot_layout(widths = c(1.3, 1, 1, 1))
 figure[[2]] <- figure[[2]] + plot_layout(widths = c(1, 2, 1))
 save_figure(figure, out$reports, "f01_overview", width_mm = 300, height_mm = 190)
 
