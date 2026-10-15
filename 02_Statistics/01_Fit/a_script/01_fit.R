@@ -63,7 +63,7 @@ tidy <- function(fit, coefs) {
       as_tibble(rownames = "feature") |>
       transmute(feature,
         coef = k, estimate = logFC, ci_low = CI.L, ci_high = CI.R,
-        AveExpr, t, P.Value, adj.P.Val
+        AveExpr, t, df = fit$df.total, P.Value, adj.P.Val
       )
   }) |>
     list_rbind()
@@ -102,6 +102,34 @@ protein_contrasts <- tidy_proteins(protein_fits) |>
   rename(contrast = coef, logFC = estimate) |>
   left_join(genes, by = "feature") |>
   mutate(pi_score = pi_score(P.Value, logFC))
+
+# Does PAS change a protein in either sex? The moderated F over the two PAS contrasts, both made
+# the first coefficients of an equivalent design so the test stays exact under limpa's weights.
+# It covers the interaction too, which is their difference. The response pattern reads the signs.
+pas_contrasts <- d$contrasts[, c("PAS_vs_VEH_female", "PAS_vs_VEH_male")]
+protein_ftest <- imap(quant$universes, \(keep, universe) {
+  reparametrised <- contrastAsCoef(d$design, pas_contrasts)$design
+  f <- eBayes(dpcDE(protein_elist(universe), reparametrised, sample.weights = TRUE, plot = FALSE))
+  topTable(f, coef = 1:2, number = Inf, sort.by = "none") |>
+    as_tibble(rownames = "feature") |>
+    select(feature, F_stat = "F", P.Value, adj.P.Val) |>
+    mutate(universe = universe, .before = 1)
+}) |>
+  list_rbind() |>
+  left_join(
+    protein_contrasts |>
+      filter(contrast %in% colnames(pas_contrasts)) |>
+      select(universe, feature, contrast, logFC) |>
+      pivot_wider(names_from = contrast, values_from = logFC, names_prefix = "logFC_"),
+    by = c("universe", "feature")
+  ) |>
+  mutate(pattern = case_when(
+    logFC_PAS_vs_VEH_female > 0 & logFC_PAS_vs_VEH_male > 0 ~ "up in both",
+    logFC_PAS_vs_VEH_female < 0 & logFC_PAS_vs_VEH_male < 0 ~ "down in both",
+    logFC_PAS_vs_VEH_female > 0 ~ "female up, male down",
+    .default = "female down, male up"
+  )) |>
+  left_join(genes, by = "feature")
 
 protein_associations <- expand_grid(phenotype = PHENOTYPES, model = ASSOCIATION_MODELS) |>
   pmap(\(phenotype, model) {
@@ -322,8 +350,9 @@ plot_index <- preview_pdf(file.path(out$reports, "01_fit.pdf"), c(
 
 saveRDS(
   list(
-    protein_contrasts = protein_contrasts, protein_associations = protein_associations,
-    score_contrasts = score_contrasts, score_associations = score_associations,
+    protein_contrasts = protein_contrasts, protein_ftest = protein_ftest,
+    protein_associations = protein_associations, score_contrasts = score_contrasts,
+    score_associations = score_associations,
     phenotype_effects = phenotype_effects, phenotype_interaction = phenotype_interaction,
     E_norm = quant$E_norm, scores = score_sets, targets = targets, phenotypes = ph,
     pct_mito = quant$pct_mito
@@ -333,7 +362,7 @@ saveRDS(
 write_workbook(
   list(
     contrast_summary = contrast_summary, association_summary = association_summary,
-    protein_contrasts = protein_contrasts,
+    protein_contrasts = protein_contrasts, protein_ftest = protein_ftest,
     protein_associations = filter(protein_associations, model != "pooled_mito"),
     score_contrasts = score_contrasts,
     score_associations = filter(score_associations, model != "pooled_mito"),
@@ -347,8 +376,12 @@ write_workbook(
       "pooled_mito is the pellet mito-share check."
     ),
     paste(
-      "Every protein, universe and contrast: log2 FC with 95% CI, moderated t, p, BH FDR, Π,",
+      "Every protein, universe and contrast: log2 FC with 95% CI, moderated t, df, p, BH FDR, Π,",
       "r with group."
+    ),
+    paste(
+      "Every protein: moderated F over PAS vs VEH in females and in males (PAS in either sex),",
+      "p, BH FDR, both log2 FC and the response pattern from their signs."
     ),
     paste(
       "Every protein's association with each phenotype per sex and model (pooled, treatment):",
