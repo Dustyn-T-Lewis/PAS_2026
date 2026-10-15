@@ -4,7 +4,7 @@
 # Eigengenes are then taken from the unadjusted matrix, so 01_Fit can test sex and treatment on
 # them. Each module is named only by an over-represented term at FDR <= 0.05.
 
-source(here::here("R", "helpers.R"))
+source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(WGCNA)
 WGCNA::disableWGCNAThreads()
 

@@ -6,7 +6,7 @@
 # repeats the protein contrast. The sex-difference comparison has no classification; the interaction
 # contrast is its test.
 
-source(here::here("R", "helpers.R"))
+source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 out <- stage_paths("02_Statistics", "03_Classification")
 inputs <- c(fit = here("02_Statistics", "01_Fit", "c_data", "fit.rds"))

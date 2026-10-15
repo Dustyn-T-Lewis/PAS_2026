@@ -7,7 +7,7 @@
 # pellet's mitochondrial share (centred within group) is kept as a check. Phenotype effects are %
 # changes against the same sex's vehicle. Comparisons slice these tables.
 
-source(here::here("R", "helpers.R"))
+source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(limma)
 library(limpa)
 

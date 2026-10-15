@@ -10,7 +10,7 @@
 # and FDR lists is descriptive: subunits of one complex vary together, so connected lists are
 # expected.
 
-source(here::here("R", "helpers.R"))
+source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 out <- stage_paths("02_Statistics", "02_Enrichment")
 study_files <- expand_grid(

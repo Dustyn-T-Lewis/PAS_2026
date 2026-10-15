@@ -1,7 +1,7 @@
 # The model and the questions asked of it. 01_Fit reads what this writes and changes neither; the
 # README gives the reasons.
 
-source(here::here("R", "helpers.R"))
+source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(limma)
 
 out <- stage_paths("01_Processing", "03_Design", reports = FALSE)

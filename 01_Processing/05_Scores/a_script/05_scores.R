@@ -3,7 +3,7 @@
 # Reactome and MitoCarta sets are the ones fgsea tests in 02_Enrichment. A score is the mean
 # within-mouse rank of the group's members, so it uses no group label; 01_Fit tests it.
 
-source(here::here("R", "helpers.R"))
+source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(singscore)
 
 out <- stage_paths("01_Processing", "05_Scores")

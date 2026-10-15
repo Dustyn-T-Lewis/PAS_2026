@@ -19,18 +19,10 @@ statistics <- file.path("02_Statistics", c(
   "03_Classification/a_script/03_classification.R",
   "04_PCA/a_script/04_pca.R"
 ))
-report_steps <- c(
-  "01_Proteins/a_script/01_proteins.R",
-  "02_Pathways/a_script/02_pathways.R",
-  "03_Phenotypes/a_script/03_phenotypes.R",
-  "04_Classification/a_script/04_classification.R"
+comparisons <- file.path(
+  "03_Comparisons", c("Female", "Male", "Sex_Difference"), "a_script", "run_comparison.R"
 )
-comparisons <- c(
-  file.path("03_Female", report_steps),
-  file.path("04_Male", report_steps),
-  file.path("05_Sex_Difference", report_steps[1:2])
-)
-figures <- "06_Figures/F01_Overview/a_script/f01_overview.R"
+figures <- "04_Figures/F01_Overview/a_script/f01_overview.R"
 
 root <- here::here()
 log_file <- file.path(root, "run_all.log")

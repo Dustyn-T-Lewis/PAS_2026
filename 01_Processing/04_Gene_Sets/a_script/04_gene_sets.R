@@ -5,7 +5,7 @@
 # every detected protein with every tested group it belongs to. Hallmark names clusters and modules
 # and supplies four of the literature and ROS sets. None of this looks at the samples.
 
-source(here::here("R", "helpers.R"))
+source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 out <- stage_paths("01_Processing", "04_Gene_Sets", reports = FALSE)
 MIN_DETECTED <- 5

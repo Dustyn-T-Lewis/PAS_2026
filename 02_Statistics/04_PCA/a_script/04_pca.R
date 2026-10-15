@@ -5,7 +5,7 @@
 # on PC1 to PC4, and the MitoCarta share fitted onto PC1-PC2 (vegan::envfit). Phenotypes: PCA of
 # the six traits, scaled, with the same PERMANOVA.
 
-source(here::here("R", "helpers.R"))
+source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 N_COMPONENTS <- 4
 PERMUTATIONS <- 999

@@ -3,7 +3,7 @@
 # about two and a half minutes, so its result is checkpointed in c_data/dpcQuant/ and refitted only
 # with REFIT_DPCQUANT=TRUE.
 
-source(here::here("R", "helpers.R"))
+source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(limpa)
 
 DPC_SLOPE <- 0.7
