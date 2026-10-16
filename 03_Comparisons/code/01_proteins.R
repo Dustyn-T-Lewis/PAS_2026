@@ -4,14 +4,14 @@
 source(here::here("00_Setup", "Shared_functions", "comparisons.R"))
 
 # The strongest tier a protein reaches: FDR, then Π, then nominal p.
+TIERS <- paste(c("p >", "p ≤", "Π ≤", "FDR ≤"), ALPHA)
 tier_of <- function(p, fdr, pi) {
   factor(
     case_when(
-      fdr <= ALPHA ~ "FDR ≤ 0.05", pi <= ALPHA ~ "Π ≤ 0.05",
-      p <= ALPHA ~ "p ≤ 0.05",
-      .default = "p > 0.05"
+      fdr <= ALPHA ~ TIERS[4], pi <= ALPHA ~ TIERS[3], p <= ALPHA ~ TIERS[2],
+      .default = TIERS[1]
     ),
-    c("p > 0.05", "p ≤ 0.05", "Π ≤ 0.05", "FDR ≤ 0.05")
+    TIERS
   )
 }
 
@@ -76,7 +76,7 @@ report_proteins <- function(comparison) {
       "Per universe and direction: p ≤ 0.05, chance, Π ≤ 0.05, FDR tiers.",
       paste(
         "Every protein in both universes, by p:",
-        "log2 FC with 95% CI, t, p, BH FDR, Π, r with PAS, tier."
+        "log2 FC with 95% CI, t, p, BH FDR, Π, r with PAS (empty for the interaction), tier."
       ),
       "Full-universe proteins at Π ≤ 0.05, by direction.",
       "STRING v12 connectivity of each list against the detected proteome (descriptive).",

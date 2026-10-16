@@ -25,12 +25,13 @@ sizes <- readRDS(inputs[["modules"]])$sizes |>
   )
 
 modules_only <- \(x) filter(x, level == "module")
+evidence_levels <- c(fdr = paste("FDR ≤", ALPHA), p = paste("p ≤", ALPHA))
 cells <- score_cells(modules_only(fit$score_contrasts), modules_only(fit$score_associations)) |>
   select(module = feature, section, column, r = r_equiv, P.Value, adj.P.Val, pearson_r) |>
   mutate(
     row = factor(module, levels(sizes$row)),
     evidence = case_when(
-      adj.P.Val <= ALPHA ~ "FDR ≤ 0.05", P.Value <= ALPHA ~ "p ≤ 0.05",
+      adj.P.Val <= ALPHA ~ evidence_levels[["fdr"]], P.Value <= ALPHA ~ evidence_levels[["p"]],
       .default = "none"
     ),
     face = if_else(abs(r) >= BOLD_R, "bold", "plain")
@@ -50,7 +51,7 @@ heatmap <- ggplot(cells, aes(column, row)) +
     guide = guide_colourbar(barwidth = unit(22, "mm"), barheight = unit(2, "mm"))
   ) +
   scale_linetype_manual(
-    values = c("FDR ≤ 0.05" = "solid", "p ≤ 0.05" = "22"), name = NULL,
+    values = set_names(c("solid", "22"), evidence_levels), name = NULL,
     guide = guide_legend(override.aes = list(fill = "white"))
   ) +
   scale_x_discrete(position = "top", expand = expansion(0)) +

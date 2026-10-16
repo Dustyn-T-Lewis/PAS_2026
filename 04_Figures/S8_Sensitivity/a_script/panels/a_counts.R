@@ -6,13 +6,11 @@ source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 inputs <- c(sensitivity = output_path("02_Statistics", "07_Sensitivity", "sensitivity.rds"))
 sensitivity <- readRDS(inputs[["sensitivity"]])
 counts <- sensitivity$counts
-n_proteins <- sum(
-  sensitivity$results$variant == "baseline" &
-    sensitivity$results$contrast == COMPARISON_CONTRASTS[[1]]
-)
+top_n <- sensitivity$top_n
+n_proteins <- filter(counts, variant == "baseline", contrast == COMPARISON_CONTRASTS[[1]])$tests
 METRICS <- c(
-  p_le_0.05 = "p ≤ 0.05", fdr_le_0.10 = "FDR ≤ 0.10", fdr_le_0.05 = "FDR ≤ 0.05",
-  top50_shared = "Top 50 kept"
+  p_le_0.05 = paste("p ≤", ALPHA), fdr_le_0.10 = "FDR ≤ 0.10", fdr_le_0.05 = paste("FDR ≤", ALPHA),
+  top_shared = paste("Top", top_n, "kept")
 )
 
 cells <- counts |>
@@ -42,8 +40,8 @@ plot <- ggplot(cells, aes(metric, variant, fill = ratio)) +
   labs(
     x = NULL, y = NULL, title = "Protein results under each variant",
     subtitle = sprintf(
-      "%s proteins, %.0f expected at p ≤ %s; top 50 kept: of the baseline's 50 smallest p",
-      format(n_proteins, big.mark = ","), ALPHA * n_proteins, ALPHA
+      "%s proteins, %.0f expected at p ≤ %s; top %d kept: of the baseline's %d smallest p",
+      format(n_proteins, big.mark = ","), ALPHA * n_proteins, ALPHA, top_n, top_n
     )
   ) +
   theme_figure() +

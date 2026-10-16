@@ -1,13 +1,8 @@
-# Co-abundance modules by WGCNA's standard workflow on the proteins detected in every mouse, built
-# after removing sex and measured run depth (limma::removeBatchEffect, treatment kept), so the
-# network follows co-variation within each sex instead of the sex difference or how deep a run
-# went (Johnson et al. 2020, Nat Med; Parsana et al. 2019, Genome Biol). Values limpa infers for
-# undetected proteins are tied within a protein and would group proteins by when they go missing,
-# so only fully detected proteins enter. Eigengenes come from the same adjusted matrix the modules
-# were built on, as WGCNA's authors advise; sex differences on them are therefore removed by
-# design and only within-sex contrasts are read. Stability: the network is rebuilt on N_RESAMPLES
-# subsamples of 16 mice (four per group) and each module's best-match Jaccard is reported. Each
-# module is named only by an over-represented term at FDR <= 0.05.
+# Co-abundance modules by WGCNA's standard workflow on the proteins detected in every mouse, after
+# removing sex and run depth (treatment kept), so the network follows co-variation within each sex.
+# Values limpa infers for undetected proteins would group proteins by when they go missing, so only
+# fully detected proteins enter; eigengenes come from the same adjusted matrix, so only within-sex
+# contrasts are read on them.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(WGCNA)
@@ -24,6 +19,7 @@ RSQ_CUT <- 0.85
 FALLBACK_POWER <- 16
 N_HUBS <- 10
 N_RESAMPLES <- 100
+RESAMPLE_PER_GROUP <- 4
 
 quant <- readRDS(inputs[["proteins"]])
 gs <- readRDS(inputs[["gene_sets"]])
@@ -76,11 +72,13 @@ labels <- label_groups(
 ) |>
   mutate(module = module_genes$module, .before = 1)
 
-# Stability: rebuild on subsamples of 16 mice (four per group) and match each module to its best
-# overlap in the rebuilt network.
+# Stability: rebuild on subsamples of RESAMPLE_PER_GROUP mice per group and match each module to
+# its best overlap in the rebuilt network.
 set.seed(SEED)
 stability <- map(seq_len(N_RESAMPLES), \(i) {
-  keep <- unlist(map(split(seq_len(nrow(datExpr)), targets$group), \(idx) sample(idx, 4)))
+  keep <- split(seq_len(nrow(datExpr)), targets$group) |>
+    map(\(idx) sample(idx, RESAMPLE_PER_GROUP)) |>
+    unlist()
   colors <- build(datExpr[keep, ])$colors
   map(setdiff(unique(net$colors), "grey"), \(m) {
     members <- names(net$colors)[net$colors == m]

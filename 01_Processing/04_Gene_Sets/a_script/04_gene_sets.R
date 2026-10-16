@@ -1,10 +1,7 @@
-# Every protein grouping the later steps test. Tested pathways: GO:BP, Reactome (disease and
-# infection branch left out), Hallmark and KEGG LEGACY in the full proteome, MitoCarta in the
-# mitochondrial universe, each trimmed to TEST_WINDOW detected genes, the same list for fgsea and
-# singscore. Also GO Slim cellular components, CORUM complexes, STRING clusters, the literature and
-# ROS sets, and a table of every detected protein with every tested group it belongs to. Hallmark
-# also names clusters and modules and supplies four of the literature and ROS sets. None of this
-# looks at the samples.
+# Every protein grouping the later steps test: the pathway collections trimmed to TEST_WINDOW
+# detected genes, GO Slim compartments, CORUM complexes, STRING clusters, the literature and ROS
+# sets, and every detected protein's memberships. Hallmark or Reactome names the clusters and
+# modules. None of this looks at the samples.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 

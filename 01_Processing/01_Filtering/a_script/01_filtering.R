@@ -48,7 +48,7 @@ PLASMA <- c(
 
 # Protein.Ids is added for the cRAP check. log = TRUE is the default, so y$E is already log2.
 # The q-value columns are limpa's set for a search with match-between-runs (vignette, "Data
-# input"): every Q.Value and Lib.Q.Value in the report is already below 0.01, so DIA-NN
+# input"): every Q.Value and Lib.Q.Value in the report is already below Q_CUTOFF, so DIA-NN
 # filtered on the library pass.
 y <- readDIANN(
   inputs[["report"]],
@@ -56,7 +56,7 @@ y <- readDIANN(
     "Protein.Group", "Protein.Ids", "Protein.Names", "Genes", "Proteotypic"
   ),
   q.columns = c("Q.Value", "Lib.Q.Value", "Lib.PG.Q.Value"),
-  q.cutoffs = 0.01
+  q.cutoffs = Q_CUTOFF
 )
 
 metadata <- readr::read_csv(inputs[["metadata"]], show_col_types = FALSE) |>

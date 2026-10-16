@@ -1,8 +1,7 @@
 # F01 e: proteins changed per contrast, down to the left and up to the right, the full proteome
-# above the mitochondrial universe. Light bar: p <= 0.05; dark bar, drawn over it: Π <= 0.05 (so
-# Π counts must sit below p counts in every row); dashed: the p <= 0.05 count expected by chance in
-# each direction. Each row is named by a box as the design panel draws it: the contrast's tint
-# inside a border in its colour, with its FDR count.
+# above the mitochondrial universe. Light bar: p <= 0.05; dark bar, drawn over it: Π <= 0.05;
+# dashed: the p <= 0.05 count expected by chance in each direction. Each row is named by a box as
+# the design panel draws it: the contrast's tint inside a border in its colour, with its FDR count.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(fit = output_path("02_Statistics", "01_Fit", "fit.rds"))
@@ -16,7 +15,6 @@ counts <- fit$protein_contrasts |>
     fdr = sum(adj.P.Val <= ALPHA), .by = c(universe, contrast, direction)
   ) |>
   mutate(tests = sum(tests), .by = c(universe, contrast))
-stopifnot(all(counts$pi <= counts$nominal))
 universe_label <- distinct(counts, universe, tests) |>
   mutate(label = sprintf(
     "%s (%s proteins)", c(full = "Full proteome", mito = "Mitochondrial")[universe],

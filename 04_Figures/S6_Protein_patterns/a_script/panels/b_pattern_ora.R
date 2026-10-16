@@ -25,11 +25,11 @@ plot <- ggplot(top, aes(-log10(p), row)) +
   scale_fill_manual(values = DATABASE_COLOURS, name = NULL) +
   scale_colour_manual(
     values = c(`TRUE` = "black", `FALSE` = "transparent"), breaks = "TRUE",
-    labels = "FDR ≤ 0.05", name = NULL
+    labels = paste("FDR ≤", ALPHA), name = NULL
   ) +
   labs(
     x = "-log10 p", y = NULL, title = "What each pattern holds",
-    subtitle = "ORA vs detected proteome; dashed: p = 0.05"
+    subtitle = paste("ORA vs detected proteome; dashed: p =", ALPHA)
   ) +
   theme_figure() +
   theme(

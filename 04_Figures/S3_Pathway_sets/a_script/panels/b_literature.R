@@ -14,7 +14,7 @@ cells <- literature |>
   )
 
 plot <- set_dot_matrix(cells,
-  title = "Sets named in advance",
+  title = "Literature-informed and ROS sets",
   subtitle = "Grouped by hypothesis; [expected direction]"
 )
 

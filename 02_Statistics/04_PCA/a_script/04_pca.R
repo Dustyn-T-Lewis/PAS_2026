@@ -1,9 +1,9 @@
 # What shapes the whole proteome and the phenotypes. Proteome: PCA of the twenty mice on the
-# normalised full universe (centred, not scaled), PERMANOVA (vegan::adonis2, Euclidean, 999
-# permutations, sequential terms) for sex, treatment and their interaction, a dispersion check
-# (betadisper by group), the R² of each design factor, the pellet's MitoCarta share and run depth
-# on PC1 to PC4, and the MitoCarta share fitted onto PC1-PC2 (vegan::envfit). Phenotypes: PCA of
-# the six traits, scaled, with the same PERMANOVA.
+# normalised full universe (centred, not scaled), PERMANOVA (vegan::adonis2, Euclidean, sequential
+# terms) for sex, treatment and their interaction, a dispersion check (betadisper by group), the R²
+# of each design factor, the pellet's MitoCarta share and run depth on PC1 to PC4, and the
+# MitoCarta share fitted onto PC1-PC2 (vegan::envfit). Phenotypes: PCA of the six traits, scaled,
+# with the same PERMANOVA.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -19,12 +19,10 @@ fit <- readRDS(inputs[["fit"]])
 run_qc <- readRDS(inputs[["filtering"]])$run_qc
 samples <- as_tibble(fit$targets) |>
   select(sample_id, treatment, sex, group) |>
-  mutate(
-    pct_mito = fit$pct_mito[sample_id],
-    run_depth = run_depth_log2(run_qc, sample_id),
-    precursors = run_qc$precursors[match(sample_id, run_qc$sample_id)],
-    protein_groups = run_qc$proteins[match(sample_id, run_qc$sample_id)],
-    raw_signal_rel = run_qc$raw_rel[match(sample_id, run_qc$sample_id)]
+  mutate(pct_mito = fit$pct_mito[sample_id], run_depth = run_depth_log2(run_qc, sample_id)) |>
+  left_join(
+    select(run_qc, sample_id, precursors, protein_groups = proteins, raw_signal_rel = raw_rel),
+    by = "sample_id"
   )
 
 # Technical variables per group, with the two-way model each is read against. They are reported,
@@ -93,7 +91,7 @@ plot_index <- preview_pdf(file.path(out$reports, "04_pca.pdf"), list(
   "proteome PCA" = \() {
     xy <- proteome$pca$x[, 1:2]
     vegan::ordiplot(xy, type = "n", main = "Proteome PCA")
-    points(xy, pch = c(F = 16, M = 17)[samples$sex], col = GROUP_COLOURS[as.character(group)])
+    points(xy, pch = SEX_SHAPES[samples$sex], col = GROUP_COLOURS[as.character(group)])
     vegan::ordiellipse(xy, group, kind = "sd", col = GROUP_COLOURS[levels(group)])
     plot(mito_fit, col = "grey20")
     legend("topleft", levels(group), col = GROUP_COLOURS[levels(group)], pch = 16, bty = "n")
@@ -130,7 +128,10 @@ write_workbook(
   c(
     "Proteome PCA scores of the twenty mice, normalised full universe, centred, not scaled.",
     "Share of proteome variance per component.",
-    "Proteome PERMANOVA (adonis2, Euclidean, 999 permutations, sequential); betadisper p, row 1.",
+    str_glue(
+      "Proteome PERMANOVA (adonis2, Euclidean, {PERMUTATIONS} permutations, sequential); ",
+      "betadisper p, row 1."
+    ),
     "R² of each design factor, the MitoCarta share and run depth on PC1 to PC4.",
     "MitoCarta share fitted onto PC1-PC2 (envfit): unit direction, R² and permutation p.",
     "Median run depth, protein groups, relative raw signal and MitoCarta share per group.",

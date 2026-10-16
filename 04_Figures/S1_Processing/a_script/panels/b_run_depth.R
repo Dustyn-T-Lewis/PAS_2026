@@ -13,7 +13,7 @@ runs <- readRDS(inputs[["filtering"]])$run_qc |>
 plot <- ggplot(runs, aes(group, n, colour = group)) +
   geom_point(position = position_jitter(width = 0.15, seed = SEED), size = 1.2) +
   facet_wrap(~unit, scales = "free_y") +
-  scale_colour_manual(values = GROUP_COLOURS, labels = GROUP_LABELS, guide = "none") +
+  scale_colour_manual(values = GROUP_COLOURS, guide = "none") +
   scale_x_discrete(labels = GROUP_SHORT) +
   scale_y_continuous(labels = scales::label_comma()) +
   labs(

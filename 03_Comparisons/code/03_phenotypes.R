@@ -23,12 +23,12 @@ robust_example <- function(associations, E, x, mice, max_tries = 50) {
 
 # Associations, two different questions kept apart. Phenotype effects: what PAS did to each
 # phenotype in this sex (% change against vehicle, a treatment effect). Phenotype associations:
-# which proteins, pathway scores, modules, complexes and clusters move
-# with each phenotype across this sex's ten PAS and vehicle mice (01_Fit; r pooled and within each
-# group beside every test), under two models: pooled across PAS and vehicle, and within treatment
-# (treatment in the model). An association is co-movement, not a PAS effect. Pathway patterns also
-# come from fgsea on the protein association t (02_Enrichment); that test permutes genes, so its FDR
-# runs optimistic against the mouse-level singscore association of the same set.
+# which proteins, pathway scores, modules, complexes and clusters move with each phenotype across
+# this sex's ten PAS and vehicle mice (01_Fit; r pooled and within each group beside every test),
+# under two models: pooled across PAS and vehicle, and within treatment (treatment in the model).
+# An association is co-movement, not a PAS effect. Pathway patterns also come from fgsea on the
+# protein association t (02_Enrichment); that test permutes genes, so its FDR runs optimistic
+# against the mouse-level singscore association of the same set.
 report_phenotypes <- function(comparison) {
   out <- comparison_paths(comparison, "03_phenotypes")
   inputs <- c(

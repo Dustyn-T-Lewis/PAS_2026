@@ -1,23 +1,19 @@
-# Candidate proteins for follow-up, by six routes that each answer a different worry, and a score
-# of how many each protein passes. These are discovery-stage candidates, not validated biomarkers.
-# A protein is considered in a sex only if it is detected in at least 4 of 5 mice in each group of
-# that sex, so its values there are mostly measured.
-#   1. statistics: p <= 0.01 within the sex;
-#   2. every mouse: AUC >= 0.92 or <= 0.08 on values adjusted for the surrogate variable (pROC,
-#      ties count half);
-#   3. both sexes: same direction and p <= 0.10 in each;
-#   4. phenotype: within-treatment association p <= 0.01 with any trait in that sex;
-#   5. hub: kME >= 0.8 in a module whose within-sex PAS contrast has p <= 0.05;
-#   6. pathway: in the leading edge of a kept FDR-level fgsea set for that sex, with p <= 0.05.
-# Candidates passing two or more routes are grouped by STRING v12 (combined score >= 700): each
-# connected community (igraph walktrap) takes the name of the Hallmark, Reactome or GO:BP term
-# with the smallest ORA p (fgsea::fora against the detected proteome, at least two members). The
-# name is a label, not a test: no significance threshold applies.
+# Candidate proteins for follow-up: six routes, each answering a different worry (statistics,
+# every mouse, both sexes, phenotype, module hub, pathway leading edge), and how many each protein
+# passes. Discovery-stage candidates, not validated biomarkers. A protein counts in a sex only when
+# detected in MIN_DETECTED_PER_GROUP or more mice of each group there, so its values are mostly
+# measured. Candidates passing COMMUNITY_ROUTES or more are grouped by STRING; a community's name
+# is its smallest-p ORA term, a label rather than a test.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 MIN_DETECTED_PER_GROUP <- 4
 ROUTE_P <- 0.01
+BOTH_SEXES_P <- 0.10
+# Five against five, AUC moves in steps of 1/25: 0.92 is at most two of the 25 pairs out of order.
+AUC_CUTS <- c(0.08, 0.92)
+HUB_KME <- 0.8
+ORA_MIN_SIZE <- 5
 STRING_SCORE <- 700
 COMMUNITY_ROUTES <- 2
 
@@ -49,7 +45,7 @@ both <- proteins |>
   select(feature, contrast, logFC, P.Value) |>
   pivot_wider(names_from = contrast, values_from = c(logFC, P.Value)) |>
   filter(
-    P.Value_PAS_vs_VEH_female <= 0.10, P.Value_PAS_vs_VEH_male <= 0.10,
+    P.Value_PAS_vs_VEH_female <= BOTH_SEXES_P, P.Value_PAS_vs_VEH_male <= BOTH_SEXES_P,
     sign(logFC_PAS_vs_VEH_female) == sign(logFC_PAS_vs_VEH_male)
   ) |>
   pull(feature)
@@ -64,8 +60,7 @@ routes <- imap(SEX_CONTRAST, \(cn, sex) {
   # The surrogate variable is removed within the sex before mice are compared one by one.
   adjusted <- limma::removeBatchEffect(expr[, in_sex], covariates = sv1[in_sex])
   case <- factor(pas[in_sex], c(FALSE, TRUE))
-  # Five against five, AUC moves in steps of 1/25; pROC's trapezoid sum lands a hair off them, so
-  # it is rounded before the 0.92 and 0.08 cuts.
+  # pROC's trapezoid sum lands a hair off the 1/25 steps, so it is rounded before the cuts.
   auc <- apply(adjusted, 1, \(v) {
     round(as.numeric(pROC::auc(case, v, levels = levels(case), direction = "<", quiet = TRUE)), 4)
   })
@@ -75,7 +70,7 @@ routes <- imap(SEX_CONTRAST, \(cn, sex) {
   responsive <- fit$score_contrasts |>
     filter(level == "module", contrast == cn, P.Value <= ALPHA) |>
     pull(feature)
-  hubs <- filter(mods$modules, module %in% responsive, kME >= 0.8)$protein
+  hubs <- filter(mods$modules, module %in% responsive, kME >= HUB_KME)$protein
   leading <- enr$results |>
     filter(contrast == cn, padj <= ALPHA, dedup_status == "kept") |>
     pull(leading_edge) |>
@@ -87,7 +82,7 @@ routes <- imap(SEX_CONTRAST, \(cn, sex) {
       sex, feature, gene, logFC, logFC_shrunk, P.Value, adj.P.Val, lfsr, pi_score,
       auc = auc[feature],
       statistics = P.Value <= ROUTE_P,
-      every_mouse = auc >= 0.92 | auc <= 0.08,
+      every_mouse = auc >= AUC_CUTS[2] | auc <= AUC_CUTS[1],
       both_sexes = feature %in% both,
       phenotype = feature %in% associated,
       hub = feature %in% hubs,
@@ -116,7 +111,7 @@ links <- string$get_interactions(string_ids$STRING_id) |>
 detected_genes <- unique(proteins$gene[!is.na(proteins$gene) & proteins$gene != ""])
 full_sets <- unlist(unname(gs$full[c("Hallmark", "Reactome", "GO:BP")]), recursive = FALSE)
 name_community <- function(members) {
-  ora <- fgsea::fora(full_sets, members, detected_genes, minSize = 5, maxSize = 500) |>
+  ora <- fgsea::fora(full_sets, members, detected_genes, minSize = ORA_MIN_SIZE, maxSize = 500) |>
     filter(overlap >= 2) |>
     arrange(pval)
   if (nrow(ora) == 0) NA_character_ else ora$pathway[1]

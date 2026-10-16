@@ -1,5 +1,5 @@
-# Supplementary Figure 7, candidate routes: for each sex, every candidate 06_Candidates grouped
-# into STRING communities and which of the six routes it passed. The full ranked table of every
+# Supplementary Figure 7, candidate routes: for each sex, every candidate passing community_routes
+# or more routes and which of the six routes it passed. The full ranked table of every
 # candidate, one route or more, is the workbook's last sheet. Each panel is its own script in
 # panels/; this file runs them, stitches them and writes one workbook.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))

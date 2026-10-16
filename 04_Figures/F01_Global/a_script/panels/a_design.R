@@ -7,7 +7,7 @@ inputs <- c(
 )
 targets <- readRDS(inputs[["fit"]])$targets
 groups <- count(targets, group, name = "mice")
-stopifnot(length(unique(groups$mice)) == 1)
+per_group <- unique(range(groups$mice))
 
 plot <- ggplot() +
   annotation_custom(grid::rasterGrob(png::readPNG(inputs[["design"]]),
@@ -15,7 +15,7 @@ plot <- ggplot() +
   )) +
   labs(
     title = "Design",
-    subtitle = str_glue("{nrow(targets)} mice, {groups$mice[1]} per group")
+    subtitle = str_glue("{nrow(targets)} mice, {str_flatten(per_group, ' to ')} per group")
   ) +
   theme_figure() +
   theme(axis.text = element_blank(), axis.title = element_blank(), panel.grid = element_blank())

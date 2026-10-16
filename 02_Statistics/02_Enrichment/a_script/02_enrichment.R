@@ -1,17 +1,7 @@
-# Every pathway test the comparisons read, run once. fgsea (enrichVolcano::run_enrichment) on the
-# moderated t of each comparison's contrast: GO:BP, Reactome, Hallmark and KEGG in the full
-# proteome, MitoCarta in the mitochondrial universe, BH within contrast and collection over every
-# tested set, with the same set's singscore contrast from 01_Fit beside it. GO Slim compartments,
-# and the literature-informed and ROS sets as one list in the full proteome. Every FDR-level term
-# carries a redundancy flag from fgsea::collapsePathways (through enrichVolcano::dedup_terms):
-# a term is redundant when it is no longer enriched once a stronger term's genes are conditioned
-# on. The flag only picks display terms; nothing is dropped. fgsea also runs on each
-# protein-phenotype association t per sex and association model. camera sits beside every fgsea
-# result, contrast and association, testing the same sets across mice. Cross-sex signatures: each
-# sex's proteins at Π ≤ 0.05, up and down, tested by limma::fry in the other sex's contrast
-# across mice. ORA (fgsea::fora) describes each response pattern of the PAS F-test proteins.
-# STRING v12 connectivity of each contrast's Π and FDR lists is descriptive: subunits of one
-# complex vary together.
+# Every pathway test the comparisons read, run once: fgsea on each comparison contrast's moderated
+# t and on each protein-phenotype association t, camera beside each across mice, side lists, fry
+# for one sex's response in the other, ORA of the F-test patterns, and STRING connectivity. fgsea
+# permutes genes, so camera and the singscore tests from 01_Fit are the mouse-level checks on it.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -97,6 +87,7 @@ results <- imap(enrichment_objects, \(by_universe, cn) {
 # The side lists run on fgsea directly, on the ranking the main tests used: enrichVolcano keeps
 # fgsea's default nPermSimple, and at that default a set with unbalanced gene-level statistics
 # gets no p-value and drops out. fgsea's own advice is nPermSimple = 10000.
+SIDE_LIST_SIZE <- list(compartments = c(15, Inf), literature = c(5, Inf))
 side_list <- function(collection, size) {
   side_sets <- unlist(unname(collection), recursive = FALSE)
   map(COMPARISON_CONTRASTS, \(cn) {
@@ -114,8 +105,8 @@ side_list <- function(collection, size) {
       leading_edge = flatten(leadingEdge)
     )
 }
-compartments <- side_list(gs$compartments, c(15, Inf))
-literature <- side_list(list(Literature = gs$literature_sets), c(5, Inf)) |>
+compartments <- side_list(gs$compartments, SIDE_LIST_SIZE$compartments)
+literature <- side_list(list(Literature = gs$literature_sets), SIDE_LIST_SIZE$literature) |>
   rename(list_fdr = padj) |>
   left_join(gs$literature, by = "set") |>
   relocate(hypothesis, expected, .after = contrast)
@@ -196,16 +187,6 @@ string_tests <- map(COMPARISON_CONTRASTS, \(cn) {
   list_rbind() |>
   mutate(fdr = p.adjust(p, "BH"), .by = contrast)
 
-# Does one sex's PAS response carry into the other's? The up and down proteins at Π ≤ 0.05 in one
-# sex (full proteome) are tested in the other sex's PAS contrast by limma::fry, a self-contained
-# test across mice, on the design with that contrast as its first coefficient. Unweighted and
-# unstandardised, for the reason camera is unweighted; fry's standardisation also drops each
-# protein's largest residual component, which depends on the order the mice are listed in. The
-# share of members whose fold change in the other sex points the same way is reported beside it;
-# members are listed by gene for the barcode, which places them in the other sex's ranking.
-SEXES <- map_chr(SEX_COMPARISONS, "contrast")
-full_matrix <- fit$E_norm$full[, fit$targets$sample_id]
-
 # camera beside every fgsea result: the same competitive question tested across mice, with the
 # set's own inter-protein correlation estimated (inter.gene.cor = NA) instead of assumed away (Wu &
 # Smyth 2012). Unweighted: with a weight per protein, limma fits each protein's QR separately, the
@@ -257,6 +238,14 @@ association_fgsea <- association_fgsea |>
   ) |>
   relocate(camera_p, camera_fdr, .after = fgsea_fdr)
 
+# Does one sex's PAS response carry into the other's? The up and down proteins at Π ≤ 0.05 in one
+# sex (full proteome) are tested in the other sex's PAS contrast by limma::fry, a self-contained
+# test across mice, on the design with that contrast as its first coefficient. Unweighted and
+# unstandardised, for the reason camera is unweighted; fry's standardisation also drops each
+# protein's largest residual component, which depends on the order the mice are listed in. The
+# share of members whose fold change in the other sex points the same way is reported beside it;
+# members are listed by gene for the barcode, which places them in the other sex's ranking.
+SEXES <- map_chr(SEX_COMPARISONS, "contrast")
 signature_proteins <- imap(SEXES, \(cn, sex) {
   hits <- filter(proteome, contrast == cn, pi_score <= ALPHA)
   list(up = hits$feature[hits$logFC > 0], down = hits$feature[hits$logFC < 0])
@@ -266,7 +255,7 @@ signatures <- imap(SEXES, \(cn, source) {
   lists <- signature_proteins[[source]]
   names(lists) <- paste(source, names(lists))
   design <- limma::contrastAsCoef(d$design, d$contrasts[, SEXES[[target]]])$design
-  tested <- limma::fry(full_matrix, lists, design, contrast = 1, standardize = "none")
+  tested <- limma::fry(expression$full, lists, design, contrast = 1, standardize = "none")
   in_target <- filter(proteome, contrast == SEXES[[target]])
   imap(lists, \(proteins, name) {
     target_fc <- in_target$logFC[match(proteins, in_target$feature)]
@@ -305,7 +294,7 @@ pattern_ora <- pmap(pattern_genes, \(pattern, genes, proteins) {
       as_tibble() |>
       transmute(
         pattern = pattern, collection = sets$collection[1], term = pathway, overlap, size,
-        p = pval, fdr = p.adjust(pval, "BH"), genes_in_pattern = length(genes),
+        p = pval, fdr = padj, genes_in_pattern = length(genes),
         overlap_genes = map_chr(overlapGenes, \(g) paste(g, collapse = ";"))
       )
   }) |>
@@ -326,25 +315,13 @@ association_summary <- association_fgsea |>
   ) |>
   select(-pi_le_0.05)
 
-# fgsea's own table of running scores: the five strongest sets each way per comparison contrast.
-gsea_table <- \(cn) {
-  \() {
-    top <- results |>
-      filter(contrast == cn, universe == "full") |>
-      slice_min(p, n = 5, by = direction, with_ties = FALSE) |>
-      arrange(desc(NES)) |>
-      transmute(pathway = term, NES, pval = p, padj)
-    short <- str_trunc(enrichVolcano::clean_label(top$pathway, width = 200), 36)
-    pathways <- set_names(sets$full[top$pathway], short)
-    print(fgsea::plotGseaTable(pathways, ranks[[cn]]$full, mutate(top, pathway = short),
-      gseaParam = 1
-    ))
-  }
-}
 plot_index <- preview_pdf(
   file.path(out$reports, "02_enrichment.pdf"),
   set_names(
-    map(COMPARISON_CONTRASTS, gsea_table),
+    map(COMPARISON_CONTRASTS, \(cn) {
+      full <- filter(results, contrast == cn, universe == "full")
+      \() gsea_table_page(full, sets$full, ranks[[cn]]$full)
+    }),
     paste("strongest sets,", CONTRAST_LABELS[COMPARISON_CONTRASTS])
   )
 )

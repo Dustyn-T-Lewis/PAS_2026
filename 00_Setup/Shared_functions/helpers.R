@@ -11,6 +11,9 @@ source(here::here("00_Setup", "Shared_functions", "figures.R"))
 
 SEED <- 20260910
 ALPHA <- 0.05
+# DIA-NN precursor and library q-value cutoff, applied in 01_Filtering and again when
+# 05_Composition reads the report for haemoglobin.
+Q_CUTOFF <- 0.01
 CONTRASTS <- c(
   "PAS_vs_VEH_female", "PAS_vs_VEH_male", "treatment_by_sex", "sex_in_VEH", "sex_in_PAS"
 )
@@ -63,6 +66,19 @@ dpcquant_cached <- function(y, slope, file) {
     saveRDS(cached, file)
   }
   cached
+}
+
+# Median centring is written out: limma's "scale" divides by column medians, which suits unlogged
+# intensities, not log2 values.
+normalize <- function(E, method) {
+  switch(method,
+    none = E,
+    median = {
+      medians <- apply(E, 2, median)
+      sweep(E, 2, medians) + mean(medians)
+    },
+    limma::normalizeBetweenArrays(E, method)
+  )
 }
 
 # Run depth, the covariate the surrogate variable tracks: log2 precursors identified in each run.
@@ -119,11 +135,12 @@ REACTOME_DISEASE <- paste0(
 # A protein group's name: its most over-represented term (fgsea::fora against the detected
 # proteome, BH across the sets tested for that group) when that term reaches FDR <= 0.05, else
 # "unannotated". Used for STRING clusters and modules, so no group is named by a chance hit.
+LABEL_MIN_SIZE <- 10
 label_groups <- function(groups, collections, universe) {
   sets <- unlist(unname(collections), recursive = FALSE)
   sets <- sets[!str_detect(names(sets), paste0("^REACTOME_.*(", REACTOME_DISEASE, ")"))]
   map(groups, \(g) {
-    top <- fgsea::fora(sets, g, universe, minSize = 10, maxSize = 500) |>
+    top <- fgsea::fora(sets, g, universe, minSize = LABEL_MIN_SIZE, maxSize = 500) |>
       as_tibble() |>
       slice_min(pval, n = 1, with_ties = FALSE)
     named <- nrow(top) == 1 && top$padj <= ALPHA
@@ -151,6 +168,20 @@ preview_pdf <- function(file, pages) {
     par(defaults)
   })
   tibble(file = basename(file), page = seq_along(pages), shows = names(pages))
+}
+
+# fgsea's own table of running scores for the n strongest sets each way among results (term, NES,
+# p, padj, direction), on the ranking they were tested against; a preview_pdf page.
+gsea_table_page <- function(results, sets, ranks, n = 5) {
+  top <- results |>
+    slice_min(p, n = n, by = direction, with_ties = FALSE) |>
+    arrange(desc(NES))
+  short <- set_label(top$term, 36)
+  print(fgsea::plotGseaTable(
+    set_names(sets[top$term], short), ranks,
+    transmute(top, pathway = short, NES, pval = p, padj),
+    gseaParam = 1
+  ))
 }
 
 # Every workbook opens on read_me and ends with the inputs' md5 and the packages attached.

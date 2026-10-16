@@ -1,11 +1,11 @@
 # What went into each pellet. A mitochondria-enriched pellet also carries sarcoplasmic reticulum,
 # myofibril, nerve, blood and vessel material in varying amounts, and a PAS effect on any of those
 # could pass for a change in the tissue. Each mouse gets a score per marker group: the mean, over
-# the group's proteins detected in at least 15 of the 20 mice, of each protein's log2 abundance
-# centred and scaled across mice. Haemoglobin, filtered out of the proteome as a contaminant, is
-# scored as its share of DIA-NN's normalised precursor signal, with the q-value filters 01_Filtering
-# applies. Each score and the pellet MitoCarta
-# share are tested for PAS within each sex (Welch t), with the difference and its 95% CI.
+# the group's proteins detected in at least MIN_MICE_DETECTED mice, of each protein's log2
+# abundance centred and scaled across mice. Haemoglobin, filtered out of the proteome as a
+# contaminant, is scored as its share of DIA-NN's normalised precursor signal, with the q-value
+# filters 01_Filtering applies. Each score and the pellet MitoCarta share are tested for PAS within
+# each sex (Welch t), with the difference and its 95% CI.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -25,6 +25,8 @@ MARKERS <- list(
   `Red cell` = c("Slc4a1", "Spta1", "Sptb", "Epb42", "Epb41", "Add2", "Gypa", "Rhag"),
   Vessel = c("Pecam1", "Cdh5", "Vwf", "Cav1", "Aoc3", "Cd34", "Eng", "Kdr", "Emcn")
 )
+HAEMOGLOBIN <- "Haemoglobin (% of signal)"
+MITO_SHARE <- "MitoCarta share (% of signal)"
 
 out <- stage_paths("02_Statistics", "05_Composition")
 inputs <- c(
@@ -53,7 +55,9 @@ scores <- marker_members |>
 report <- nanoparquet::read_parquet(inputs[["report"]],
   col_select = c("Run", "Genes", "Precursor.Normalised", "Q.Value", "Lib.Q.Value", "Lib.PG.Q.Value")
 ) |>
-  filter(Q.Value <= 0.01, Lib.Q.Value <= 0.01, Lib.PG.Q.Value <= 0.01, Run %in% targets$run)
+  filter(
+    Q.Value <= Q_CUTOFF, Lib.Q.Value <= Q_CUTOFF, Lib.PG.Q.Value <= Q_CUTOFF, Run %in% targets$run
+  )
 haemoglobin <- report |>
   summarise(
     score = 100 * sum(Precursor.Normalised[str_detect(Genes, "^Hb[ab]")]) /
@@ -61,7 +65,7 @@ haemoglobin <- report |>
     .by = Run
   ) |>
   transmute(
-    group = "Haemoglobin (% of signal)", n_proteins = NA_integer_,
+    group = HAEMOGLOBIN, n_proteins = NA_integer_,
     sample_id = targets$sample_id[match(Run, targets$run)], score
   )
 
@@ -69,7 +73,7 @@ composition <- bind_rows(
   scores,
   haemoglobin,
   tibble(
-    group = "MitoCarta share (% of signal)", n_proteins = NA_integer_,
+    group = MITO_SHARE, n_proteins = NA_integer_,
     sample_id = names(quant$pct_mito), score = unname(quant$pct_mito)
   )
 ) |>
@@ -95,10 +99,10 @@ plot_index <- preview_pdf(file.path(out$reports, "05_composition.pdf"), list(
     par(mfrow = c(2, 4), mar = c(5, 4, 3, 1))
     walk(groups, \(g) {
       d <- filter(composition, group == g)
-      boxplot(score ~ factor(group_label, c("VEH_F", "PAS_F", "VEH_M", "PAS_M")), d,
+      boxplot(score ~ factor(group_label, FIGURE_GROUPS), d,
         las = 2, xlab = "", ylab = "score", main = g, cex.main = 0.9
       )
-      stripchart(score ~ factor(group_label, c("VEH_F", "PAS_F", "VEH_M", "PAS_M")), d,
+      stripchart(score ~ factor(group_label, FIGURE_GROUPS), d,
         vertical = TRUE, add = TRUE, pch = 16
       )
     })
@@ -106,7 +110,10 @@ plot_index <- preview_pdf(file.path(out$reports, "05_composition.pdf"), list(
 ))
 
 saveRDS(
-  list(composition = composition, tests = tests),
+  list(
+    composition = composition, tests = tests,
+    groups = list(markers = names(MARKERS), haemoglobin = HAEMOGLOBIN, mito_share = MITO_SHARE)
+  ),
   file.path(out$data, "composition.rds")
 )
 write_workbook(

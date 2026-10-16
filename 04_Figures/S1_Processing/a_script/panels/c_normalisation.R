@@ -6,11 +6,10 @@ source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 inputs <- c(
   quantification = output_path("01_Processing", "02_Quantification", "proteins.rds")
 )
-METHODS <- c("none", "median", "quantile", "cyclicloess")
 benchmark <- readRDS(inputs[["quantification"]])$normalization |>
   pivot_longer(c(pcv, pmad, pev), names_to = "measure", values_to = "spread") |>
   mutate(
-    method = factor(method, rev(METHODS)),
+    method = factor(method, rev(unique(method))),
     measure = factor(toupper(measure), c("PCV", "PMAD", "PEV")),
     universe = factor(if_else(universe == "full", "Full", "Mito"), c("Full", "Mito")),
     status = case_when(chosen ~ "chosen", eligible ~ "eligible", .default = "changes SEs")

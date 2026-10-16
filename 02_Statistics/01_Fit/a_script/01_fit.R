@@ -1,15 +1,8 @@
-# Every model the comparisons read, fitted once on all 20 mice on 01_Processing/03_Design's design:
-# four group means and one surrogate variable for unwanted variation. Proteins: limpa's dpcDE with
-# precision and sample weights, normalised per universe. Pathway (GO:BP, Reactome, Hallmark, KEGG,
-# MitoCarta), complex and cluster scores: limma with eBayes; module eigengenes: ordinary t. Each
-# level gets the five contrasts and, for each phenotype, an association in females and one in
-# males: the feature regressed on the phenotype (z-scored across all 20 mice) within the ten mice
-# of each sex, the surrogate variable also fitted within each sex. Two models answer two questions:
-# pooled (~0 + sex + z:sex + sv1:sex) asks whether a feature co-varies with the phenotype across
-# PAS and vehicle mice; treatment (~0 + group + z:sex + sv1:sex) asks whether it tracks the
-# phenotype among mice given the same treatment (limma User's Guide, covariates). An association
-# is co-movement, not a PAS effect. A pooled refit with the pellet's mitochondrial share (centred
-# within group) is kept as a check. Phenotype effects are % changes against the same sex's vehicle.
+# Every model the comparisons read, fitted once on all mice on 01_Processing/03_Design's design:
+# proteins by limpa's dpcDE per universe, scores by limma, eigengenes by ordinary t, each with the
+# five contrasts and a per-sex association with each phenotype. Two association models ask two
+# questions: pooled, whether a feature co-varies with the phenotype across PAS and vehicle mice;
+# treatment, whether it tracks the phenotype among mice given the same treatment.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(limpa)
@@ -36,6 +29,9 @@ colnames(sex_design) <- c("F", "M")
 group_design <- model.matrix(~ 0 + group, targets)
 sv1 <- d$design[, "sv1"]
 ASSOCIATION_MODELS <- c("pooled", "treatment", "pooled_mito")
+# propTrueNull reads the share of true nulls off the p-value distribution, which a few dozen tests
+# cannot shape.
+PI0_MIN_TESTS <- 100
 genes <- as_tibble(quant$proteins$genes, rownames = "feature") |>
   transmute(feature, gene = first_symbol(Genes), genes = Genes, is_mito)
 
@@ -127,7 +123,7 @@ protein_contrasts <- tidy_proteins(protein_fits) |>
 # the first coefficients of an equivalent design so the test stays exact under limpa's weights.
 # It covers the interaction too, which is their difference. The response pattern reads the signs.
 pas_contrasts <- d$contrasts[, c("PAS_vs_VEH_female", "PAS_vs_VEH_male")]
-protein_ftest <- imap(quant$universes, \(keep, universe) {
+protein_ftest <- map(set_names(names(quant$universes)), \(universe) {
   reparametrised <- contrastAsCoef(d$design, pas_contrasts)$design
   f <- eBayes(dpcDE(protein_elist(universe), reparametrised, sample.weights = TRUE, plot = FALSE))
   topTable(f, coef = 1:2, number = Inf, sort.by = "none") |>
@@ -326,7 +322,7 @@ contrast_summary <- bind_rows(
 ) |>
   reframe(
     tier_counts(P.Value, adj.P.Val, pi_score),
-    share_true_effects = if (n() >= 100) 1 - propTrueNull(P.Value) else NA_real_,
+    share_true_effects = if (n() >= PI0_MIN_TESTS) 1 - propTrueNull(P.Value) else NA_real_,
     .by = c(level, universe, contrast)
   )
 association_summary <- protein_associations |>
@@ -415,3 +411,7 @@ write_workbook(
 )
 
 filter(contrast_summary, level == "protein", universe == "full")
+tibble(
+  phenotype_rows_matched = sum(!is.na(ph$mouse)), phenotype_na = sum(is.na(ph[PHENOTYPES])),
+  phenotype_le_0 = sum(ph[PHENOTYPES] <= 0, na.rm = TRUE)
+)

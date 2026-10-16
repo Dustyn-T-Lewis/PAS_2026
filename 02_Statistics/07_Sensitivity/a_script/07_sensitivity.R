@@ -1,14 +1,15 @@
 # How much the protein results depend on choices made once. Each row changes one choice from the
 # baseline and refits the three comparison contrasts in the full proteome exactly as 01_Fit does
 # (contrastAsCoef, dpcDE, eBayes):
-#   detection slope 0.5 or 1.0 instead of 0.7 (dpcQuant rerun, restricted to the baseline proteins);
+#   detection slope ALT_SLOPES instead of 02_Quantification's (dpcQuant rerun, restricted to the
+#   baseline proteins and normalised by the method the full universe chose);
 #   measured run depth instead of the surrogate variable, or no adjustment;
 #   no per-mouse sample weights;
 #   without the re-injected male PAS run (PAS_M1);
 #   pellet MitoCarta share added as a covariate.
 # Reported per row and contrast: proteins at p <= 0.05, FDR <= 0.10 and FDR <= 0.05, overlap of
-# the 50 smallest p-values with the baseline, and the p and FDR of every protein at FDR <= 0.10 in
-# the baseline.
+# the TOP_N smallest p-values with the baseline, and the p and FDR of every protein at FDR <= 0.10
+# in the baseline.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(limpa)
@@ -34,10 +35,12 @@ group_cols <- setdiff(colnames(d$design), "sv1")
 
 baseline_y <- quant$proteins[quant$universes$full, ]
 baseline_y$E <- quant$E_norm$full
+full_method <- filter(quant$normalization, universe == "full", chosen)$method
 
 requantify <- function(slope) {
   q <- dpcquant_cached(filtered$y, slope, dpcquant_cache(out$data, slope))[rownames(baseline_y), ]
   q$genes <- baseline_y$genes
+  q$E <- normalize(q$E, full_method)
   q
 }
 
@@ -93,7 +96,7 @@ counts <- results |>
     results |>
       slice_min(P.Value, n = TOP_N, by = c(variant, contrast), with_ties = FALSE) |>
       semi_join(top_baseline, by = c("contrast", "feature")) |>
-      count(variant, contrast, name = "top50_shared"),
+      count(variant, contrast, name = "top_shared"),
     by = c("variant", "contrast")
   ) |>
   mutate(variant = factor(variant, names(variants))) |>
@@ -120,15 +123,15 @@ plot_index <- preview_pdf(file.path(out$reports, "07_sensitivity.pdf"), list(
 ))
 
 saveRDS(
-  list(counts = counts, named = named),
+  list(counts = counts, named = named, top_n = TOP_N),
   file.path(out$data, "sensitivity.rds")
 )
 write_workbook(
   list(counts = counts, named = named, plot_index = plot_index),
   c(
-    paste(
-      "Per variant and contrast: proteins at p <= 0.05, FDR <= 0.10, FDR <= 0.05, and how many of",
-      "the baseline's 50 smallest p-values stay in the variant's 50 smallest."
+    str_glue(
+      "Per variant and contrast: proteins at p <= 0.05, FDR <= 0.10, FDR <= 0.05, and how many of ",
+      "the baseline's {TOP_N} smallest p-values stay in the variant's {TOP_N} smallest."
     ),
     "Every protein at FDR <= 0.10 in the baseline: log2 FC, p and FDR under each variant.",
     "Which PDF page shows what."

@@ -10,14 +10,9 @@ source(here::here("00_Setup", "Shared_functions", "comparisons.R"))
 # summarise the GO:BP terms; they never choose what is tested.
 report_pathways <- function(comparison) {
   out <- comparison_paths(comparison, "02_pathways")
-  inputs <- c(
-    enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"),
-    gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds")
-  )
+  inputs <- c(enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"))
   enr <- readRDS(inputs[["enrichment"]])
-  gs <- readRDS(inputs[["gene_sets"]])
   contrast <- COMPARISONS[[comparison]]$contrast
-  label <- COMPARISONS[[comparison]]$label
   collections <- deframe(distinct(enr$results, collection, universe))
 
   results <- filter(enr$results, contrast == !!contrast) |>
@@ -29,13 +24,10 @@ report_pathways <- function(comparison) {
     select(-contrast)
   literature <- filter(enr$literature, contrast == !!contrast) |>
     select(-contrast)
-  families <- gs$goslim |>
-    transmute(term, family = str_split(slim, "; ")) |>
-    unnest(family) |>
-    filter(family != "")
   family_summary <- results |>
-    filter(collection == "GO:BP") |>
-    inner_join(families, by = "term", relationship = "many-to-many") |>
+    filter(collection == "GO:BP", !is.na(families)) |>
+    separate_longer_delim(families, "; ") |>
+    rename(family = families) |>
     summarise(
       terms = n(), up_p = sum(p <= ALPHA & NES > 0), down_p = sum(p <= ALPHA & NES < 0),
       up_fdr = sum(padj <= ALPHA & NES > 0), down_fdr = sum(padj <= ALPHA & NES < 0),
@@ -43,20 +35,10 @@ report_pathways <- function(comparison) {
     ) |>
     arrange(desc(up_p + down_p))
 
-  # fgsea's own table of running scores: the five strongest sets each way per collection.
   gsea_table <- \(db) {
+    u <- collections[[db]]
     \() {
-      u <- collections[[db]]
-      top <- results |>
-        filter(collection == db) |>
-        slice_min(p, n = 5, by = direction, with_ties = FALSE) |>
-        arrange(desc(NES)) |>
-        transmute(pathway = term, NES, pval = p, padj)
-      short <- str_trunc(enrichVolcano::clean_label(top$pathway, width = 200), 36)
-      print(fgsea::plotGseaTable(set_names(enr$sets[[u]][top$pathway], short),
-        enr$ranks[[contrast]][[u]], mutate(top, pathway = short),
-        gseaParam = 1
-      ))
+      gsea_table_page(filter(results, collection == db), enr$sets[[u]], enr$ranks[[contrast]][[u]])
     }
   }
   plot_index <- preview_pdf(

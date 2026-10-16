@@ -259,9 +259,9 @@ set_label <- \(term, width = 48) str_trunc(enrichVolcano::clean_label(term, widt
 # log2 abundance minus the protein's mean over its own sex's vehicle mice. targets lists the
 # columns of values in order.
 centre_on_vehicle <- function(values, targets) {
-  vehicle_mean <- sapply(c(F = "VEH_F", M = "VEH_M"), \(g) {
+  vehicle_mean <- vapply(c(F = "VEH_F", M = "VEH_M"), \(g) {
     rowMeans(values[, targets$group == g, drop = FALSE])
-  })
+  }, numeric(nrow(values)))
   values - vehicle_mean[, targets$sex]
 }
 
@@ -484,12 +484,12 @@ score_cells <- function(contrasts, associations) {
     )
 }
 
-# One sex's candidates (those grouped into STRING communities) as a STRING network: shaded hulls
-# for communities, labelled by their ORA term; edges at the STRING score 06_Candidates used; node
-# size routes passed, colour log2 fold change. Communities are kept together by adding invisible
-# within-community edges to the layout only. Proteins without a STRING partner are listed under
-# the plot. cand is candidates.rds from 02_Statistics/06_Candidates. Returns the plot and the
-# candidates drawn.
+# One sex's candidates (those passing community_routes or more routes) as a STRING network:
+# shaded hulls for communities, labelled by their ORA term; edges at the STRING score
+# 06_Candidates used; node size routes passed, colour log2 fold change. Communities are kept
+# together by adding invisible within-community edges to the layout only. Proteins without a
+# STRING partner are listed under the plot. cand is candidates.rds from
+# 02_Statistics/06_Candidates. Returns the plot and the candidates drawn.
 candidate_network <- function(cand, sex, title) {
   limits <- cand$thresholds
   shown <- filter(cand$candidates, sex == !!sex, routes >= limits$community_routes)
@@ -625,8 +625,8 @@ candidate_dots <- function(cands, fit, quant, sex, title, ncol = 7) {
   )
 }
 
-# Which of the six routes each candidate passed: one row per protein grouped into STRING
-# communities, most routes first and smallest p within, a filled tile per route passed, the log2
+# Which of the six routes each candidate passed: one row per protein passing community_routes or
+# more routes, most routes first and smallest p within, a filled tile per route passed, the log2
 # FC as a square point (so the route tiles keep the fill scale to themselves) and the STRING
 # neighbourhood's name to the right. Returns the plot and the candidates drawn.
 candidate_routes <- function(cand, sex, title) {
@@ -638,9 +638,11 @@ candidate_routes <- function(cand, sex, title) {
     filter(sex == !!sex, routes >= cand$thresholds$community_routes) |>
     arrange(desc(routes), P.Value) |>
     mutate(
-      row = factor(make.unique(gene, sep = " #"), rev(make.unique(gene, sep = " #"))),
+      row = make.unique(gene, sep = " #"),
+      row = factor(row, rev(row)),
       group = if_else(is.na(name), "", set_label(name, 46))
     )
+  fc_column <- length(route_labels) + 1
   tiles <- shown |>
     select(row, all_of(names(route_labels))) |>
     pivot_longer(-row, names_to = "route", values_to = "passed") |>
@@ -651,12 +653,14 @@ candidate_routes <- function(cand, sex, title) {
     scale_fill_manual(
       values = c(`TRUE` = "grey25", `FALSE` = "grey92"), guide = "none"
     ) +
-    geom_point(aes(x = 7, y = row, colour = logFC), shown, shape = 15, size = 2.2) +
+    geom_point(aes(x = fc_column, y = row, colour = logFC), shown, shape = 15, size = 2.2) +
     scale_colour_gradient2(
       low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
       limits = c(-limit, limit), name = "log2 FC", guide = colour_bar()
     ) +
-    geom_text(aes(x = 7.7, label = group), shown, hjust = 0, size = 1.6, colour = "grey30") +
+    geom_text(aes(x = fc_column + 0.7, label = group), shown,
+      hjust = 0, size = 1.6, colour = "grey30"
+    ) +
     scale_x_discrete(position = "top", drop = FALSE, expand = expansion(add = c(0.6, 9.5))) +
     coord_cartesian(clip = "off") +
     labs(

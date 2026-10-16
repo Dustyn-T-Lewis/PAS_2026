@@ -5,10 +5,7 @@ source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(composition = output_path("02_Statistics", "05_Composition", "composition.rds"))
 comp <- readRDS(inputs[["composition"]])
-MARKERS <- c(
-  "Sarcoplasmic reticulum", "Endoplasmic reticulum", "Myofibril", "Nerve", "Red cell", "Vessel",
-  "Haemoglobin (% of signal)"
-)
+MARKERS <- c(comp$groups$markers, comp$groups$haemoglobin)
 shown <- filter(comp$composition, group %in% MARKERS)
 scores <- shown |>
   mutate(marker = factor(group, MARKERS), group = factor(group_label, FIGURE_GROUPS))

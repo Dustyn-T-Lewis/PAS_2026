@@ -37,7 +37,7 @@ report_classification <- function(comparison) {
       walk2(best$feature, seq_along(best$feature), \(f, i) {
         level <- best$level[i]
         pROC::plot.roc(case, cls$features[[level]][f, keep],
-          levels = c(FALSE, TRUE), quiet = TRUE, add = i > 1, col = i,
+          levels = c(FALSE, TRUE), direction = "<", quiet = TRUE, add = i > 1, col = i,
           main = str_glue("{label}: four smallest p")
         )
       })

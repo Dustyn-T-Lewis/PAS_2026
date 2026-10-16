@@ -30,8 +30,8 @@ plot <- ggplot(shown, aes(r_equiv, row)) +
     values = set_names(MODEL_COLOURS[names(MODEL_LABELS)], MODEL_LABELS), name = NULL
   ) +
   scale_shape_manual(
-    values = c(`TRUE` = 16, `FALSE` = 1), labels = c(`TRUE` = "FDR ≤ 0.05", `FALSE` = "FDR > 0.05"),
-    name = NULL
+    values = c(`TRUE` = 16, `FALSE` = 1),
+    labels = c(`TRUE` = paste("FDR ≤", ALPHA), `FALSE` = paste("FDR >", ALPHA)), name = NULL
   ) +
   scale_x_continuous(limits = c(-1, 1)) +
   labs(

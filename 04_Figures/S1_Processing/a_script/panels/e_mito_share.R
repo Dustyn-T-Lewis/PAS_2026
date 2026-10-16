@@ -13,8 +13,8 @@ share <- quant$mito_share |>
 sex_p <- quant$mito_share_tests |>
   filter(factor == "sex") |>
   pull(p_value)
-within <- readRDS(inputs[["composition"]])$tests |>
-  filter(group == "MitoCarta share (% of signal)")
+composition <- readRDS(inputs[["composition"]])
+within <- filter(composition$tests, group == composition$groups$mito_share)
 label <- paste(
   c(
     sprintf("Sex p = %.2g", sex_p),

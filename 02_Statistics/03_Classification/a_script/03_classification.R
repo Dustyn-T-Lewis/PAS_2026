@@ -20,11 +20,19 @@ features <- map(set_names(LEVELS), \(lvl) {
   all_scores[levels_of$feature[levels_of$level == lvl], , drop = FALSE]
 })
 
+# The mice of one sex, and which of them were given PAS.
+sex_mice <- function(comparison) {
+  in_sex <- targets$sex == COMPARISONS[[comparison]]$sex
+  list(in_sex = in_sex, case = targets$treatment[in_sex] == "PAS")
+}
+
+# Each feature's ROC (kept for the curves) and its AUC, DeLong interval and exact Wilcoxon p.
 roc_table <- function(m, case) {
   y <- factor(case, levels = c(FALSE, TRUE))
-  map(rownames(m), \(f) {
-    x <- m[f, ]
-    roc <- pROC::roc(y, x, levels = levels(y), direction = "<", quiet = TRUE)
+  rocs <- map(set_names(rownames(m)), \(f) {
+    pROC::roc(y, m[f, ], levels = levels(y), direction = "<", quiet = TRUE)
+  })
+  table <- imap(rocs, \(roc, f) {
     auc <- as.numeric(roc$auc)
     ci <- if (auc %in% c(0, 1)) {
       rep(NA_real_, 3)
@@ -33,11 +41,12 @@ roc_table <- function(m, case) {
     }
     tibble(
       feature = f, auc = auc, auc_low = ci[1], auc_high = ci[3],
-      p = wilcox.test(x[case], x[!case], exact = TRUE)$p.value
+      p = wilcox.test(m[f, case], m[f, !case], exact = TRUE)$p.value
     )
   }) |>
     list_rbind() |>
     mutate(fdr = p.adjust(p, "BH"))
+  list(table = table, rocs = rocs)
 }
 
 # Features that put every case above (or below) every control, against the same count under each
@@ -57,14 +66,15 @@ perfect_null <- function(m, case) {
   )
 }
 
-results <- imap(SEX_COMPARISONS, \(a, comparison) {
-  in_sex <- targets$sex == a$sex
-  case <- targets$treatment[in_sex] == "PAS"
+results <- map(set_names(names(SEX_COMPARISONS)), \(comparison) {
+  mice <- sex_mice(comparison)
   imap(features, \(m, level) {
+    m <- m[, mice$in_sex]
+    tested <- roc_table(m, mice$case)
     list(
-      roc = roc_table(m[, in_sex], case) |>
-        mutate(comparison = comparison, level = level, .before = 1),
-      perfect = perfect_null(m[, in_sex], case) |>
+      roc = mutate(tested$table, comparison = comparison, level = level, .before = 1),
+      curves = tested$rocs,
+      perfect = perfect_null(m, mice$case) |>
         mutate(comparison = comparison, level = level, .before = 1)
     )
   })
@@ -84,13 +94,9 @@ tier_table <- roc |>
   select(comparison, level, features = tests, everything(), -pi_le_0.05)
 
 # The ROC curve behind each module eigengene's AUC, for the figures.
-module_curves <- imap(SEX_COMPARISONS, \(a, comparison) {
-  in_sex <- targets$sex == a$sex
-  y <- factor(targets$treatment[in_sex] == "PAS", levels = c(FALSE, TRUE))
-  m <- features$module[, in_sex]
-  map(rownames(m), \(f) {
-    pROC::roc(y, m[f, ], levels = levels(y), direction = "<", quiet = TRUE) |>
-      pROC::coords("all", ret = c("specificity", "sensitivity"), transpose = FALSE) |>
+module_curves <- imap(results, \(r, comparison) {
+  imap(r$module$curves, \(roc, f) {
+    pROC::coords(roc, "all", ret = c("specificity", "sensitivity"), transpose = FALSE) |>
       as_tibble() |>
       mutate(comparison = comparison, feature = f, .before = 1)
   }) |>
@@ -101,16 +107,12 @@ module_curves <- imap(SEX_COMPARISONS, \(a, comparison) {
 # pROC's own curves for the four pathway scores with the smallest p in one sex.
 roc_curves <- \(comparison) {
   \() {
-    code <- COMPARISONS[[comparison]]$sex
-    in_sex <- targets$sex == code
-    case <- targets$treatment[in_sex] == "PAS"
     best <- roc |>
       filter(comparison == !!comparison, level == "pathway") |>
       slice_min(p, n = 4, with_ties = FALSE)
     walk2(best$feature, seq_along(best$feature), \(f, i) {
-      pROC::plot.roc(case, features$pathway[f, in_sex],
-        levels = c(FALSE, TRUE), direction = "<", quiet = TRUE, add = i > 1, col = i,
-        main = COMPARISONS[[comparison]]$label
+      pROC::plot.roc(results[[comparison]]$pathway$curves[[f]],
+        add = i > 1, col = i, main = COMPARISONS[[comparison]]$label
       )
     })
     legend("bottomright", str_trunc(best$feature, 45),

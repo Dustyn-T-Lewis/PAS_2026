@@ -53,12 +53,12 @@ surrogate_r <- tibble(
 plot_index <- preview_pdf(file.path(out$reports, "03_design.pdf"), list(
   "surrogate variable against run depth" = \() {
     plot(run_depth, sv1,
-      pch = c(F = 16, M = 17)[surrogate$sex], col = GROUP_COLOURS[surrogate$group],
+      pch = SEX_SHAPES[surrogate$sex], col = GROUP_COLOURS[surrogate$group],
       xlab = "Run depth (log2 precursors identified)", ylab = "Surrogate variable 1",
       main = sprintf("r = %.2f", surrogate_r$r_with_run_depth[1])
     )
     legend("topleft", FIGURE_GROUPS,
-      col = GROUP_COLOURS[FIGURE_GROUPS], pch = c(16, 16, 17, 17), bty = "n"
+      col = GROUP_COLOURS[FIGURE_GROUPS], pch = SEX_SHAPES[str_sub(FIGURE_GROUPS, -1)], bty = "n"
     )
   }
 ))

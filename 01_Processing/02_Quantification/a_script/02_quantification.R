@@ -72,22 +72,12 @@ normalization_evidence <- tibble(
   median = apply(proteins$E, 2, median), iqr = apply(proteins$E, 2, IQR)
 )
 
-# Median centring is written out: limma's "scale" divides by column medians, which suits unlogged
-# intensities, not log2 values.
-normalize <- function(E, method) {
-  switch(method,
-    none = E,
-    median = sweep(E, 2, apply(E, 2, median)) + mean(apply(E, 2, median)),
-    normalizeBetweenArrays(E, method)
-  )
-}
-
 # Replicate spread within each of the four groups, as NormalyzerDE scores normalisations
 # (Willforss et al. 2019): PMAD, the mean within-group median absolute deviation; PEV, the pooled
 # within-group variance; PCV, the mean within-group CV on the linear scale. No contrast is used.
 replicate_spread <- function(E, group) {
   by_group <- map(split(seq_len(ncol(E)), group), \(j) E[, j, drop = FALSE])
-  pooled_var <- Reduce(`+`, map(by_group, \(m) (ncol(m) - 1) * apply(m, 1, var))) /
+  pooled_var <- reduce(map(by_group, \(m) (ncol(m) - 1) * apply(m, 1, var)), `+`) /
     (ncol(E) - length(by_group))
   tibble(
     pmad = mean(map_dbl(by_group, \(m) mean(apply(m, 1, mad)))),
@@ -98,7 +88,7 @@ replicate_spread <- function(E, group) {
 
 # Each universe is normalised on its own proteins, so the mitochondrial results do not depend on
 # how much non-mitochondrial protein each pellet carried. The eligible method with the lowest PMAD
-# is used in each universe.
+# is used in each universe, the first listed on a tie.
 universes <- list(full = rep(TRUE, nrow(proteins)), mito = proteins$genes$is_mito)
 candidates <- expand_grid(universe = names(universes), method = names(NORMALIZATIONS)) |>
   mutate(E = map2(universe, method, \(u, m) normalize(proteins$E[universes[[u]], ], m)))
@@ -109,7 +99,7 @@ normalization <- candidates |>
   ) |>
   select(-E) |>
   unnest(spread) |>
-  mutate(chosen = eligible & pmad == min(pmad[eligible]), .by = universe)
+  mutate(chosen = eligible & method == method[eligible][which.min(pmad[eligible])], .by = universe)
 chosen <- filter(normalization, chosen)
 E_norm <- set_names(
   map2(chosen$universe, chosen$method, \(u, m) normalize(proteins$E[universes[[u]], ], m)),
