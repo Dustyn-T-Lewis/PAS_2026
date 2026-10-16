@@ -91,21 +91,25 @@ theme_figure <- function() {
 # The key every continuous fill or colour scale uses.
 colour_bar <- \(...) guide_colourbar(barwidth = unit(14, "mm"), barheight = unit(2, "mm"), ...)
 
-# Facet strips as the design panel's boxes: the contrast's tint inside a border in its colour, the
-# name in bold black; a level outside the palette gets no box.
-contrast_strips <- function(levels, side = c("x", "y")) {
-  side <- match.arg(side)
-  boxes <- ggh4x::elem_list_rect(
-    fill = unname(coalesce(contrast_tone("fill")[levels], "transparent")),
-    colour = unname(coalesce(contrast_tone("line")[levels], "transparent")),
-    linewidth = 0.4
-  )
-  text <- ggh4x::elem_list_text(colour = "black", face = "bold")
-  if (side == "x") {
-    ggh4x::strip_themed(background_x = boxes, text_x = text)
-  } else {
-    ggh4x::strip_themed(background_y = boxes, text_y = text)
+# Facet strips as the design panel's boxes: a tint inside a border in its colour, the name in bold
+# black. Each strip is keyed, in display order, by a contrast or "MitoCarta" (its database green);
+# "" draws no box and any other key a grey one.
+contrast_strips <- function(x = NULL, y = NULL) {
+  fill <- c(contrast_tone("fill"), MitoCarta = "#CCECE3")
+  line <- c(contrast_tone("line"), DATABASE_COLOURS["MitoCarta"])
+  boxes <- \(keys) {
+    tone <- \(tones, other) {
+      unname(if_else(keys %in% "", "transparent", coalesce(tones[keys], other)))
+    }
+    ggh4x::elem_list_rect(
+      fill = tone(fill, "grey94"), colour = tone(line, "grey60"), linewidth = 0.4
+    )
   }
+  text <- ggh4x::elem_list_text(colour = "black", face = "bold")
+  ggh4x::strip_themed(
+    background_x = if (length(x)) boxes(x), text_x = if (length(x)) text,
+    background_y = if (length(y)) boxes(y), text_y = if (length(y)) text
+  )
 }
 
 # A figure panel at the size it takes in its composite, as PDF (cairo) and PNG, into the figure's
@@ -192,65 +196,87 @@ fdr_scales <- function(cap = LOG_CAP, name = "-log10 FDR") {
   )
 }
 
-# Pathway sets as a dot matrix, after F01's old panel f: NES as fill (magenta down, green up),
-# -log10 FDR as size, the collection as a square before the first column. cells holds term,
-# column, col_group, NES and fdr; rows holds term, label, collection and row_group, one row per
-# set and group in display order. strip styles the row and column strips (ggh4x::strip_themed).
-# Every collection is listed in the key and nes_limit can be fixed, so two matrices can share
-# one key.
-pathway_matrix <- function(cells, rows, title, subtitle, strip = ggh4x::strip_vanilla(),
-                           fdr_cap = LOG_CAP, nes_limit = NULL) {
-  rows <- mutate(rows, row = factor(paste(row_group, term), rev(paste(row_group, term))))
-  cells <- cells |>
-    inner_join(select(rows, term, row, row_group), by = "term", relationship = "many-to-many") |>
-    mutate(log_fdr = pmin(-log10(fdr), fdr_cap))
-  squares <- mutate(rows, col_group = factor(levels(cells$col_group)[1], levels(cells$col_group)))
-  nes_limit <- nes_limit %||% (ceiling(max(abs(cells$NES)) * 10) / 10)
-  ggplot(cells, aes(column, row)) +
+# Pathway sets as a dot grid, after HRvLR's pathway_grid(): one row per set within its block, one
+# column per contrast or trait under boxed strips, a dot per cell (fill NES, area -log10 FDR) and
+# the set's database as a square before the first column. rows holds block (a factor in display
+# order), term, label and collection, top to bottom; cells holds term, column, NES and fdr; columns
+# holds column, column_block and label, in display order. tones maps a strip's name to its
+# contrast_strips() key. Panels have a fixed size, so grids placed side by side line up;
+# block_rows (named by block) gives a block more row slots than it has rows.
+pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, tones = NULL,
+                         nes_limit = NULL, x_angle = 0, column_mm = 5, block_rows = NULL) {
+  column_blocks <- unique(columns$column_block)
+  blocks <- levels(droplevels(rows$block))
+  place <- \(d) {
+    mutate(d,
+      term = factor(term, rev(rows$term)),
+      column = factor(column, c(" ", columns$column)),
+      column_block = factor(column_block, c("", column_blocks))
+    )
+  }
+  dots <- cells |>
+    inner_join(select(rows, term, block), by = "term") |>
+    inner_join(select(columns, column, column_block), by = "column") |>
+    mutate(log_fdr = pmin(-log10(fdr), LOG_CAP)) |>
+    place()
+  squares <- place(mutate(rows, column = " ", column_block = ""))
+  nes_limit <- nes_limit %||% (ceiling(max(abs(dots$NES)) * 10) / 10)
+  slots <- (block_rows %||% table(rows$block))[blocks]
+  ggplot(dots, aes(column, term)) +
+    geom_point(aes(size = log_fdr, fill = NES), shape = 21, stroke = 0.2) +
+    # Every database keyed even where a grid lacks it, so grids side by side share one key.
     geom_point(
-      aes(size = log_fdr, fill = NES, stroke = fdr <= ALPHA),
-      shape = 21, colour = "grey15"
+      aes(colour = collection), squares,
+      shape = 15, size = 1.8, show.legend = c(colour = TRUE, size = FALSE, fill = FALSE)
     ) +
-    geom_point(aes(x = 0.3, colour = collection), squares, shape = 15, size = 1.5) +
-    # Every collection once, invisible, so each has a key even where a matrix lacks it and two
-    # matrices' keys match.
-    geom_point(
-      aes(x = 0.3, y = row, colour = collection),
-      tibble(
-        row = rows$row[1], row_group = rows$row_group[1], col_group = squares$col_group[1],
-        collection = names(DATABASE_COLOURS)
-      ),
-      alpha = 0, inherit.aes = FALSE
+    ggh4x::facet_grid2(block ~ column_block,
+      scales = "free", space = "free", switch = "y",
+      strip = contrast_strips(c("", tones[column_blocks]), tones[blocks])
     ) +
-    ggh4x::facet_grid2(row_group ~ col_group,
-      scales = "free", space = "free", switch = "y", strip = strip
+    ggh4x::force_panelsizes(
+      cols = unit(c(3.5, column_mm * table(columns$column_block)[column_blocks]), "mm"),
+      rows = unit(3 * slots, "mm")
     ) +
-    scale_y_discrete(labels = deframe(select(rows, row, label))) +
-    scale_x_discrete(expand = expansion(add = c(0.8, 0.5))) +
+    scale_y_discrete(labels = deframe(select(rows, term, label))) +
+    scale_x_discrete(labels = deframe(select(columns, column, label))) +
+    scale_fill_distiller(
+      palette = "PiYG", direction = 1, limits = c(-nes_limit, nes_limit), oob = scales::squish,
+      breaks = c(-2, 0, 2), name = "NES"
+    ) +
+    scale_size_area(
+      max_size = 2.8, limits = c(0, LOG_CAP), breaks = c(1, 2, LOG_CAP),
+      labels = c("1", "2", paste0(LOG_CAP, "+")), name = "-log10 FDR"
+    ) +
     scale_colour_manual(
-      values = DATABASE_COLOURS, limits = names(DATABASE_COLOURS), drop = FALSE, name = NULL
+      values = DATABASE_COLOURS, limits = names(DATABASE_COLOURS), name = "Database"
     ) +
-    scale_fill_gradient2(
-      low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
-      limits = c(-nes_limit, nes_limit), breaks = c(-2, 0, 2), name = "NES"
-    ) +
-    fdr_scales(fdr_cap) +
     guides(
-      fill = colour_bar(order = 1),
-      size = guide_legend(order = 2),
-      colour = guide_legend(
-        order = 3, nrow = 2,
-        override.aes = list(shape = 15, size = 1.5, alpha = 1)
-      )
+      fill = guide_colourbar(order = 1, barheight = unit(12, "mm"), barwidth = unit(2.2, "mm")),
+      size = guide_legend(order = 2), colour = guide_legend(order = 3)
     ) +
     labs(x = NULL, y = NULL, title = title, subtitle = subtitle) +
     theme_figure() +
     theme(
-      axis.text.y = element_text(size = 5.2), axis.text.x = element_text(size = 5.5),
-      strip.placement = "outside", strip.text.y.left = element_text(angle = 90),
-      strip.text = element_text(size = 5.5), panel.spacing = unit(0.8, "mm"),
-      legend.box = "vertical", legend.box.just = "left"
+      axis.text.y = element_text(size = 5.2),
+      axis.text.x = element_text(
+        size = 5.5, angle = x_angle, hjust = if (x_angle) 1 else 0.5, vjust = 0.5
+      ),
+      strip.placement = "outside", strip.text = element_text(size = 5.5),
+      strip.text.y.left = element_text(angle = 90), panel.spacing = unit(1, "mm"),
+      legend.position = "right", legend.box.just = "left", legend.key.size = unit(2.6, "mm"),
+      legend.text = element_text(size = 5.5), legend.title = element_text(size = 6)
     )
+}
+
+# Each set once per figure: block by block in factor order, the first n candidates (already in
+# display order) that no earlier block lists.
+list_once <- function(candidates, n) {
+  reduce(levels(candidates$block), \(listed, b) {
+    candidates |>
+      filter(block == b, !term %in% listed$term) |>
+      slice_head(n = n) |>
+      bind_rows(x = listed)
+  }, .init = candidates[0, ])
 }
 
 # Display names for pathway sets: the collection prefix dropped, title case, shortened.
@@ -307,78 +333,6 @@ protein_heatmap <- function(values, targets, row_split = NULL, split_sep = " ", 
       padding = unit(c(1, 1, 4, 1), "mm")
     ),
     width = width_mm / 25.4, height = height_mm / 25.4
-  )
-}
-
-# Each comparison contrast's sets at FDR <= 0.05 that collapsePathways keeps, listed once under the
-# first contrast that selects them and drawn in all three columns. results is 02_Enrichment's
-# table, already filtered to the collections shown. Returns the plot and its cells with each
-# set's collection and row group.
-contrast_pathway_matrix <- function(results, title, subtitle, nes_limit = NULL) {
-  rows <- results |>
-    filter(padj <= ALPHA, dedup_status == "kept") |>
-    arrange(factor(contrast, COMPARISON_CONTRASTS), p) |>
-    distinct(term, .keep_all = TRUE) |>
-    transmute(
-      term, collection,
-      label = set_label(term),
-      row_group = factor(CONTRAST_SHORT[contrast], CONTRAST_SHORT)
-    )
-  rows$row_group <- droplevels(rows$row_group)
-  cells <- results |>
-    filter(term %in% rows$term) |>
-    transmute(
-      term, NES,
-      fdr = padj, column = factor(CONTRAST_SHORT[contrast], CONTRAST_SHORT),
-      col_group = factor("")
-    )
-  present <- names(CONTRAST_SHORT)[CONTRAST_SHORT %in% levels(rows$row_group)]
-  plot <- pathway_matrix(cells, rows, title, subtitle,
-    strip = contrast_strips(present, "y"), nes_limit = nes_limit
-  ) +
-    theme(strip.text.x = element_blank())
-  list(
-    plot = plot,
-    data = left_join(cells, select(rows, term, collection, row_group), by = "term")
-  )
-}
-
-# One sex's pathway associations: phenotype by phenotype, the n sets with the smallest fgsea FDR,
-# among those at FDR <= 0.05 that collapsePathways keeps under either model, that no earlier
-# phenotype already listed; each set drawn across every phenotype under both models. assoc is
-# 02_Enrichment's association_fgsea. Returns the plot and its cells with each set's collection and
-# row group.
-phenotype_pathway_matrix <- function(assoc, sex, title, subtitle, n = 4, nes_limit = NULL) {
-  assoc <- filter(assoc, sex == !!sex, model %in% names(MODEL_LABELS))
-  candidates <- assoc |>
-    filter(fgsea_fdr <= ALPHA, dedup_status == "kept") |>
-    summarise(best = min(fgsea_fdr), best_p = min(fgsea_p), .by = c(phenotype, term, collection)) |>
-    arrange(best, best_p)
-  rows <- reduce(names(TRAIT_SHORT), \(listed, trait) {
-    candidates |>
-      filter(phenotype == trait, !term %in% listed$term) |>
-      slice_head(n = n) |>
-      bind_rows(x = listed)
-  }, .init = candidates[0, ]) |>
-    transmute(
-      term, collection,
-      label = set_label(term, 44),
-      row_group = factor(TRAIT_SHORT[phenotype], TRAIT_SHORT)
-    )
-  cells <- assoc |>
-    filter(term %in% rows$term) |>
-    transmute(
-      term, NES,
-      fdr = fgsea_fdr, column = factor(TRAIT_SHORT[phenotype], TRAIT_SHORT),
-      col_group = factor(MODEL_LABELS[model], MODEL_LABELS)
-    )
-  plot <- pathway_matrix(cells, rows, title, subtitle, nes_limit = nes_limit) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-  list(
-    plot = plot,
-    data = left_join(cells, select(rows, term, collection, row_group),
-      by = "term", relationship = "many-to-many"
-    )
   )
 }
 

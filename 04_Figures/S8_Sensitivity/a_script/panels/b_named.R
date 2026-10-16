@@ -25,7 +25,7 @@ plot <- ggplot(cells, aes(variant, row, fill = fdr)) +
   scale_colour_manual(values = c(`TRUE` = "white", `FALSE` = "black"), guide = "none") +
   ggh4x::facet_grid2(contrast ~ .,
     scales = "free_y", space = "free_y", labeller = as_labeller(CONTRAST_SHORT),
-    strip = contrast_strips(levels(droplevels(cells$contrast)), side = "y")
+    strip = contrast_strips(y = levels(droplevels(cells$contrast)))
   ) +
   scale_y_discrete(labels = genes) +
   scale_x_discrete(labels = scales::label_wrap(12)) +

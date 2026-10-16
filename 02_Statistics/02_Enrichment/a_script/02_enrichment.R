@@ -45,6 +45,23 @@ flatten <- \(x) map_chr(x, \(g) paste(g, collapse = ";"))
 ranks <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
   map(da, \(x) gene_ranks(x[x$contrast == cn, ]))
 })
+# A set's tested members: its genes in the ranking, the same genes in every contrast and
+# association.
+tested_members <- imap(sets, \(by_set, u) map(by_set, intersect, names(ranks[[1]][[u]])))
+# The sets each test shows (the rows sharing `by` are one test): those at FDR <= ALPHA, grouped and
+# picked by representative_sets(); above FDR, no group and not shown.
+mark_shown <- function(tests, by) {
+  key <- union(by, c("universe", "term"))
+  called <- tests |>
+    filter(padj <= ALPHA) |>
+    mutate(
+      representative_sets(map2(universe, term, \(u, s) tested_members[[u]][[s]]), p),
+      .by = all_of(by)
+    )
+  tests |>
+    left_join(select(called, all_of(key), overlap_group, shown), by = key) |>
+    mutate(shown = coalesce(shown, FALSE))
+}
 enrichment_objects <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
   imap(gs$tested, \(collection, u) {
     tested <- fgsea_of(da[[u]][da[[u]]$contrast == cn, ], collection, TEST_WINDOW[[u]])
@@ -71,6 +88,7 @@ results <- imap(enrichment_objects, \(by_universe, cn) {
     list_rbind()
 }) |>
   list_rbind() |>
+  mark_shown(c("contrast", "universe")) |>
   left_join(
     summarise(families, families = paste(family, collapse = "; "), .by = term),
     by = "term"
@@ -79,7 +97,8 @@ results <- imap(enrichment_objects, \(by_universe, cn) {
   transmute(
     contrast, universe,
     collection = database, term, NES = score, p, padj, size, direction,
-    dedup_status, merged_into, similarity, score_logFC, score_p, score_fdr, r_group, families,
+    dedup_status, merged_into, similarity, overlap_group, shown, score_logFC, score_p, score_fdr,
+    r_group, families,
     leading_edge = flatten(leading_edge)
   ) |>
   arrange(factor(contrast, COMPARISON_CONTRASTS), universe, collection, p)
@@ -114,7 +133,8 @@ literature <- side_list(list(Literature = gs$literature_sets), SIDE_LIST_SIZE$li
 # Pathway associations: fgsea on each protein's association t with one phenotype within one sex,
 # under both association models (genes permuted, so its FDR runs optimistic), beside the same set's
 # singscore association under the same model, which is tested across mice. Each phenotype column
-# carries the same collapsePathways flag as the contrasts.
+# carries the same collapsePathways flag as the contrasts, and its shown sets are picked over both
+# universes together.
 association_models <- unique(fit$association_designs$model)
 association_fgsea <- expand_grid(
   model = association_models, sex = names(SEX_COMPARISONS), u = names(gs$tested)
@@ -139,10 +159,12 @@ association_fgsea <- expand_grid(
       mutate(model = model, sex = sex, universe = u, .before = 1)
   }) |>
   list_rbind() |>
+  mark_shown(c("model", "sex", "contrast")) |>
   transmute(
     model, sex, universe,
     collection = database, phenotype = contrast, term, NES = score, fgsea_p = p,
-    fgsea_fdr = padj, size, dedup_status, merged_into, leading_edge = flatten(leading_edge)
+    fgsea_fdr = padj, size, dedup_status, merged_into, overlap_group, shown,
+    leading_edge = flatten(leading_edge)
   ) |>
   left_join(
     fit$score_associations |>
@@ -344,8 +366,9 @@ write_workbook(
   c(
     "Per contrast and collection: sets tested, at p ≤ 0.05, expected by chance, FDR tiers.",
     paste(
-      "Every tested set and contrast: NES, p, BH FDR, size, collapsePathways flag, camera p and",
-      "FDR (inter-protein correlation estimated), singscore",
+      "Every tested set and contrast: NES, p, BH FDR, size, collapsePathways flag, overlap group",
+      "and whether F03 shows the set (one per group of overlapping sets at FDR ≤ 0.05), camera p",
+      "and FDR (inter-protein correlation estimated), singscore",
       "contrast (log2 FC, p, FDR, r with group), GO Slim families, leading edge."
     ),
     "GO Slim cellular compartments, fgsea per contrast, full proteome.",
@@ -353,7 +376,8 @@ write_workbook(
     "Per model, sex, collection and phenotype: fgsea, camera and singscore association counts.",
     paste(
       "Every set's fgsea on protein association t per model (pooled, treatment), sex and",
-      "phenotype, with its collapsePathways flag and camera p and FDR on the same slope, beside",
+      "phenotype, with its collapsePathways flag, overlap group and shown flag (picked as in",
+      "fgsea, both universes together), camera p and FDR on the same slope, beside",
       "its singscore association (slope, r, p, FDR)."
     ),
     paste(

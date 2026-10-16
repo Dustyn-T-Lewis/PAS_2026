@@ -53,6 +53,31 @@ stage_paths <- function(stage, step, reports = TRUE) {
 # min_size and max_size); 04_Gene_Sets trims the lists to it and 02_Enrichment passes it to fgsea.
 TEST_WINDOW <- list(full = c(15, 500), mito = c(10, 500))
 
+# Sets called in one test are grouped by the proteins they share, as EnrichmentMap and DAVID group
+# them (Merico et al. 2010, PLoS One, doi:10.1371/journal.pone.0013984; Huang et al. 2007, Genome
+# Biol, doi:10.1186/gb-2007-8-9-r183), on HRvLR's average-linkage Jaccard tree: cut at 0.70, a
+# group's sets share on average at least 30% of their proteins. A narrow set nested in a broad one
+# is shown in its place when its p is within 10-fold of the group's best.
+OVERLAP_CUT <- 0.70
+SPECIFIC_WINDOW <- 10
+
+# One test's sets, each given as its tested genes (members) and its p: average-linkage clustering
+# on 1 - Jaccard (shared / union), cut at `cut`; in each group the set shown is the smallest of
+# those with p within `window`-fold of the group's smallest, ties to the smaller p. Returns one row
+# per set: overlap_group and shown.
+representative_sets <- function(members, p, cut = OVERLAP_CUT, window = SPECIFIC_WINDOW) {
+  genes <- unique(unlist(members))
+  incidence <- vapply(members, \(m) genes %in% m, logical(length(genes)))
+  shared <- crossprod(incidence)
+  size <- diag(shared)
+  jaccard <- shared / (outer(size, size, `+`) - shared)
+  # hclust needs two sets; a lone set is its own group.
+  group <- if (length(p) > 1) cutree(hclust(as.dist(1 - jaccard), "average"), h = cut) else 1L
+  near_best <- p <= window * ave(p, group, FUN = min)
+  pick <- order(group, !near_best, size, p)
+  tibble(overlap_group = unname(group), shown = seq_along(p) %in% pick[!duplicated(group[pick])])
+}
+
 # dpcQuant takes about two and a half minutes per detection slope, so each fit is kept in c_data/
 # and refitted when the filtered precursors change or REFIT_DPCQUANT=TRUE.
 dpcquant_cache <- \(dir, slope) file.path(dir, sprintf("dpcquant_slope_%s.rds", slope))
