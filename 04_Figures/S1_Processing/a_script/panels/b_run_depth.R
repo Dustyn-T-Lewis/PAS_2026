@@ -1,8 +1,8 @@
 # S1 b: precursors and proteins identified per run, by group, from 01_Filtering.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
-inputs <- c(filtering = output_path("01_Processing", "01_Filtering", "01_filtering.xlsx"))
-runs <- readxl::read_excel(inputs[["filtering"]], "run_qc") |>
+inputs <- c(filtering = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds"))
+runs <- readRDS(inputs[["filtering"]])$run_qc |>
   select(run, sample_id, group, precursors, proteins) |>
   pivot_longer(c(precursors, proteins), names_to = "unit", values_to = "n") |>
   mutate(
@@ -21,7 +21,7 @@ plot <- ggplot(runs, aes(group, n, colour = group)) +
     subtitle = "One point per mouse; groups coloured as in d"
   ) +
   theme_figure() +
-  theme(axis.text.x = element_blank(), strip.text = element_text(face = "bold"))
+  theme(axis.text.x = element_blank())
 
 save_panel(plot, "S1_Processing", "b_run_depth", 55, 55)
 list(plot = plot, data = runs, inputs = inputs)

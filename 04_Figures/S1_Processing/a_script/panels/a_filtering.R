@@ -1,8 +1,8 @@
 # S1 a: precursors and protein groups left after each filter, from 01_Filtering.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
-inputs <- c(filtering = output_path("01_Processing", "01_Filtering", "01_filtering.xlsx"))
-steps <- readxl::read_excel(inputs[["filtering"]], "filter_log") |>
+inputs <- c(filtering = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds"))
+steps <- readRDS(inputs[["filtering"]])$filter_log |>
   mutate(step = factor(step, rev(step))) |>
   pivot_longer(c(precursors, protein_groups), names_to = "unit", values_to = "n") |>
   mutate(unit = factor(
@@ -19,7 +19,7 @@ plot <- ggplot(steps, aes(n, step)) +
   ) +
   labs(x = "remaining", y = NULL, title = "Filtering", subtitle = "Counts after each step") +
   theme_figure() +
-  theme(panel.grid.major.y = element_blank(), strip.text = element_text(face = "bold"))
+  theme(panel.grid.major.y = element_blank())
 
 save_panel(plot, "S1_Processing", "a_filtering", 70, 55)
 list(plot = plot, data = steps, inputs = inputs)

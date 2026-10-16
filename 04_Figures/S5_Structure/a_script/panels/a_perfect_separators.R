@@ -1,5 +1,5 @@
-# S5 a: features that put all five PAS mice above or below all five vehicle mice, per level and sex,
-# against the same count under all 252 relabellings of the ten mice: median and 95th centile of the
+# S5 a: features that put every PAS mouse above or below every vehicle mouse, per level and sex,
+# against the same count under every relabelling of the sex's mice: median and 95th centile of the
 # null, and the exact p (03_Classification).
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -27,7 +27,7 @@ plot <- ggplot(perfect, aes(y = level)) +
     subtitle = "Dot: observed; bar: 0 to the null's 95th centile; tick: null median"
   ) +
   theme_figure() +
-  theme(strip.text = element_text(face = "bold"), panel.grid.major.y = element_blank())
+  theme(panel.grid.major.y = element_blank())
 
 save_panel(plot, "S5_Structure", "a_perfect_separators", 90, 55)
 list(plot = plot, data = select(perfect, -text), inputs = inputs)

@@ -4,7 +4,12 @@
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(sensitivity = output_path("02_Statistics", "07_Sensitivity", "sensitivity.rds"))
-counts <- readRDS(inputs[["sensitivity"]])$counts
+sensitivity <- readRDS(inputs[["sensitivity"]])
+counts <- sensitivity$counts
+n_proteins <- sum(
+  sensitivity$results$variant == "baseline" &
+    sensitivity$results$contrast == COMPARISON_CONTRASTS[[1]]
+)
 METRICS <- c(
   p_le_0.05 = "p ≤ 0.05", fdr_le_0.10 = "FDR ≤ 0.10", fdr_le_0.05 = "FDR ≤ 0.05",
   top50_shared = "Top 50 kept"
@@ -36,9 +41,9 @@ plot <- ggplot(cells, aes(metric, variant, fill = ratio)) +
   ) +
   labs(
     x = NULL, y = NULL, title = "Protein results under each variant",
-    subtitle = paste(
-      "Full proteome, 1,962 proteins (98 expected at p ≤ 0.05 by chance);",
-      "top 50 kept: baseline's 50 smallest p still in the variant's 50"
+    subtitle = sprintf(
+      "%s proteins, %.0f expected at p ≤ %s; top 50 kept: of the baseline's 50 smallest p",
+      format(n_proteins, big.mark = ","), ALPHA * n_proteins, ALPHA
     )
   ) +
   theme_figure() +

@@ -13,7 +13,7 @@ cells <- compartments |>
     contrast, NES,
     fdr = padj, size,
     row = factor(set, order),
-    label = str_to_sentence(str_replace_all(str_remove(set, "^GOSLIM_"), "_", " ")),
+    label = set_label(set),
     row_group = ""
   )
 

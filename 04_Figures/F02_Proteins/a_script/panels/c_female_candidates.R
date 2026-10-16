@@ -1,6 +1,6 @@
-# F02 c: every mouse for the female candidates passing three or more routes, as log2 abundance
-# against the own-sex vehicle mean in all four groups; open circles mark mice in which the protein
-# was not detected.
+# F02 c: every mouse for the female candidates (06_Candidates), as log2 abundance against the
+# own-sex vehicle mean in all four groups; open circles mark mice in which the protein was not
+# detected.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(
@@ -8,29 +8,10 @@ inputs <- c(
   fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
   proteins = output_path("01_Processing", "02_Quantification", "proteins.rds")
 )
-cand <- readRDS(inputs[["candidates"]])$candidates
-fit <- readRDS(inputs[["fit"]])
-quant <- readRDS(inputs[["proteins"]])
-targets <- as_tibble(fit$targets)
-shown <- cand |>
-  filter(sex == "female", routes >= 3) |>
-  arrange(desc(routes), P.Value)
-values <- fit$E_norm$full[shown$feature, targets$sample_id, drop = FALSE]
-detected <- quant$proteins$other$n.observations[shown$feature, targets$sample_id, drop = FALSE] > 0
-labels <- sprintf("%s (%d)", shown$gene, shown$routes) |>
-  make.unique(sep = " #") |>
-  set_names(shown$feature)
-
-plot <- candidate_dots(values, detected, targets, labels,
-  title = "Female candidates, every mouse",
-  subtitle = "Proteins passing three or more routes (routes in brackets); bar: group mean"
+dots <- candidate_dots(
+  readRDS(inputs[["candidates"]])$candidates, readRDS(inputs[["fit"]]),
+  readRDS(inputs[["proteins"]]), "female", "Female candidates, every mouse"
 )
 
-save_panel(plot, "F02_Proteins", "c_female_candidates", 180, 62)
-list(
-  plot = plot,
-  data = select(
-    shown, gene, logFC, P.Value, adj.P.Val, lfsr, auc, routes, detected_veh, detected_pas
-  ),
-  inputs = inputs
-)
+save_panel(dots$plot, "F02_Proteins", "c_female_candidates", 180, 62)
+list(plot = dots$plot, data = dots$data, inputs = inputs)

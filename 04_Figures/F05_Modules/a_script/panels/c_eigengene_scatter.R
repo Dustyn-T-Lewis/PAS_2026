@@ -1,6 +1,6 @@
 # F05 c: the four strongest module-phenotype associations (pooled model, smallest p over both
 # sexes): each mouse's eigengene against its trait value within the sex. The label gives Pearson r
-# across these ten points and the p of the limma slope from 01_Fit, which also adjusts for the
+# across these points and the p of the limma slope from 01_Fit, which also adjusts for the
 # surrogate variable; the two can differ.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -12,10 +12,8 @@ top <- fit$score_associations |>
   slice_min(P.Value, n = 4, with_ties = FALSE) |>
   mutate(
     sex_code = if_else(sex == "female", "F", "M"),
-    cell = factor(
-      sprintf("%s ~ %s, %s", feature, TRAIT_SHORT[phenotype], sex),
-      sprintf("%s ~ %s, %s", feature, TRAIT_SHORT[phenotype], sex)
-    ),
+    cell = sprintf("%s ~ %s, %s", feature, TRAIT_SHORT[phenotype], sex),
+    cell = factor(cell, cell),
     text = sprintf("Pearson r = %.2f\nslope p = %.2g", r, P.Value)
   )
 eigengenes <- as_tibble(t(fit$scores$module), rownames = "sample_id")
@@ -44,10 +42,10 @@ plot <- ggplot(points, aes(trait, eigengene)) +
   scale_y_continuous(expand = expansion(mult = c(0.08, 0.3))) +
   labs(
     x = "trait value", y = "eigengene", title = "Strongest module–trait pairs",
-    subtitle = "Ten mice of one sex; p from the slope adjusted for SV1"
+    subtitle = "One point per mouse; slope p adjusted for SV1"
   ) +
   theme_figure() +
-  theme(strip.text = element_text(face = "bold", size = 5), strip.clip = "off")
+  theme(strip.text = element_text(size = 5), strip.clip = "off")
 
 save_panel(plot, "F05_Modules", "c_eigengene_scatter", 70, 80)
 list(

@@ -16,6 +16,8 @@ GROUP_SHORT <- c(VEH_F = "F VEH", PAS_F = "F PAS", VEH_M = "M VEH", PAS_M = "M P
 # Up and down in green and magenta (PiYG), so direction never borrows a group's orange or blue.
 DIRECTION_COLOURS <- c(Down = "#C51B7D", Up = "#4D9221")
 DIRECTION_LIGHT <- c(Down = "#F1B6DA", Up = "#B8E186")
+# Correlations and r-equivalents in brown and teal (BrBG), so an r never reads as a fold change.
+R_COLOURS <- c(low = "#8C510A", high = "#01665E")
 PHENOTYPE_LABELS <- c(
   csa_mean = "CSA", capillary_density = "Capillary density",
   satellite_cells_per_fiber = "Satellite cells / fibre",
@@ -32,6 +34,8 @@ PHENOTYPE_COLOURS <- set_names(
   c("#1B9E77", "#7570B3", "#E6AB02", "#A6761D", "#666666", "#111111"), TRAIT_SHORT
 )
 MODEL_LABELS <- c(pooled = "Pooled", treatment = "Within treatment")
+# Within treatment gets a hue of its own, away from the interaction contrast's purple.
+MODEL_COLOURS <- c(pooled = "grey40", pooled_mito = "grey70", treatment = "#B2182B")
 CONTRAST_LABELS <- c(
   PAS_vs_VEH_female = "PAS vs VEH, female", PAS_vs_VEH_male = "PAS vs VEH, male",
   treatment_by_sex = "Treatment × sex", sex_in_VEH = "Sex in VEH", sex_in_PAS = "Sex in PAS"
@@ -54,6 +58,13 @@ DATABASE_COLOURS <- c(
   "GO:BP" = "#999999", Reactome = "#56B4E9", Hallmark = "#E69F00", KEGG = "#CC79A7",
   MitoCarta = "#009E73"
 )
+# The response patterns of the moderated F over both PAS contrasts, in display order.
+FTEST_PATTERNS <- c("up in both", "down in both", "female up, male down", "female down, male up")
+# Dot area stops growing at this -log10 FDR or p.
+LOG_CAP <- 4
+# The every-mouse panels show the candidates passing at least this many routes; the other
+# candidate thresholds come with candidates.rds from 02_Statistics/06_Candidates.
+CANDIDATE_DOT_ROUTES <- 3
 
 # HRvLR's figure theme: minimal, a light major grid, bold title and a plain grey subtitle, with the
 # panel letter in a left margin column level with the title. Keys sit under the plot, small, so
@@ -66,6 +77,7 @@ theme_figure <- function() {
       plot.title.position = "plot",
       panel.grid.minor = element_blank(),
       panel.grid.major = element_line(linewidth = 0.2),
+      strip.text = element_text(face = "bold"),
       legend.position = "bottom",
       legend.key.size = unit(2.5, "mm"),
       legend.text = element_text(size = 6, margin = margin(l = 1, r = 4)),
@@ -75,6 +87,9 @@ theme_figure <- function() {
       plot.tag.location = "margin", plot.tag.position = "left"
     )
 }
+
+# The key every continuous fill or colour scale uses.
+colour_bar <- \(...) guide_colourbar(barwidth = unit(14, "mm"), barheight = unit(2, "mm"), ...)
 
 # Facet strips as the design panel's boxes: the contrast's tint inside a border in its colour, the
 # name in bold black; a level outside the palette gets no box.
@@ -101,34 +116,23 @@ save_panel <- function(plot, figure, name, width_mm, height_mm) {
   save_figure(plot, dir, name, width_mm, height_mm)
 }
 
-# Runs one panel script in its own environment and returns what it returns: list(plot, data,
-# inputs). Composites call this for each panel, as YvO's stitchers do.
-source_panel <- function(figure, name) {
-  path <- here("04_Figures", figure, "a_script", "panels", paste0(name, ".R"))
-  source(path, local = new.env())$value
-}
-
-# PERMANOVA terms as rows of a small table for a PCA panel's top-right corner, bold at p <= 0.05.
-permanova_rows <- function(tab) {
-  terms <- c(sex = "Sex", treatment = "Treatment", `sex:treatment` = "Sex × treatment")
-  tab |>
-    filter(term %in% names(terms)) |>
-    transmute(
-      text = sprintf("%s  R² %.2f, p %.2g", terms[term], r2, p),
-      face = if_else(p <= ALPHA, "bold", "plain"),
-      vjust = 1.5 + 1.35 * (row_number() - 1)
-    )
-}
-
 # PCA scores with a shaded 95% t-ellipse per group (fill: group; shape: treatment), the PERMANOVA
-# table in the top-right corner, and arrows (x, y, label) from the origin, already scaled to the
-# score axes, each in its own colour with a key.
+# terms in the top-right corner (bold at p <= 0.05), and arrows (x, y, label) from the origin,
+# already scaled to the score axes, each in its own colour with a key.
 pca_panel <- function(scores, variance, title, subtitle, permanova, arrows, arrow_colours) {
   axis <- \(i) sprintf("PC%d (%.1f%%)", i, 100 * variance[i])
   scores <- mutate(scores,
     group = factor(group, FIGURE_GROUPS), treatment = factor(treatment, c("VEH", "PAS"))
   )
   arrows <- mutate(arrows, label = factor(label, names(arrow_colours)))
+  terms <- c(sex = "Sex", treatment = "Treatment", `sex:treatment` = "Sex × treatment")
+  permanova <- permanova |>
+    filter(term %in% names(terms)) |>
+    transmute(
+      text = sprintf("%s  R² %.2f, p %.2g", terms[term], r2, p),
+      face = if_else(p <= ALPHA, "bold", "plain"),
+      vjust = 1.5 + 1.35 * (row_number() - 1)
+    )
   ggplot(scores, aes(PC1, PC2)) +
     stat_ellipse(
       aes(fill = group, colour = after_scale(fill)),
@@ -141,7 +145,7 @@ pca_panel <- function(scores, variance, title, subtitle, permanova, arrows, arro
     ) +
     geom_point(aes(fill = group, shape = treatment), size = 1.5, colour = "grey15", stroke = 0.25) +
     geom_text(
-      aes(Inf, Inf, label = text, fontface = face, vjust = vjust), permanova_rows(permanova),
+      aes(Inf, Inf, label = text, fontface = face, vjust = vjust), permanova,
       hjust = 1.04, size = 1.6, colour = "grey15", inherit.aes = FALSE
     ) +
     scale_fill_manual(
@@ -161,77 +165,6 @@ pca_panel <- function(scores, variance, title, subtitle, permanova, arrows, arro
     theme(legend.box = "vertical", legend.key.width = unit(4, "mm"))
 }
 
-# One sex's PAS signature (proteins at Π < 0.05, up and down) placed in the other sex's ranking,
-# drawn as limma's barcode (Wu & Smyth 2012): members as ticks, the up list above the axis and
-# the down list below, with a tricube moving average of membership along the rank. ranks holds
-# the named moderated t of each target ranking; signatures comes from 02_Enrichment.
-signature_barcode <- function(signatures, ranks, span = 0.12, min_height = 0.34) {
-  lane_name <- \(source, ranked_in) {
-    sprintf("%s signature\nin %s ranking", str_to_sentence(source), ranked_in)
-  }
-  lanes <- signatures |>
-    mutate(
-      lane = factor(
-        lane_name(source, ranked_in), lane_name(c("female", "male"), c("male", "female"))
-      ),
-      side = if_else(direction == "up", 1, -1),
-      ranks = map2(members, ranked_in, \(m, target) {
-        position <- rank(-ranks[[target]], ties.method = "first")
-        unname(position[str_split_1(m, ";")])
-      })
-    )
-  n_total <- unique(lengths(ranks))
-  stopifnot(length(n_total) == 1, all(lengths(lanes$ranks) == lanes$n_ranked))
-  ticks <- select(lanes, lane, direction, side, rank = ranks) |>
-    unnest(rank)
-  worms <- lanes |>
-    mutate(worm = map(ranks, \(r) {
-      smooth <- limma::tricubeMovingAverage(as.integer(seq_len(n_total) %in% r), span = span)
-      tibble(rank = seq_len(n_total), height = min_height + (1 - min_height) * smooth / max(smooth))
-    })) |>
-    select(lane, direction, side, worm) |>
-    unnest(worm) |>
-    mutate(y = side * height, y0 = side * min_height)
-  labels <- lanes |>
-    mutate(
-      text = sprintf(
-        "%s (n = %d), %.0f%% same way, fry p %.2g", direction, n_ranked, 100 * same_way, p
-      ),
-      x = if_else(direction == "up", n_total * 0.995, n_total * 0.005),
-      hjust = if_else(direction == "up", 1, 0), y = side * 1.38, vjust = if_else(side > 0, 1, 0)
-    )
-  ggplot() +
-    geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.3) +
-    geom_segment(
-      aes(rank, side * 0.06, xend = rank, yend = side * 0.3, colour = direction), ticks,
-      linewidth = 0.2, alpha = 0.8, show.legend = FALSE
-    ) +
-    geom_ribbon(
-      aes(rank, ymin = y0, ymax = y, fill = direction, colour = direction), worms,
-      alpha = 0.25, linewidth = 0, key_glyph = "rect"
-    ) +
-    geom_line(aes(rank, y, colour = direction), worms, linewidth = 0.4, show.legend = FALSE) +
-    geom_text(
-      aes(x, y, label = text, hjust = hjust, vjust = vjust, colour = direction), labels,
-      size = 1.9, fontface = "bold", show.legend = FALSE
-    ) +
-    facet_wrap(~lane, ncol = 1, strip.position = "left") +
-    scale_colour_manual(
-      values = c(up = DIRECTION_COLOURS[["Up"]], down = DIRECTION_COLOURS[["Down"]]),
-      labels = c(up = "Up in its own sex", down = "Down in its own sex"),
-      aesthetics = c("colour", "fill"), name = NULL,
-      guide = guide_legend(nrow = 2, reverse = TRUE)
-    ) +
-    scale_x_continuous(expand = expansion(mult = 0.02)) +
-    scale_y_continuous(limits = c(-1.42, 1.42), breaks = NULL, expand = expansion(0)) +
-    theme_figure() +
-    theme(
-      # Inside, not outside: patchwork then puts this axis in the same row as its neighbours'.
-      strip.placement = "inside", strip.text.y.left = element_text(angle = 90, size = 5.5),
-      panel.grid.major = element_blank(), panel.spacing.y = unit(2, "mm")
-    )
-}
-
 # A finished figure as PDF (cairo, which carries Π and ≤) and as a 600 dpi PNG.
 save_figure <- function(figure, dir, name, width_mm, height_mm) {
   save <- \(ext, ...) {
@@ -243,76 +176,17 @@ save_figure <- function(figure, dir, name, width_mm, height_mm) {
   save(".png", dpi = 600)
 }
 
-# Boxed contrast labels, as the design panel draws them: the contrast's tint inside a border in its
-# colour, the text in bold black, the box only as large as its text. data holds x, y, label and
-# contrast; extra arguments (hjust, vjust) pass to geom_label.
-contrast_labels <- function(data, ...) {
-  geom_label(
-    aes(x, y,
-      label = label, fill = I(contrast_tone("fill")[contrast]),
-      colour = I(contrast_tone("line")[contrast])
-    ),
-    data,
-    text.colour = "black", fontface = "bold", size = 1.8, linewidth = 0.4,
-    label.r = unit(0.5, "mm"), label.padding = unit(0.45, "mm"), lineheight = 0.85,
-    inherit.aes = FALSE, show.legend = FALSE, ...
-  )
-}
-
-# A step's preview PDF: one landscape page per named function, each drawing with a package's own
-# plot or base graphics; cairo, so Π and ≤ render. Returns the rows of the workbook's plot_index.
-preview_pdf <- function(file, pages) {
-  cairo_pdf(file, width = 7, height = 5, onefile = TRUE)
-  on.exit(dev.off())
-  defaults <- par(no.readonly = TRUE)
-  walk(pages, \(draw) {
-    draw()
-    par(defaults)
-  })
-  tibble(file = basename(file), page = seq_along(pages), shows = names(pages))
-}
-
-# PAS against vehicle per phenotype and sex as a % change with its 95% CI, on a log ratio axis so
-# rises and falls of the same size look the same size.
-phenotype_effect_plot <- function(effects, title, subtitle) {
-  effects |>
-    mutate(
-      sex = factor(if_else(sex == "F", "Female", "Male"), c("Male", "Female")),
-      trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS)),
-      across(c(pct_change, ci_low, ci_high), \(x) 1 + x / 100)
-    ) |>
-    ggplot(aes(pct_change, trait, colour = sex)) +
-    geom_vline(xintercept = 1, colour = "grey50", linewidth = 0.3) +
-    geom_pointrange(aes(xmin = ci_low, xmax = ci_high, shape = P.Value < ALPHA),
-      position = position_dodge(width = 0.6), size = 0.25, linewidth = 0.4, fill = "white"
-    ) +
-    scale_x_continuous(
-      transform = "log2", breaks = c(0.25, 0.5, 1, 2, 4, 8),
-      labels = \(x) sprintf("%+.0f%%", 100 * (x - 1))
-    ) +
-    scale_colour_manual(values = SEX_COLOURS, breaks = c("Female", "Male"), name = NULL) +
-    scale_shape_manual(
-      values = c(`TRUE` = 16, `FALSE` = 21), labels = c(`TRUE` = "p < 0.05", `FALSE` = "ns"),
-      name = NULL
-    ) +
-    labs(
-      x = "PAS vs vehicle, % change (95% CI, log scale)", y = NULL, title = title,
-      subtitle = subtitle
-    ) +
-    theme_figure()
-}
-
-# Dot size and ring shared by the dot matrices: area grows with -log10 FDR from a visible minimum,
-# and a thick ring marks fgsea FDR <= 0.05.
-fdr_scales <- function(fdr_cap) {
+# Dot size and ring shared by the dot matrices: area grows with -log10 FDR (or p) from a visible
+# minimum, and a thick ring marks FDR <= ALPHA.
+fdr_scales <- function(cap = LOG_CAP, name = "-log10 FDR") {
   list(
     scale_size(
-      range = c(0.5, 3.2), limits = c(0, fdr_cap), breaks = c(1, 2, fdr_cap),
-      labels = c("1", "2", paste0(fdr_cap, "+")), name = "-log10 FDR"
+      range = c(0.5, 3.2), limits = c(0, cap), breaks = c(1, 2, cap),
+      labels = c("1", "2", paste0(cap, "+")), name = name
     ),
     scale_discrete_manual(
       "stroke",
-      values = c(`TRUE` = 0.7, `FALSE` = 0.15), breaks = "TRUE", labels = "FDR ≤ 0.05",
+      values = c(`TRUE` = 0.7, `FALSE` = 0.15), breaks = "TRUE", labels = paste("FDR ≤", ALPHA),
       name = NULL, guide = guide_legend(override.aes = list(size = 2.4, fill = "white"))
     )
   )
@@ -325,7 +199,7 @@ fdr_scales <- function(fdr_cap) {
 # Every collection is listed in the key and nes_limit can be fixed, so two matrices can share
 # one key.
 pathway_matrix <- function(cells, rows, title, subtitle, strip = ggh4x::strip_vanilla(),
-                           fdr_cap = 4, nes_limit = NULL) {
+                           fdr_cap = LOG_CAP, nes_limit = NULL) {
   rows <- mutate(rows, row = factor(paste(row_group, term), rev(paste(row_group, term))))
   cells <- cells |>
     inner_join(select(rows, term, row, row_group), by = "term", relationship = "many-to-many") |>
@@ -362,7 +236,7 @@ pathway_matrix <- function(cells, rows, title, subtitle, strip = ggh4x::strip_va
     ) +
     fdr_scales(fdr_cap) +
     guides(
-      fill = guide_colourbar(order = 1, barwidth = unit(14, "mm"), barheight = unit(2, "mm")),
+      fill = colour_bar(order = 1),
       size = guide_legend(order = 2),
       colour = guide_legend(
         order = 3, nrow = 2,
@@ -374,21 +248,38 @@ pathway_matrix <- function(cells, rows, title, subtitle, strip = ggh4x::strip_va
     theme(
       axis.text.y = element_text(size = 5.2), axis.text.x = element_text(size = 5.5),
       strip.placement = "outside", strip.text.y.left = element_text(angle = 90),
-      strip.text = element_text(face = "bold", size = 5.5), panel.spacing = unit(0.8, "mm"),
+      strip.text = element_text(size = 5.5), panel.spacing = unit(0.8, "mm"),
       legend.box = "vertical", legend.box.just = "left"
     )
 }
 
-# Display names for pathway sets: the collection prefix dropped, sentence case, shortened.
+# Display names for pathway sets: the collection prefix dropped, title case, shortened.
 set_label <- \(term, width = 48) str_trunc(enrichVolcano::clean_label(term, width = 200), width)
 
-# Proteins by mice as a ComplexHeatmap, columns split by group under a group-colour bar, values
-# already centred (log2 against a reference), magenta below and green above. Returns a grob
-# patchwork can place with wrap_elements(); right is an optional rowAnnotation.
-protein_heatmap <- function(values, groups, row_split = NULL, right = NULL, limit = 1,
-                            name = "log2 vs\nown-sex VEH", width_mm = 120, height_mm = 120,
-                            legend = TRUE) {
-  groups <- factor(groups, FIGURE_GROUPS)
+# log2 abundance minus the protein's mean over its own sex's vehicle mice. targets lists the
+# columns of values in order.
+centre_on_vehicle <- function(values, targets) {
+  vehicle_mean <- sapply(c(F = "VEH_F", M = "VEH_M"), \(g) {
+    rowMeans(values[, targets$group == g, drop = FALSE])
+  })
+  values - vehicle_mean[, targets$sex]
+}
+
+# Proteins by mice as a ComplexHeatmap, each protein centred on its own sex's vehicle mean,
+# columns split by group under a group-colour bar, magenta below and green above. targets lists
+# the columns of values in order. Each row_split level is labelled with its protein count after
+# split_sep. Returns a grob patchwork can place with wrap_elements(); right is an optional
+# rowAnnotation.
+protein_heatmap <- function(values, targets, row_split = NULL, split_sep = " ", right = NULL,
+                            limit = 1, name = "log2 vs\nown-sex VEH", width_mm = 120,
+                            height_mm = 120, legend = TRUE) {
+  groups <- factor(targets$group, FIGURE_GROUPS)
+  if (!is.null(row_split)) {
+    row_split <- droplevels(row_split)
+    row_split <- factor(row_split,
+      labels = sprintf("%s%s(%d)", levels(row_split), split_sep, tabulate(row_split))
+    )
+  }
   colours <- circlize::colorRamp2(
     c(-limit, 0, limit), c(DIRECTION_COLOURS[["Down"]], "white", DIRECTION_COLOURS[["Up"]])
   )
@@ -397,7 +288,7 @@ protein_heatmap <- function(values, groups, row_split = NULL, right = NULL, limi
     show_legend = FALSE, simple_anno_size = unit(1.6, "mm")
   )
   small <- grid::gpar(fontsize = 5.5)
-  heatmap <- ComplexHeatmap::Heatmap(values,
+  heatmap <- ComplexHeatmap::Heatmap(centre_on_vehicle(values, targets),
     name = name, col = colours, top_annotation = top, right_annotation = right,
     column_split = groups, cluster_column_slices = FALSE, column_title_gp = small,
     column_title = GROUP_SHORT[levels(droplevels(groups))],
@@ -421,7 +312,8 @@ protein_heatmap <- function(values, groups, row_split = NULL, right = NULL, limi
 
 # Each comparison contrast's sets at FDR <= 0.05 that collapsePathways keeps, listed once under the
 # first contrast that selects them and drawn in all three columns. results is 02_Enrichment's
-# table, already filtered to the collections shown.
+# table, already filtered to the collections shown. Returns the plot and its cells with each
+# set's collection and row group.
 contrast_pathway_matrix <- function(results, title, subtitle, nes_limit = NULL) {
   rows <- results |>
     filter(padj <= ALPHA, dedup_status == "kept") |>
@@ -445,13 +337,17 @@ contrast_pathway_matrix <- function(results, title, subtitle, nes_limit = NULL) 
     strip = contrast_strips(present, "y"), nes_limit = nes_limit
   ) +
     theme(strip.text.x = element_blank())
-  list(plot = plot, rows = rows, cells = cells)
+  list(
+    plot = plot,
+    data = left_join(cells, select(rows, term, collection, row_group), by = "term")
+  )
 }
 
 # One sex's pathway associations: phenotype by phenotype, the n sets with the smallest fgsea FDR,
 # among those at FDR <= 0.05 that collapsePathways keeps under either model, that no earlier
 # phenotype already listed; each set drawn across every phenotype under both models. assoc is
-# 02_Enrichment's association_fgsea.
+# 02_Enrichment's association_fgsea. Returns the plot and its cells with each set's collection and
+# row group.
 phenotype_pathway_matrix <- function(assoc, sex, title, subtitle, n = 4, nes_limit = NULL) {
   assoc <- filter(assoc, sex == !!sex, model %in% names(MODEL_LABELS))
   candidates <- assoc |>
@@ -478,13 +374,20 @@ phenotype_pathway_matrix <- function(assoc, sex, title, subtitle, n = 4, nes_lim
     )
   plot <- pathway_matrix(cells, rows, title, subtitle, nes_limit = nes_limit) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-  list(plot = plot, rows = rows, cells = cells)
+  list(
+    plot = plot,
+    data = left_join(cells, select(rows, term, collection, row_group),
+      by = "term", relationship = "many-to-many"
+    )
+  )
 }
 
-# A figure's panel scripts, run in order, each plot carrying its letter.
+# A figure's panel scripts, each run in its own environment, as YvO's stitchers do, and each plot
+# given its letter. A panel script returns list(plot, data, inputs).
 run_panels <- function(figure, panels) {
   map(set_names(panels), \(name) {
-    panel <- source_panel(figure, name)
+    path <- here("04_Figures", figure, "a_script", "panels", paste0(name, ".R"))
+    panel <- source(path, local = new.env())$value
     panel$plot <- panel$plot + labs(tag = letters[match(name, panels)])
     panel
   })
@@ -496,41 +399,39 @@ write_figure_workbook <- function(panels, holds, file) {
   write_workbook(map(panels, "data"), holds, file, inputs[!duplicated(inputs)])
 }
 
-# One contrast's proteins at Π <= 0.05 (full proteome) across all twenty mice, each centred on its
-# own sex's vehicle mean, split by direction (for the interaction, by which sex's PAS effect is
-# larger). fit is 01_Fit's output.
-pi_heatmap_panel <- function(fit, contrast, title, width_mm = 58, height_mm = 120,
-                             legend = TRUE) {
+# One contrast's proteins at Π <= 0.05 (full proteome) across every mouse, each centred on its own
+# sex's vehicle mean, split by direction (for the interaction, by which sex's PAS effect is
+# larger). fit is 01_Fit's output. width_mm and height_mm are the panel's size, returned for
+# save_panel; the title and subtitle take the top 10 mm.
+pi_heatmap_panel <- function(fit, contrast, width_mm = 58, height_mm = 130, legend = TRUE) {
   selected <- fit$protein_contrasts |>
     filter(universe == "full", contrast == !!contrast, pi_score <= ALPHA) |>
     mutate(direction = if_else(logFC > 0, 1, 2)) |>
     arrange(direction)
   targets <- arrange(fit$targets, factor(group, FIGURE_GROUPS))
-  values <- fit$E_norm$full[selected$feature, targets$sample_id]
-  vehicle_mean <- sapply(c(F = "VEH_F", M = "VEH_M"), \(g) rowMeans(values[, targets$group == g]))
   names <- if (contrast == "treatment_by_sex") c("F > M", "F < M") else c("up", "down")
   selected <- mutate(selected, direction = factor(names[direction], names))
-  counts <- count(selected, direction)
-  split <- factor(
-    sprintf("%s (%d)", selected$direction, counts$n[match(selected$direction, counts$direction)]),
-    sprintf("%s (%d)", counts$direction, counts$n)
-  )
-  heatmap <- protein_heatmap(values - vehicle_mean[, targets$sex], targets$group,
-    row_split = split, limit = 1.5, width_mm = width_mm, height_mm = height_mm, legend = legend
+  heatmap <- protein_heatmap(fit$E_norm$full[selected$feature, targets$sample_id], targets,
+    row_split = selected$direction, limit = 1.5, width_mm = width_mm, height_mm = height_mm - 10,
+    legend = legend
   )
   plot <- wrap_elements(plot = heatmap) +
-    labs(title = title, subtitle = sprintf("Π ≤ 0.05: %d proteins", nrow(selected))) +
+    labs(
+      title = CONTRAST_LABELS[[contrast]],
+      subtitle = sprintf("Π ≤ %s: %d proteins", ALPHA, nrow(selected))
+    ) +
     theme_figure()
   list(
     plot = plot,
-    data = select(selected, feature, gene, direction, logFC, P.Value, adj.P.Val, pi_score)
+    data = select(selected, feature, gene, direction, logFC, P.Value, adj.P.Val, pi_score),
+    width_mm = width_mm, height_mm = height_mm
   )
 }
 
 # Sets by contrast as dots without a collection column, for side lists: NES as fill, -log10 FDR
 # as size, rows grouped by row_group. cells holds row (display order), label, row_group, contrast,
 # NES and fdr.
-set_dot_matrix <- function(cells, title, subtitle, fdr_cap = 4, nes_limit = 2.5) {
+set_dot_matrix <- function(cells, title, subtitle, fdr_cap = LOG_CAP, nes_limit = 2.5) {
   cells |>
     mutate(
       column = factor(CONTRAST_SHORT[contrast], CONTRAST_SHORT),
@@ -546,29 +447,56 @@ set_dot_matrix <- function(cells, title, subtitle, fdr_cap = 4, nes_limit = 2.5)
     scale_fill_gradient2(
       low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
       limits = c(-nes_limit, nes_limit), breaks = c(-2, 0, 2), name = "NES",
-      guide = guide_colourbar(barwidth = unit(14, "mm"), barheight = unit(2, "mm"))
+      guide = colour_bar()
     ) +
     fdr_scales(fdr_cap) +
     labs(x = NULL, y = NULL, title = title, subtitle = subtitle) +
     theme_figure() +
     theme(
       axis.text.y = element_text(size = 5.2), strip.placement = "outside",
-      strip.text.y.left = element_text(angle = 0, hjust = 1, face = "bold", size = 5.2),
+      strip.text.y.left = element_text(angle = 0, hjust = 1, size = 5.2),
       panel.spacing = unit(0.8, "mm"), legend.box = "vertical"
     )
 }
 
-# One sex's candidates (two or more routes) as a STRING network: shaded hulls for STRING
-# communities, named by their best over-represented term; edges where STRING v12 scores >= 700;
-# node size routes passed, colour log2 fold change. Communities are kept together by adding
-# invisible within-community edges to the layout only. Proteins without a STRING partner are
-# listed under the plot. cands and edges come from 02_Statistics/06_Candidates.
-candidate_network <- function(cands, edges, sex, title, subtitle) {
-  nodes <- cands |>
-    filter(sex == !!sex, routes >= 2) |>
+# Each score's r-equivalent against the comparison contrasts and, within each sex, against each
+# trait (pooled model, adjusted for the surrogate variable), as the cells of one matrix.
+# contrasts and associations are 01_Fit's score_contrasts and score_associations, already
+# filtered to the features shown.
+score_cells <- function(contrasts, associations) {
+  contrast_cells <- contrasts |>
+    filter(contrast %in% COMPARISON_CONTRASTS) |>
+    transmute(
+      level, feature,
+      section = "Contrasts", column = CONTRAST_SHORT[contrast], r_equiv, P.Value, adj.P.Val
+    )
+  trait_cells <- associations |>
+    filter(model == "pooled") |>
+    transmute(
+      level, feature,
+      section = if_else(sex == "female", "Female traits", "Male traits"),
+      column = TRAIT_SHORT[phenotype], r_equiv, pearson_r = r, P.Value, adj.P.Val
+    )
+  bind_rows(contrast_cells, trait_cells) |>
+    mutate(
+      section = factor(section, c("Contrasts", "Female traits", "Male traits")),
+      column = factor(column, c(CONTRAST_SHORT, TRAIT_SHORT))
+    )
+}
+
+# One sex's candidates (those grouped into STRING communities) as a STRING network: shaded hulls
+# for communities, labelled by their ORA term; edges at the STRING score 06_Candidates used; node
+# size routes passed, colour log2 fold change. Communities are kept together by adding invisible
+# within-community edges to the layout only. Proteins without a STRING partner are listed under
+# the plot. cand is candidates.rds from 02_Statistics/06_Candidates. Returns the plot and the
+# candidates drawn.
+candidate_network <- function(cand, sex, title) {
+  limits <- cand$thresholds
+  shown <- filter(cand$candidates, sex == !!sex, routes >= limits$community_routes)
+  nodes <- shown |>
     distinct(gene, .keep_all = TRUE) |>
     mutate(group = if_else(is.na(name), NA_character_, set_label(name, 30)))
-  links <- edges |>
+  links <- cand$edges |>
     filter(sex == !!sex, a %in% nodes$gene, b %in% nodes$gene) |>
     distinct(a, b)
   linked <- nodes |> filter(!is.na(community) | gene %in% c(links$a, links$b))
@@ -589,7 +517,7 @@ candidate_network <- function(cands, edges, sex, title, subtitle) {
     left_join(select(positions, a = gene, x, y), by = "a") |>
     left_join(select(positions, b = gene, xend = x, yend = y), by = "b")
   limit <- max(abs(nodes$logFC))
-  ggplot(positions, aes(x, y)) +
+  plot <- ggplot(positions, aes(x, y)) +
     ggforce::geom_mark_hull(
       aes(fill = group, filter = !is.na(group)),
       expand = unit(3.5, "mm"), radius = unit(3, "mm"), alpha = 0.18, colour = NA
@@ -604,8 +532,7 @@ candidate_network <- function(cands, edges, sex, title, subtitle) {
     ) +
     scale_colour_gradient2(
       low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
-      limits = c(-limit, limit), name = "log2 FC",
-      guide = guide_colourbar(order = 1, barwidth = unit(14, "mm"), barheight = unit(2, "mm"))
+      limits = c(-limit, limit), name = "log2 FC", guide = colour_bar(order = 1)
     ) +
     scale_fill_brewer(
       palette = "Set2", name = NULL, na.translate = FALSE,
@@ -617,7 +544,11 @@ candidate_network <- function(cands, edges, sex, title, subtitle) {
     ) +
     coord_cartesian(clip = "off") +
     labs(
-      x = NULL, y = NULL, title = title, subtitle = subtitle,
+      x = NULL, y = NULL, title = title,
+      subtitle = sprintf(
+        "%d proteins passing %d or more routes; edges: STRING score ≥ %d",
+        nrow(shown), limits$community_routes, limits$string_score
+      ),
       caption = if (length(alone)) {
         str_wrap(paste("No STRING partner:", paste(sort(alone), collapse = ", ")), 95)
       }
@@ -628,23 +559,36 @@ candidate_network <- function(cands, edges, sex, title, subtitle) {
       panel.grid.minor = element_blank(), legend.box = "vertical",
       plot.caption = element_text(size = 5.2, hjust = 0, colour = "grey30")
     )
+  list(
+    plot = plot,
+    data = select(shown, gene, logFC, P.Value, lfsr, routes, statistics:pathway, community, name)
+  )
 }
 
-# Per-mouse values for a set of candidates: each protein's log2 abundance minus its own sex's
-# vehicle mean, all four groups, open circles where the protein was not detected in that mouse.
-candidate_dots <- function(values, detected, targets, genes, title, subtitle, ncol = 7) {
-  targets <- mutate(targets, group = factor(group, FIGURE_GROUPS))
-  centred <- values - sapply(c(F = "VEH_F", M = "VEH_M"), \(g) {
-    rowMeans(values[, targets$group == g, drop = FALSE])
-  })[, targets$sex]
-  points <- as_tibble(centred, rownames = "feature") |>
+# Every mouse for one sex's candidates passing CANDIDATE_DOT_ROUTES or more routes, most routes
+# first and smallest p within: each protein's log2 abundance minus its own sex's vehicle mean, all
+# four groups, open circles where the protein was not detected in that mouse. cands comes from
+# 06_Candidates, fit from 01_Fit and quant from 02_Quantification. Returns the plot and the
+# candidates drawn.
+candidate_dots <- function(cands, fit, quant, sex, title, ncol = 7) {
+  shown <- cands |>
+    filter(sex == !!sex, routes >= CANDIDATE_DOT_ROUTES) |>
+    arrange(desc(routes), P.Value)
+  targets <- mutate(as_tibble(fit$targets), group = factor(group, FIGURE_GROUPS))
+  values <- fit$E_norm$full[shown$feature, targets$sample_id, drop = FALSE]
+  observations <- quant$proteins$other$n.observations
+  detected <- observations[shown$feature, targets$sample_id, drop = FALSE] > 0
+  genes <- sprintf("%s (%d)", shown$gene, shown$routes) |>
+    make.unique(sep = " #") |>
+    set_names(shown$feature)
+  points <- as_tibble(centre_on_vehicle(values, targets), rownames = "feature") |>
     pivot_longer(-feature, names_to = "sample_id", values_to = "value") |>
     left_join(select(targets, sample_id, group), by = "sample_id") |>
     mutate(
       seen = detected[cbind(feature, sample_id)],
       protein = factor(genes[feature], unique(genes))
     )
-  ggplot(points, aes(group, value, colour = group)) +
+  plot <- ggplot(points, aes(group, value, colour = group)) +
     geom_hline(yintercept = 0, colour = "grey70", linewidth = 0.25) +
     stat_summary(
       fun = mean, geom = "crossbar", width = 0.5, linewidth = 0.25, colour = "grey30"
@@ -660,61 +604,73 @@ candidate_dots <- function(values, detected, targets, genes, title, subtitle, nc
       name = NULL
     ) +
     scale_x_discrete(labels = GROUP_SHORT) +
-    labs(x = NULL, y = "log2 vs own-sex vehicle", title = title, subtitle = subtitle) +
+    labs(
+      x = NULL, y = "log2 vs own-sex vehicle", title = title,
+      subtitle = sprintf(
+        "Proteins passing %d or more routes (routes in brackets); bar: group mean",
+        CANDIDATE_DOT_ROUTES
+      )
+    ) +
     theme_figure() +
     theme(
-      axis.text.x = element_blank(), strip.text = element_text(face = "bold", size = 5.5),
+      axis.text.x = element_blank(), strip.text = element_text(size = 5.5),
       panel.spacing = unit(1.2, "mm")
     ) +
     guides(colour = guide_legend(nrow = 1, order = 1), shape = guide_legend(order = 2))
+  list(
+    plot = plot,
+    data = select(
+      shown, gene, logFC, P.Value, adj.P.Val, lfsr, auc, routes, detected_veh, detected_pas
+    )
+  )
 }
 
-# Which of the six routes each candidate passed: one row per protein passing at least min_routes,
-# most routes first and smallest p within, a filled tile per route passed, the log2 FC as a tile and
-# the STRING neighbourhood's name to the right.
-CANDIDATE_ROUTES <- c(
-  statistics = "p ≤ 0.01", every_mouse = "Every mouse", both_sexes = "Both sexes",
-  phenotype = "Phenotype", hub = "Module hub", pathway = "Leading edge"
-)
-candidate_routes <- function(cands, sex, title, subtitle, min_routes = 2) {
-  shown <- cands |>
-    filter(sex == !!sex, routes >= min_routes) |>
+# Which of the six routes each candidate passed: one row per protein grouped into STRING
+# communities, most routes first and smallest p within, a filled tile per route passed, the log2
+# FC as a square point (so the route tiles keep the fill scale to themselves) and the STRING
+# neighbourhood's name to the right. Returns the plot and the candidates drawn.
+candidate_routes <- function(cand, sex, title) {
+  route_labels <- c(
+    statistics = paste("p ≤", cand$thresholds$p), every_mouse = "Every mouse",
+    both_sexes = "Both sexes", phenotype = "Phenotype", hub = "Module hub", pathway = "Leading edge"
+  )
+  shown <- cand$candidates |>
+    filter(sex == !!sex, routes >= cand$thresholds$community_routes) |>
     arrange(desc(routes), P.Value) |>
     mutate(
       row = factor(make.unique(gene, sep = " #"), rev(make.unique(gene, sep = " #"))),
       group = if_else(is.na(name), "", set_label(name, 46))
     )
   tiles <- shown |>
-    select(row, all_of(names(CANDIDATE_ROUTES))) |>
+    select(row, all_of(names(route_labels))) |>
     pivot_longer(-row, names_to = "route", values_to = "passed") |>
-    mutate(route = factor(CANDIDATE_ROUTES[route], c(CANDIDATE_ROUTES, "log2 FC")))
+    mutate(route = factor(route_labels[route], c(route_labels, "log2 FC")))
   limit <- max(abs(shown$logFC))
-  ggplot(tiles, aes(route, row)) +
+  plot <- ggplot(tiles, aes(route, row)) +
     geom_tile(aes(fill = passed), colour = "white", linewidth = 0.4) +
     scale_fill_manual(
       values = c(`TRUE` = "grey25", `FALSE` = "grey92"), guide = "none"
     ) +
-    fc_tile_column(shown, limit) +
+    geom_point(aes(x = 7, y = row, colour = logFC), shown, shape = 15, size = 2.2) +
+    scale_colour_gradient2(
+      low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
+      limits = c(-limit, limit), name = "log2 FC", guide = colour_bar()
+    ) +
     geom_text(aes(x = 7.7, label = group), shown, hjust = 0, size = 1.6, colour = "grey30") +
     scale_x_discrete(position = "top", drop = FALSE, expand = expansion(add = c(0.6, 9.5))) +
     coord_cartesian(clip = "off") +
-    labs(x = NULL, y = NULL, title = title, subtitle = subtitle) +
+    labs(
+      x = NULL, y = NULL, title = title,
+      subtitle = "Filled: route passed; right: STRING neighbourhood"
+    ) +
     theme_figure() +
     theme(
       panel.grid.major = element_blank(),
       axis.text.x.top = element_text(angle = 45, hjust = 0, vjust = 0, size = 5.5),
       axis.text.y = element_text(size = 5.2, face = "italic")
     )
-}
-
-# The log2 FC column as square points, so the route tiles keep the fill scale to themselves.
-fc_tile_column <- function(shown, limit) {
   list(
-    geom_point(aes(x = 7, y = row, colour = logFC), shown, shape = 15, size = 2.2),
-    scale_colour_gradient2(
-      low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
-      limits = c(-limit, limit), name = "log2 FC",
-      guide = guide_colourbar(barwidth = unit(14, "mm"), barheight = unit(2, "mm"))
-    )
+    plot = plot,
+    data = select(shown, gene, routes, all_of(names(route_labels)), logFC, P.Value, lfsr, name)
   )
 }

@@ -1,21 +1,10 @@
-# S7 a: every female candidate passing two or more routes, which routes it passed, its log2 FC and
-# its STRING neighbourhood.
+# S7 a: every female candidate shown, which routes it passed, its log2 FC and its STRING
+# neighbourhood (06_Candidates).
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(candidates = output_path("02_Statistics", "06_Candidates", "candidates.rds"))
-cand <- readRDS(inputs[["candidates"]])$candidates
+cand <- readRDS(inputs[["candidates"]])
+routes <- candidate_routes(cand, "female", "Female candidates by route")
 
-plot <- candidate_routes(cand, "female",
-  title = "Female candidates by route",
-  subtitle = "Filled: route passed; right: STRING neighbourhood; sorted by routes, then p"
-)
-
-save_panel(plot, "S7_Candidates", "a_female_routes", 90, 165)
-list(
-  plot = plot,
-  data = cand |>
-    filter(sex == "female", routes >= 2) |>
-    arrange(desc(routes), P.Value) |>
-    select(gene, routes, all_of(names(CANDIDATE_ROUTES)), logFC, P.Value, lfsr, name),
-  inputs = inputs
-)
+save_panel(routes$plot, "S7_Candidates", "a_female_routes", 90, 165)
+list(plot = routes$plot, data = routes$data, inputs = inputs)

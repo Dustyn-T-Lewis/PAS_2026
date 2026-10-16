@@ -13,10 +13,8 @@ shown <- cls$roc |>
   filter(level == "module", p <= ALPHA) |>
   arrange(comparison, p) |>
   mutate(
-    cell = factor(
-      sprintf("%s, %s", str_to_sentence(comparison), feature),
-      sprintf("%s, %s", str_to_sentence(comparison), feature)
-    ),
+    cell = sprintf("%s, %s", str_to_sentence(comparison), feature),
+    cell = factor(cell, cell),
     lower = auc < 0.5,
     text = sprintf(
       "AUC %.2f\n%s in PAS\np = %.3f", if_else(lower, 1 - auc, auc),
@@ -48,10 +46,10 @@ plot <- ggplot(curves, aes(fpr, tpr)) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1")) +
   labs(
     x = "1 − specificity", y = "sensitivity", title = "Modules that separate PAS from vehicle",
-    subtitle = "Eigengene alone, five against five within sex; exact Wilcoxon p ≤ 0.05"
+    subtitle = sprintf("Eigengene alone, within sex; Wilcoxon p ≤ %s", ALPHA)
   ) +
   theme_figure() +
-  theme(strip.text = element_text(face = "bold", size = 5.5), panel.spacing.x = unit(2, "mm"))
+  theme(strip.text = element_text(size = 5.5), panel.spacing.x = unit(2, "mm"))
 
 save_panel(plot, "F05_Modules", "b_module_roc", 110, 78)
 list(plot = plot, data = select(shown, -cell, -text), inputs = inputs)

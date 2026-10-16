@@ -14,7 +14,7 @@ plot <- ggplot(r2, aes(pc, factor)) +
   geom_text(aes(label = sprintf("%.2f", r2), colour = r2 > 0.5), size = 1.8) +
   scale_fill_gradient(
     low = "grey97", high = "grey25", limits = c(0, 1), breaks = c(0, 0.5, 1), name = "R²",
-    guide = guide_colourbar(barwidth = unit(14, "mm"), barheight = unit(2, "mm"))
+    guide = colour_bar()
   ) +
   scale_colour_manual(values = c(`TRUE` = "white", `FALSE` = "black"), guide = "none") +
   scale_x_discrete(position = "top", expand = expansion(0)) +

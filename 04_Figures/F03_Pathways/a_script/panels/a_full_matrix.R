@@ -9,13 +9,9 @@ enr <- readRDS(inputs[["enrichment"]])
 matrix <- contrast_pathway_matrix(
   filter(enr$results, universe == "full"),
   title = "Pathways in the full proteome",
-  subtitle = "fgsea, FDR ≤ 0.05 in any contrast, redundant sets removed (collapsePathways)",
+  subtitle = "fgsea FDR ≤ 0.05 in any contrast; redundant sets removed",
   nes_limit = 2.5
 )
 
 save_panel(matrix$plot, "F03_Pathways", "a_full_matrix", 110, 150)
-list(
-  plot = matrix$plot,
-  data = left_join(matrix$cells, select(matrix$rows, term, collection, row_group), by = "term"),
-  inputs = inputs
-)
+list(plot = matrix$plot, data = matrix$data, inputs = inputs)

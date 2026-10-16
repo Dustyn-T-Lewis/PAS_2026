@@ -12,8 +12,4 @@ matrix <- contrast_pathway_matrix(
 )
 
 save_panel(matrix$plot, "F03_Pathways", "b_mitocarta_matrix", 70, 55)
-list(
-  plot = matrix$plot,
-  data = left_join(matrix$cells, select(matrix$rows, term, collection, row_group), by = "term"),
-  inputs = inputs
-)
+list(plot = matrix$plot, data = matrix$data, inputs = inputs)

@@ -1,4 +1,4 @@
-# F01 c: the proteome of all twenty mice in principal components, the PERMANOVA for sex and
+# F01 c: the proteome of every mouse in principal components, the PERMANOVA for sex and
 # treatment, and the direction in which the pellet's MitoCarta share rises, fitted as a vector.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 

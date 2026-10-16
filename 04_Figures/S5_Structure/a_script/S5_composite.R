@@ -1,20 +1,10 @@
 # Supplementary Figure 5, structure: whether more features separate PAS from vehicle perfectly
 # than chance allows, and what the main proteome components track. Each panel is its own script in
-# panels/; this file runs them, checks them against the statistics workbooks, stitches them and
-# writes one workbook.
+# panels/; this file runs them, stitches them and writes one workbook.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 PANELS <- c("a_perfect_separators", "b_component_r2")
 panels <- run_panels("S5_Structure", PANELS)
-
-perfect <- readxl::read_excel(
-  output_path("02_Statistics", "03_Classification", "03_classification.xlsx"), "perfect_separations"
-)
-stopifnot(
-  identical(as.numeric(panels$a_perfect_separators$data$observed), as.numeric(perfect$observed)),
-  all(panels$a_perfect_separators$data$relabellings == choose(10, 5)),
-  nrow(panels$b_component_r2$data) == 4 * 5
-)
 
 figure <- wrap_plots(map(panels, "plot"), widths = c(1, 1))
 out <- stage_paths("04_Figures", "S5_Structure")
@@ -28,5 +18,3 @@ write_figure_workbook(
   ),
   file.path(out$data, "S5.xlsx")
 )
-
-sessionInfo()

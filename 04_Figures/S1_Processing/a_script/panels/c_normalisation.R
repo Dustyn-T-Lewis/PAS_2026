@@ -4,10 +4,10 @@
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(
-  quantification = output_path("01_Processing", "02_Quantification", "02_quantification.xlsx")
+  quantification = output_path("01_Processing", "02_Quantification", "proteins.rds")
 )
 METHODS <- c("none", "median", "quantile", "cyclicloess")
-benchmark <- readxl::read_excel(inputs[["quantification"]], "normalization") |>
+benchmark <- readRDS(inputs[["quantification"]])$normalization |>
   pivot_longer(c(pcv, pmad, pev), names_to = "measure", values_to = "spread") |>
   mutate(
     method = factor(method, rev(METHODS)),
@@ -29,7 +29,7 @@ plot <- ggplot(benchmark, aes(spread, method)) +
     subtitle = "Lower is tighter; chosen among SE-preserving methods"
   ) +
   theme_figure() +
-  theme(strip.text = element_text(face = "bold", size = 5.5), panel.spacing.x = unit(3, "mm"))
+  theme(strip.text = element_text(size = 5.5), panel.spacing.x = unit(3, "mm"))
 
 save_panel(plot, "S1_Processing", "c_normalisation", 55, 55)
 list(plot = plot, data = benchmark, inputs = inputs)

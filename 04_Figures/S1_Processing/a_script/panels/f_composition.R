@@ -9,8 +9,8 @@ MARKERS <- c(
   "Sarcoplasmic reticulum", "Endoplasmic reticulum", "Myofibril", "Nerve", "Red cell", "Vessel",
   "Haemoglobin (% of signal)"
 )
-scores <- comp$composition |>
-  filter(group %in% MARKERS) |>
+shown <- filter(comp$composition, group %in% MARKERS)
+scores <- shown |>
   mutate(marker = factor(group, MARKERS), group = factor(group_label, FIGURE_GROUPS))
 labels <- comp$tests |>
   filter(group %in% MARKERS) |>
@@ -32,11 +32,11 @@ plot <- ggplot(scores, aes(group, score, colour = group)) +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.35))) +
   labs(
     x = NULL, y = "score", title = "Pellet composition",
-    subtitle = "Mean scaled log2 abundance of marker proteins; haemoglobin: % of raw signal"
+    subtitle = "Mean scaled log2 abundance of marker proteins; haemoglobin: % of precursor signal"
   ) +
   theme_figure() +
-  theme(axis.text.x = element_blank(), strip.text = element_text(face = "bold", size = 5.5)) +
+  theme(axis.text.x = element_blank(), strip.text = element_text(size = 5.5)) +
   guides(colour = guide_legend(nrow = 1))
 
 save_panel(plot, "S1_Processing", "f_composition", 180, 60)
-list(plot = plot, data = comp$composition, inputs = inputs)
+list(plot = plot, data = shown, inputs = inputs)

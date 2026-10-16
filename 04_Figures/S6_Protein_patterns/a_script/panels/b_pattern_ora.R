@@ -5,12 +5,11 @@ source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"))
 enr <- readRDS(inputs[["enrichment"]])
-PATTERNS <- c("up in both", "down in both", "female up, male down", "female down, male up")
 
 top <- enr$pattern_ora |>
   slice_min(p, n = 3, by = pattern, with_ties = FALSE) |>
   mutate(
-    pattern = factor(pattern, PATTERNS),
+    pattern = factor(pattern, FTEST_PATTERNS),
     label = sprintf("%s (%d/%d)", set_label(term, 32), overlap, size),
     row = reorder(paste(pattern, term), -p),
     significant = fdr <= ALPHA
@@ -35,7 +34,7 @@ plot <- ggplot(top, aes(-log10(p), row)) +
   theme_figure() +
   theme(
     panel.grid.major.y = element_blank(), axis.text.y = element_text(size = 5.2),
-    strip.text = element_text(face = "bold", hjust = 1, size = 5.5), strip.clip = "off",
+    strip.text = element_text(hjust = 1, size = 5.5), strip.clip = "off",
     legend.box = "vertical"
   ) +
   guides(

@@ -26,7 +26,9 @@ plot <- ggplot(shown, aes(r_equiv, row)) +
   geom_line(aes(group = row), colour = "grey70", linewidth = 0.4) +
   geom_point(aes(colour = model, shape = adj.P.Val <= ALPHA), size = 1.6) +
   facet_wrap(~sex, scales = "free_y") +
-  scale_colour_manual(values = c("grey40", "#7B3294"), name = NULL) +
+  scale_colour_manual(
+    values = set_names(MODEL_COLOURS[names(MODEL_LABELS)], MODEL_LABELS), name = NULL
+  ) +
   scale_shape_manual(
     values = c(`TRUE` = 16, `FALSE` = 1), labels = c(`TRUE` = "FDR ≤ 0.05", `FALSE` = "FDR > 0.05"),
     name = NULL
@@ -37,7 +39,7 @@ plot <- ggplot(shown, aes(r_equiv, row)) +
     subtitle = "Chosen by within-treatment p; pooled and within-treatment estimates"
   ) +
   theme_figure() +
-  theme(strip.text = element_text(face = "bold"), axis.text.y = element_text(size = 5.3))
+  theme(axis.text.y = element_text(size = 5.3))
 
 save_panel(plot, "S4_Protein_associations", "b_top_proteins", 180, 70)
 list(

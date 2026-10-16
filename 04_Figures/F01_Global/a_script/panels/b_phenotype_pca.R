@@ -1,4 +1,4 @@
-# F01 b: the six phenotypes, scaled, in principal components, each trait's loading as a coloured
+# F01 b: the phenotypes, scaled, in principal components, each trait's loading as a coloured
 # arrow, and the PERMANOVA for sex and treatment.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -14,7 +14,7 @@ loadings <- pca$phenotype_loadings |>
 
 plot <- pca_panel(
   scores, pca$phenotype_variance, "Phenotype PCA",
-  str_glue("Six traits, scaled; {nrow(scores)} mice; PERMANOVA top right"),
+  str_glue("{nrow(loadings)} traits, scaled; {nrow(scores)} mice; PERMANOVA top right"),
   pca$phenotype_permanova, loadings, PHENOTYPE_COLOURS
 )
 

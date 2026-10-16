@@ -140,6 +140,19 @@ label_groups <- function(groups, collections, universe) {
     ), .after = label)
 }
 
+# A step's preview PDF: one landscape page per named function, each drawing with a package's own
+# plot or base graphics; cairo, so Π and ≤ render. Returns the rows of the workbook's plot_index.
+preview_pdf <- function(file, pages) {
+  cairo_pdf(file, width = 7, height = 5, onefile = TRUE)
+  on.exit(dev.off())
+  defaults <- par(no.readonly = TRUE)
+  walk(pages, \(draw) {
+    draw()
+    par(defaults)
+  })
+  tibble(file = basename(file), page = seq_along(pages), shows = names(pages))
+}
+
 # Every workbook opens on read_me and ends with the inputs' md5 and the packages attached.
 write_workbook <- function(sheets, holds, file, inputs) {
   stopifnot(length(sheets) == length(holds))

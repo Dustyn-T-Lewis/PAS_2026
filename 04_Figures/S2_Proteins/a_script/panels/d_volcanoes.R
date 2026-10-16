@@ -31,8 +31,7 @@ plot <- ggplot(proteins, aes(logFC, -log10(P.Value))) +
     x = "log2 fold change", y = "-log10 p", title = "Every protein per contrast",
     subtitle = "Full proteome; dashed: p = 0.05; ringed: FDR ≤ 0.05"
   ) +
-  theme_figure() +
-  theme(strip.text = element_text(face = "bold"))
+  theme_figure()
 
 save_panel(plot, "S2_Proteins", "d_volcanoes", 180, 62)
 list(

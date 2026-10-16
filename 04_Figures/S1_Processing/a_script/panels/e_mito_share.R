@@ -4,12 +4,13 @@
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(
-  quantification = output_path("01_Processing", "02_Quantification", "02_quantification.xlsx"),
+  quantification = output_path("01_Processing", "02_Quantification", "proteins.rds"),
   composition = output_path("02_Statistics", "05_Composition", "composition.rds")
 )
-share <- readxl::read_excel(inputs[["quantification"]], "mito_share") |>
+quant <- readRDS(inputs[["quantification"]])
+share <- quant$mito_share |>
   mutate(group = factor(group, FIGURE_GROUPS))
-sex_p <- readxl::read_excel(inputs[["quantification"]], "mito_share_tests") |>
+sex_p <- quant$mito_share_tests |>
   filter(factor == "sex") |>
   pull(p_value)
 within <- readRDS(inputs[["composition"]])$tests |>
@@ -35,7 +36,7 @@ plot <- ggplot(share, aes(group, pct_mito_signal, colour = group)) +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.3))) +
   labs(
     x = NULL, y = "% signal from MitoCarta", title = "Pellet mitochondrial share",
-    subtitle = "Differs by sex; no detectable PAS shift within sex"
+    subtitle = "One point per mouse"
   ) +
   theme_figure()
 

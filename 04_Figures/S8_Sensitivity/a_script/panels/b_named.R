@@ -3,7 +3,8 @@
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(sensitivity = output_path("02_Statistics", "07_Sensitivity", "sensitivity.rds"))
-named <- readRDS(inputs[["sensitivity"]])$named
+sensitivity <- readRDS(inputs[["sensitivity"]])
+named <- sensitivity$named
 FDR_BINS <- c("≤ 0.05", "≤ 0.10", "≤ 0.25", "> 0.25")
 
 order <- named |>
@@ -11,7 +12,7 @@ order <- named |>
   arrange(contrast, adj.P.Val)
 cells <- named |>
   mutate(
-    variant = factor(variant, levels(readRDS(inputs[["sensitivity"]])$counts$variant)),
+    variant = factor(variant, levels(sensitivity$counts$variant)),
     contrast = factor(contrast, COMPARISON_CONTRASTS),
     row = factor(paste(contrast, feature), rev(paste(order$contrast, order$feature))),
     fdr = cut(adj.P.Val, c(0, 0.05, 0.10, 0.25, 1), FDR_BINS, include.lowest = TRUE)

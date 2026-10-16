@@ -2,10 +2,11 @@
 # its r per sex and the treatment p from 03_Design.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
-inputs <- c(design = output_path("01_Processing", "03_Design", "03_design.xlsx"))
-sv <- readxl::read_excel(inputs[["design"]], "surrogate") |>
+inputs <- c(design = output_path("01_Processing", "03_Design", "design.rds"))
+design <- readRDS(inputs[["design"]])
+sv <- design$surrogate |>
   mutate(group = factor(group, FIGURE_GROUPS))
-r <- readxl::read_excel(inputs[["design"]], "surrogate_r")
+r <- design$surrogate_r
 label <- with(r, paste(
   sprintf(
     "%s r = %.2f%s", str_to_sentence(mice), r_with_run_depth,
@@ -27,8 +28,8 @@ plot <- ggplot(sv, aes(run_depth_log2, sv1)) +
   scale_shape_manual(values = SEX_SHAPES, guide = "none") +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.45))) +
   labs(
-    x = "run depth (log2 precursor signal)", y = "surrogate variable 1",
-    title = "Surrogate variable", subtitle = "Tracks run depth, not treatment"
+    x = "run depth (log2 precursors identified)", y = "surrogate variable 1",
+    title = "Surrogate variable", subtitle = "One point per mouse"
   ) +
   theme_figure()
 
