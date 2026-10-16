@@ -25,7 +25,7 @@ Each panel is its own script in `a_script/panels/`. The composite runs them, add
 
 Π is p^|log2 FC| (Xiao et al. 2014). It ranks a protein on p and fold change together and controls no error rate; Π ≤ 0.05 can include proteins with p > 0.05. Two error-controlled measures sit beside it in `01_fit.xlsx`. TREAT tests for a fold change above 1.2 (McCarthy & Smyth 2009); no protein reaches TREAT FDR ≤ 0.05 in any contrast. ashr's local false sign rate (Stephens 2017) is ≤ 0.05 for five female proteins (Cops3, Dusp3, Ugp2, Appl1, Hook3), one male (Cd36) and no interaction protein.
 
-Panel a is an illustration drawn from `assets/design_spec/`: SPEC.md holds every label, EVIDENCE.md the source of each element and DONOTDRAW.md what the evidence rules out. Every label was checked against EVIDENCE.md.
+Panel a is a 600 dpi redraw (2026-10-16) of an illustration drawn from `assets/design_spec/`: SPEC.md holds every label, EVIDENCE.md the source of each element and DONOTDRAW.md what the evidence rules out. The redraw labels the interaction "Sex Interaction"; the figures and workbooks call it "Treatment × sex".
 
 ## Workbook
 
