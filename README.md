@@ -18,7 +18,7 @@ Differences between females and males at baseline are not a question here. They 
 |---|---|
 | [`00_Setup`](00_Setup/README.md) | the study data and reference files (`Input/`) and the helpers several scripts source (`Shared_functions/`) |
 | [`01_Processing`](01_Processing/README.md) | filtering, quantification, design, gene sets, set scores, modules |
-| [`02_Statistics`](02_Statistics/README.md) | every model and test, run once on all 20 mice: the fit, pathway tests, classification, PCA |
+| [`02_Statistics`](02_Statistics/README.md) | every model and test, run once on all 20 mice: the fit, pathway tests, classification, PCA, pellet composition, candidates, sensitivity |
 | [`03_Comparisons`](03_Comparisons/README.md) | the three questions: four steps written once in `code/`, run for `Female`, `Male` and `Sex_Difference` |
 | [`04_Figures`](04_Figures/README.md) | figures drawn from saved results only |
 
@@ -52,13 +52,13 @@ Every workbook opens on `read_me`, which says what each sheet holds, and ends wi
 
 ## Conventions
 
-- **Model:** one limpa/limma fit on all 20 mice: four group means and one surrogate variable from `sva`, which tracks run depth (r = 0.85) and does not differ by treatment. Proteins use limpa `dpcDE` with precision and sample weights, each contrast read as its own coefficient; scores and module eigengenes use plain limma.
+- **Model:** one limpa/limma fit on all 20 mice: four group means and one surrogate variable from `sva`, which tracks run depth (r = 0.85) and does not differ by treatment. Proteins use limpa `dpcDE` with precision and sample weights, each contrast read as its own coefficient; set scores use limma with eBayes; the eight module eigengenes use ordinary least-squares t, since eBayes cannot estimate a prior from eight features.
 - **Normalisation:** chosen per universe by replicate spread (NormalyzerDE measures) among methods that keep limpa's standard errors valid: none for the full proteome, median centring for MitoCarta.
-- **Multiple testing:** BH within universe (full or mitochondrial) and contrast for proteins; within contrast and collection for pathways. p ≤ 0.05 is reported beside the number expected by chance.
-- **Π** = p^|log2 FC| (Xiao et al. 2014). It ranks on p and fold change together, controls no error rate, and is counted on its own.
+- **Multiple testing:** BH within universe (full or mitochondrial) and contrast for proteins; within contrast and collection for fgsea; over every scored set in the universe for set scores. p ≤ 0.05 is reported beside the number expected by chance.
+- **Π** = p^|log2 FC| (Xiao et al. 2014). It ranks on p and fold change together, controls no error rate, and is counted on its own. TREAT (fold change above 1.2) and ashr's local false sign rate sit beside it as error-controlled checks.
 - **r** sits beside every test: r with group (PAS = 1) for a contrast; r across the sex's ten mice, and within vehicle and PAS, for an association.
 - **Phenotype effect** means what PAS did to a phenotype, as % change against the same sex's vehicle. **Phenotype association** means a feature moving with a phenotype within one sex, reported pooled across PAS and vehicle mice and within treatment; it is co-movement, not a PAS effect.
-- **Pathways:** fgsea through enrichVolcano on GO:BP, Reactome, Hallmark and KEGG LEGACY (full proteome) and MitoCarta (mitochondrial universe). The same sets are scored per mouse with singscore, and that mouse-level test sits beside every fgsea row. fgsea permutes genes, so where the two disagree the singscore result is the conservative one.
+- **Pathways:** fgsea through enrichVolcano on GO:BP, Reactome, Hallmark and KEGG LEGACY (full proteome) and MitoCarta (mitochondrial universe). The same sets are scored per mouse with singscore, and that mouse-level test sits beside every fgsea row. camera, which estimates each set's inter-protein correlation, sits beside every contrast fgsea row too. fgsea permutes genes, so where they disagree the camera and singscore results are the conservative ones.
 - **Seed:** 20260910 for every stochastic step.
 
 ## Run

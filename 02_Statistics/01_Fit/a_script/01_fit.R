@@ -184,13 +184,14 @@ level_of <- \(universe, feature) {
 # that; it put the prior df at its cap and gave every module about 120 df.
 tidy_ordinary <- function(fit, coefs) {
   map(coefs, \(k) {
-    se <- fit$stdev.unscaled[, k] * fit$sigma
-    t <- fit$coefficients[, k] / se
+    estimate <- unname(fit$coefficients[, k])
+    se <- unname(fit$stdev.unscaled[, k] * fit$sigma)
+    t <- estimate / se
     margin <- qt(0.975, fit$df.residual) * se
     p <- 2 * pt(-abs(t), fit$df.residual)
     tibble(
-      feature = rownames(fit$coefficients), coef = k, estimate = fit$coefficients[, k],
-      ci_low = estimate - margin, ci_high = estimate + margin, AveExpr = fit$Amean, t = t,
+      feature = rownames(fit$coefficients), coef = k, estimate = estimate,
+      ci_low = estimate - margin, ci_high = estimate + margin, AveExpr = unname(fit$Amean), t = t,
       df = fit$df.residual, r_equiv = t / sqrt(t^2 + df), P.Value = p,
       adj.P.Val = p.adjust(p, "BH")
     )
