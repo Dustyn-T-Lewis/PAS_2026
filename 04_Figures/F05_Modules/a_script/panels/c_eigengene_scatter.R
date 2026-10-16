@@ -16,7 +16,7 @@ top <- fit$score_associations |>
       sprintf("%s ~ %s, %s", feature, TRAIT_SHORT[phenotype], sex),
       sprintf("%s ~ %s, %s", feature, TRAIT_SHORT[phenotype], sex)
     ),
-    text = sprintf("Pearson r = %.2f\nlimma p = %.2g", r, P.Value)
+    text = sprintf("Pearson r = %.2f\nslope p = %.2g", r, P.Value)
   )
 eigengenes <- as_tibble(t(fit$scores$module), rownames = "sample_id")
 mice <- fit$targets |>

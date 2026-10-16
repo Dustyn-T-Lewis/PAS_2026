@@ -12,8 +12,10 @@ roc <- readxl::read_excel(
 ) |>
   filter(level == "module")
 cells <- panels$a_module_traits$data
+sizes <- readRDS(output_path("01_Processing", "06_Modules", "modules.rds"))$sizes
+n_modules <- sum(sizes$module != "grey")
 stopifnot(
-  nrow(cells) == 14 * (length(COMPARISON_CONTRASTS) + 2 * length(TRAIT_SHORT)),
+  nrow(cells) == n_modules * (length(COMPARISON_CONTRASTS) + 2 * length(TRAIT_SHORT)),
   !anyNA(cells$r), all(abs(cells$r) <= 1),
   setequal(
     paste(panels$b_module_roc$data$comparison, panels$b_module_roc$data$feature),
@@ -34,7 +36,7 @@ write_figure_workbook(
   c(
     paste(
       "Panel a: per module and column, the r-equivalent of the limma t, p, BH FDR, and for traits",
-      "Pearson r; module size, MitoCarta share and top annotated set."
+      "Pearson r; module size, MitoCarta share, stability (median Jaccard) and top annotated set."
     ),
     "Panel b: modules at exact Wilcoxon p ≤ 0.05 in either sex: AUC, DeLong CI, p, FDR.",
     "Panel c: eigengene and trait value per mouse for the four strongest module-trait pairs."

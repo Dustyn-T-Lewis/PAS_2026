@@ -2,8 +2,9 @@
 # module-trait heatmap. Every cell holds the r-equivalent of its limma t, t / sqrt(t^2 + df), so a
 # cell's value and its outline come from the same test: the contrast, or the eigengene's slope on
 # the trait within one sex (pooled model, adjusted for the surrogate variable). Solid outline: BH
-# FDR <= 0.05 over the 14 modules; dashed: p <= 0.05 only; bold: |r| >= 0.4. Left, each module's
-# size and MitoCarta share. Pearson r across the ten mice is in the workbook beside each cell.
+# FDR <= 0.05 over the eight modules; dashed: p <= 0.05 only; bold: |r| >= 0.4. Left, each
+# module's size, MitoCarta share and stability (median best-match Jaccard over 100 subsamples of
+# four mice per group, from 06_Modules). Pearson r across the ten mice is in the workbook.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(
@@ -15,8 +16,9 @@ sizes <- readRDS(inputs[["modules"]])$sizes |>
   filter(module != "grey") |>
   arrange(proteins) |>
   mutate(
-    name = if_else(is.na(label) | label == "unannotated", module,
-      sprintf("%s · %s", module, set_label(label, 30))
+    module_j = sprintf("%s (J %.2f)", module, median_jaccard),
+    name = if_else(is.na(label) | label == "unannotated", module_j,
+      sprintf("%s · %s", module_j, set_label(label, 30))
     ),
     row = factor(module, module)
   )
@@ -76,7 +78,7 @@ heatmap <- ggplot(cells, aes(column, row)) +
 size_bar <- ggplot(sizes, aes(proteins, row)) +
   geom_col(aes(fill = I(module)), colour = "grey30", linewidth = 0.2, width = 0.75) +
   geom_text(aes(label = sprintf("%.0f%%", 100 * mito_share)), hjust = 1.15, size = 1.55) +
-  scale_x_reverse(expand = expansion(mult = c(0, 0.25))) +
+  scale_x_reverse(expand = expansion(mult = c(0.25, 0))) +
   scale_y_discrete(labels = deframe(select(sizes, row, name)), position = "right") +
   coord_cartesian(clip = "off") +
   labs(x = "proteins (% MitoCarta)", y = NULL) +
@@ -88,7 +90,10 @@ size_bar <- ggplot(sizes, aes(proteins, row)) +
 plot <- wrap_elements(plot = (size_bar | heatmap) + plot_layout(widths = c(1, 4.2))) +
   labs(
     title = "Modules against contrasts and phenotypes",
-    subtitle = "r-equivalent of each limma t; traits within sex, adjusted for SV1; bold |r| ≥ 0.4"
+    subtitle = paste(
+      "Built after removing sex and run depth; r-equivalent of each t, traits within sex,",
+      "adjusted for SV1; bold |r| ≥ 0.4; J: subsample stability"
+    )
   ) +
   theme_figure()
 

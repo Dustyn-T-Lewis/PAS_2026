@@ -179,10 +179,30 @@ level_of <- \(universe, feature) {
     .default = "pathway"
   )
 }
+# Ordinary least-squares t on the residual df, for the module eigengenes: eBayes estimates its prior
+# from the spread of variances across features, and eight standardised eigengenes cannot inform
+# that; it put the prior df at its cap and gave every module about 120 df.
+tidy_ordinary <- function(fit, coefs) {
+  map(coefs, \(k) {
+    se <- fit$stdev.unscaled[, k] * fit$sigma
+    t <- fit$coefficients[, k] / se
+    margin <- qt(0.975, fit$df.residual) * se
+    p <- 2 * pt(-abs(t), fit$df.residual)
+    tibble(
+      feature = rownames(fit$coefficients), coef = k, estimate = fit$coefficients[, k],
+      ci_low = estimate - margin, ci_high = estimate + margin, AveExpr = fit$Amean, t = t,
+      df = fit$df.residual, r_equiv = t / sqrt(t^2 + df), P.Value = p,
+      adj.P.Val = p.adjust(p, "BH")
+    )
+  }) |>
+    list_rbind()
+}
 fit_scores <- function(design, contrasts, coefs) {
   imap(score_sets, \(m, universe) {
     stopifnot(identical(colnames(m), targets$sample_id))
-    tidy(eBayes(contrasts.fit(lmFit(m, design), contrasts)), coefs) |>
+    f <- contrasts.fit(lmFit(m, design), contrasts)
+    tidied <- if (universe == "module") tidy_ordinary(f, coefs) else tidy(eBayes(f), coefs)
+    tidied |>
       mutate(
         level = level_of(universe, feature),
         collection = if_else(level == "module", "WGCNA", unname(sc$collection[feature])),
