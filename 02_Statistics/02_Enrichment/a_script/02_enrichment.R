@@ -219,6 +219,41 @@ full_weights <- readr::read_csv(inputs[["study_full_weights"]], show_col_types =
   column_to_rownames("protein") |>
   as.matrix()
 stopifnot(identical(rownames(full_weights), rownames(full_matrix)))
+
+# camera beside every fgsea result: the same competitive question, with the set's own
+# inter-protein correlation estimated (inter.gene.cor = NA) instead of assumed away, on the fit's
+# design, contrasts and limpa's weights (Wu & Smyth 2012).
+camera_results <- imap(gs$tested, \(collection, u) {
+  y <- fit$E_norm[[u]][, fit$targets$sample_id]
+  w <- readr::read_csv(inputs[[paste0("study_", u, "_weights")]], show_col_types = FALSE) |>
+    column_to_rownames("protein") |>
+    as.matrix()
+  stopifnot(identical(rownames(w), rownames(y)))
+  gene_of <- fit$protein_contrasts |>
+    filter(universe == u) |>
+    distinct(feature, gene) |>
+    deframe()
+  gene_of <- gene_of[rownames(y)]
+  index <- map(sets[[u]], \(members) which(gene_of %in% members))
+  map(COMPARISON_CONTRASTS, \(cn) {
+    limma::camera(y, index, d$design,
+      contrast = d$contrasts[, cn], weights = w,
+      inter.gene.cor = NA, sort = FALSE
+    ) |>
+      as_tibble(rownames = "term") |>
+      transmute(contrast = cn, universe = u, term, camera_p = PValue)
+  }) |>
+    list_rbind()
+}) |>
+  list_rbind()
+results <- results |>
+  left_join(camera_results, by = c("contrast", "universe", "term")) |>
+  mutate(
+    camera_fdr = p.adjust(camera_p, "BH"),
+    .by = c(contrast, universe, collection), .after = camera_p
+  )
+stopifnot(!anyNA(results$camera_p))
+
 signature_proteins <- imap(SEXES, \(cn, sex) {
   hits <- filter(proteome, contrast == cn, pi_score < ALPHA)
   list(up = hits$feature[hits$logFC > 0], down = hits$feature[hits$logFC < 0])
@@ -332,7 +367,8 @@ write_workbook(
   c(
     "Per contrast and collection: sets tested, at p ≤ 0.05, expected by chance, FDR tiers.",
     paste(
-      "Every tested set and contrast: NES, p, BH FDR, size, collapsePathways flag, singscore",
+      "Every tested set and contrast: NES, p, BH FDR, size, collapsePathways flag, camera p and",
+      "FDR (inter-protein correlation estimated), singscore",
       "contrast (log2 FC, p, FDR, r with group), GO Slim families, leading edge."
     ),
     "GO Slim cellular compartments, fgsea per contrast, full proteome.",

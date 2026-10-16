@@ -98,10 +98,35 @@ tidy_proteins <- function(fits) {
     list_rbind()
 }
 protein_fits <- fit_proteins(d$design, d$contrasts)
+# Two calibrated companions to Π, kept as columns: TREAT tests whether a change exceeds 20%
+# (McCarthy & Smyth 2009); ashr shrinks each fold change by its standard error and gives the
+# local false sign rate, the probability that the direction is wrong (Stephens 2017).
+TREAT_LFC <- log2(1.2)
+treat_tables <- imap(protein_fits, \(by_contrast, universe) {
+  imap(by_contrast, \(f, cn) {
+    topTreat(treat(f, lfc = TREAT_LFC), coef = 1, number = Inf, sort.by = "none") |>
+      as_tibble(rownames = "feature") |>
+      transmute(
+        universe = universe, feature, contrast = cn, treat_p = P.Value, treat_fdr = adj.P.Val
+      )
+  }) |>
+    list_rbind()
+}) |>
+  list_rbind()
+shrink <- function(x) {
+  fit <- ashr::ash(x$logFC, x$logFC / x$t, df = median(x$df), mixcompdist = "halfuniform")
+  mutate(x, logFC_shrunk = ashr::get_pm(fit), lfsr = ashr::get_lfsr(fit))
+}
 protein_contrasts <- tidy_proteins(protein_fits) |>
   rename(contrast = coef, logFC = estimate) |>
   left_join(genes, by = "feature") |>
-  mutate(pi_score = pi_score(P.Value, logFC))
+  mutate(pi_score = pi_score(P.Value, logFC)) |>
+  left_join(treat_tables, by = c("universe", "feature", "contrast")) |>
+  group_by(universe, contrast) |>
+  group_modify(\(x, key) shrink(x)) |>
+  ungroup() |>
+  relocate(universe, feature, contrast)
+stopifnot(!anyNA(protein_contrasts$treat_p), !anyNA(protein_contrasts$lfsr))
 
 # Does PAS change a protein in either sex? The moderated F over the two PAS contrasts, both made
 # the first coefficients of an equivalent design so the test stays exact under limpa's weights.
@@ -377,6 +402,7 @@ write_workbook(
     ),
     paste(
       "Every protein, universe and contrast: log2 FC with 95% CI, moderated t, df, p, BH FDR, Π,",
+      "TREAT p and FDR for a change above 20%, ashr shrunken log2 FC and local false sign rate,",
       "r with group."
     ),
     paste(
