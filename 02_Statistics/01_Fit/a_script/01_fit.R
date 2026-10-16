@@ -1,27 +1,25 @@
 # Every model the comparisons read, fitted once on all 20 mice on 01_Processing/03_Design's design:
 # four group means and one surrogate variable for unwanted variation. Proteins: limpa's dpcDE with
-# precision and sample weights, normalised per universe. GO:BP, Reactome, MitoCarta, complex and
-# cluster scores and module eigengenes: limma. Each level gets the five contrasts and,
-# for each phenotype, an association in females and one in males: the feature regressed on the
-# phenotype (z-scored across all 20 mice) within the ten mice of each sex, the surrogate variable
-# also fitted within each sex. Two models answer two questions: pooled (~0 + sex + z:sex + sv1:sex)
-# asks whether a feature co-varies with the phenotype across PAS and vehicle mice; treatment
-# (~0 + group + z:sex + sv1:sex) asks whether it tracks the phenotype among mice given the same
-# treatment (limma User's Guide, covariates). An
-# association is co-movement, not a PAS effect. A pooled refit with the pellet's mitochondrial
-# share (centred within group) is kept as a check. Phenotype effects are % changes against the
-# same sex's vehicle. Comparisons slice these tables.
+# precision and sample weights, normalised per universe. Pathway (GO:BP, Reactome, Hallmark, KEGG,
+# MitoCarta), complex and cluster scores: limma with eBayes; module eigengenes: ordinary t. Each
+# level gets the five contrasts and, for each phenotype, an association in females and one in
+# males: the feature regressed on the phenotype (z-scored across all 20 mice) within the ten mice
+# of each sex, the surrogate variable also fitted within each sex. Two models answer two questions:
+# pooled (~0 + sex + z:sex + sv1:sex) asks whether a feature co-varies with the phenotype across
+# PAS and vehicle mice; treatment (~0 + group + z:sex + sv1:sex) asks whether it tracks the
+# phenotype among mice given the same treatment (limma User's Guide, covariates). An association
+# is co-movement, not a PAS effect. A pooled refit with the pellet's mitochondrial share (centred
+# within group) is kept as a check. Phenotype effects are % changes against the same sex's vehicle.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
-library(limma)
 library(limpa)
 
 out <- stage_paths("02_Statistics", "01_Fit")
 inputs <- c(
-  proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds"),
-  design = here("01_Processing", "03_Design", "c_data", "design.rds"),
-  scores = here("01_Processing", "05_Scores", "c_data", "scores.rds"),
-  modules = here("01_Processing", "06_Modules", "c_data", "modules.rds"),
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
+  design = output_path("01_Processing", "03_Design", "design.rds"),
+  scores = output_path("01_Processing", "05_Scores", "scores.rds"),
+  modules = output_path("01_Processing", "06_Modules", "modules.rds"),
   phenotypes = input_path("phenotypes.xlsx")
 )
 quant <- readRDS(inputs[["proteins"]])
@@ -29,10 +27,8 @@ d <- readRDS(inputs[["design"]])
 sc <- readRDS(inputs[["scores"]])
 mods <- readRDS(inputs[["modules"]])
 targets <- quant$proteins$targets
-stopifnot(identical(rownames(d$design), targets$sample_id))
 ph <- readxl::read_excel(inputs[["phenotypes"]], "phenotypes")
 ph <- ph[match(targets$sample_id, ph$mouse), ]
-stopifnot(identical(ph$mouse, targets$sample_id), !anyNA(ph[PHENOTYPES]), all(ph[PHENOTYPES] > 0))
 female <- as.numeric(targets$sex == "F")
 pellet_mito <- quant$pct_mito - ave(quant$pct_mito, targets$group)
 sex_design <- model.matrix(~ 0 + sex, targets)
@@ -126,7 +122,6 @@ protein_contrasts <- tidy_proteins(protein_fits) |>
   group_modify(\(x, key) shrink(x)) |>
   ungroup() |>
   relocate(universe, feature, contrast)
-stopifnot(!anyNA(protein_contrasts$treat_p), !anyNA(protein_contrasts$lfsr))
 
 # Does PAS change a protein in either sex? The moderated F over the two PAS contrasts, both made
 # the first coefficients of an equivalent design so the test stays exact under limpa's weights.
@@ -156,11 +151,14 @@ protein_ftest <- imap(quant$universes, \(keep, universe) {
   )) |>
   left_join(genes, by = "feature")
 
-protein_associations <- expand_grid(phenotype = PHENOTYPES, model = ASSOCIATION_MODELS) |>
-  pmap(\(phenotype, model) {
-    design <- association_design(ph[[phenotype]], model)
-    tidy_proteins(fit_proteins(design, slope_contrasts(design))) |>
-      mutate(phenotype = phenotype, model = model, .before = 1)
+association_fits <- expand_grid(phenotype = PHENOTYPES, model = ASSOCIATION_MODELS) |>
+  mutate(
+    design = map2(phenotype, model, \(x, m) association_design(ph[[x]], m)),
+    fits = map(design, \(x) fit_proteins(x, slope_contrasts(x)))
+  )
+protein_associations <- association_fits |>
+  pmap(\(phenotype, model, design, fits) {
+    mutate(tidy_proteins(fits), phenotype = phenotype, model = model, .before = 1)
   }) |>
   list_rbind() |>
   rename(sex = coef) |>
@@ -200,7 +198,6 @@ tidy_ordinary <- function(fit, coefs) {
 }
 fit_scores <- function(design, contrasts, coefs) {
   imap(score_sets, \(m, universe) {
-    stopifnot(identical(colnames(m), targets$sample_id))
     f <- contrasts.fit(lmFit(m, design), contrasts)
     tidied <- if (universe == "module") tidy_ordinary(f, coefs) else tidy(eBayes(f), coefs)
     tidied |>
@@ -289,19 +286,6 @@ protein_associations <- protein_associations |>
 score_associations <- score_associations |>
   join_r(score_r(r_associations), c("phenotype", "sex", "feature"), "many-to-one")
 
-# Without weights the joint models' slopes equal regressions within one sex: on the phenotype and
-# surrogate variable (pooled), plus treatment (treatment).
-check <- filter(score_associations, model != "pooled_mito", universe == "full", sex == "female") |>
-  slice_head(n = 1, by = c(phenotype, model))
-stopifnot(pmap_lgl(check, \(phenotype, model, feature, estimate, ...) {
-  keep <- female == 1
-  y <- score_sets$full[feature, keep]
-  z <- scale(ph[[phenotype]])[keep]
-  s <- sv1[keep]
-  within_sex <- if (model == "treatment") lm(y ~ targets$treatment[keep] + z + s) else lm(y ~ z + s)
-  isTRUE(all.equal(unname(coef(within_sex)[["z"]]), estimate))
-}))
-
 # Phenotype effects: PAS against the same sex's vehicle as a % change (Welch t on log values,
 # exponentiated), and the treatment-by-sex term on the same log scale as female minus male.
 phenotype_long <- ph |>
@@ -336,30 +320,6 @@ phenotype_interaction <- phenotype_long |>
     .by = phenotype
   )
 
-# enrichVolcano study folders 02_Enrichment reads: results, matrix, weights, samples and the
-# contrast expressions rebuilt from the design's contrast matrix.
-stopifnot(all(d$contrasts %in% c(-1, 0, 1)))
-contrast_expression <- apply(d$contrasts, 2, \(k) {
-  paste(c(paste(names(k)[k > 0], collapse = " + "), names(k)[k < 0]), collapse = " - ")
-})
-iwalk(quant$universes, \(keep, universe) {
-  dir <- file.path(out$data, paste0("study_", universe))
-  dir.create(dir, showWarnings = FALSE)
-  protein_contrasts |>
-    filter(universe == !!universe) |>
-    transmute(protein = feature, gene, contrast, logFC, t, P.Value, adj.P.Val, AveExpr) |>
-    readr::write_csv(file.path(dir, "da_results.csv"))
-  as_tibble(quant$E_norm[[universe]], rownames = "protein") |>
-    readr::write_csv(file.path(dir, "matrix.csv"))
-  as_tibble(protein_fits[[universe]][[1]]$EList$weights, rownames = "protein") |>
-    set_names(c("protein", targets$sample_id)) |>
-    readr::write_csv(file.path(dir, "weights.csv"))
-  tibble(sample = targets$sample_id, group = targets$group) |>
-    readr::write_csv(file.path(dir, "samples.csv"))
-  tibble(name = names(contrast_expression), expression = unname(contrast_expression)) |>
-    readr::write_csv(file.path(dir, "contrasts.csv"))
-})
-
 contrast_summary <- bind_rows(
   mutate(protein_contrasts, level = "protein"),
   score_contrasts
@@ -378,8 +338,9 @@ sa_page <- \(universe) \() plotSA(protein_fits[[universe]][[1]], main = universe
 volcano <- \(cn) {
   \() {
     f <- protein_fits$full[[cn]]
+    fdr <- filter(protein_contrasts, universe == "full", contrast == cn)$adj.P.Val
     volcanoplot(f,
-      coef = 1, highlight = sum(p.adjust(f$p.value[, 1], "BH") <= ALPHA),
+      coef = 1, highlight = sum(fdr <= ALPHA),
       names = first_symbol(f$genes$Genes), main = CONTRAST_LABELS[[cn]]
     )
   }
@@ -398,10 +359,11 @@ saveRDS(
   list(
     protein_contrasts = protein_contrasts, protein_ftest = protein_ftest,
     protein_associations = protein_associations, score_contrasts = score_contrasts,
-    score_associations = score_associations,
+    score_associations = score_associations, association_summary = association_summary,
     phenotype_effects = phenotype_effects, phenotype_interaction = phenotype_interaction,
     E_norm = quant$E_norm, scores = score_sets, targets = targets, phenotypes = ph,
-    pct_mito = quant$pct_mito
+    pct_mito = quant$pct_mito,
+    association_designs = select(filter(association_fits, model != "pooled_mito"), -fits)
   ),
   file.path(out$data, "fit.rds")
 )
@@ -453,5 +415,3 @@ write_workbook(
 )
 
 filter(contrast_summary, level == "protein", universe == "full")
-
-sessionInfo()

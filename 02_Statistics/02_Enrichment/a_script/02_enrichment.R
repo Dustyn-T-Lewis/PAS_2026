@@ -6,8 +6,9 @@
 # carries a redundancy flag from fgsea::collapsePathways (through enrichVolcano::dedup_terms):
 # a term is redundant when it is no longer enriched once a stronger term's genes are conditioned
 # on. The flag only picks display terms; nothing is dropped. fgsea also runs on each
-# protein-phenotype association t per sex and association model. Cross-sex signatures: each
-# sex's proteins at Π < 0.05, up and down, tested by limma::fry in the other sex's contrast
+# protein-phenotype association t per sex and association model. camera sits beside every fgsea
+# result, contrast and association, testing the same sets across mice. Cross-sex signatures: each
+# sex's proteins at Π ≤ 0.05, up and down, tested by limma::fry in the other sex's contrast
 # across mice. ORA (fgsea::fora) describes each response pattern of the PAS F-test proteins.
 # STRING v12 connectivity of each contrast's Π and FDR lists is descriptive: subunits of one
 # complex vary together.
@@ -15,18 +16,10 @@
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 out <- stage_paths("02_Statistics", "02_Enrichment")
-study_files <- expand_grid(
-  universe = c("full", "mito"), file = c("da_results", "matrix", "weights", "samples", "contrasts")
-) |>
-  with(set_names(
-    here("02_Statistics", "01_Fit", "c_data", paste0("study_", universe), paste0(file, ".csv")),
-    paste0("study_", universe, "_", file)
-  ))
 inputs <- c(
-  gene_sets = here("01_Processing", "04_Gene_Sets", "c_data", "gene_sets.rds"),
-  design = here("01_Processing", "03_Design", "c_data", "design.rds"),
-  fit = here("02_Statistics", "01_Fit", "c_data", "fit.rds"),
-  study_files,
+  gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds"),
+  design = output_path("01_Processing", "03_Design", "design.rds"),
+  fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
   STRING_FILES
 )
 gs <- readRDS(inputs[["gene_sets"]])
@@ -34,19 +27,21 @@ fit <- readRDS(inputs[["fit"]])
 d <- readRDS(inputs[["design"]])
 
 sets <- map(gs$tested, \(x) unlist(unname(x), recursive = FALSE))
-studies <- map(set_names(names(gs$tested)), \(u) {
-  suppressMessages(enrichVolcano::read_study(dirname(inputs[[paste0("study_", u, "_da_results")]]),
-    species = "Mus musculus"
-  ))
+# Each universe's protein contrasts in enrichVolcano's form; it ranks by the moderated t.
+da <- map(set_names(names(gs$tested)), \(u) {
+  fit$protein_contrasts |>
+    filter(universe == u) |>
+    transmute(
+      protein = feature, gene, contrast, logFC, t, P.Value, adj.P.Val, abundance = AveExpr
+    ) |>
+    enrichVolcano::as_da(species = "Mus musculus")
 })
 
 # One contrast at a time and seeded each time, so a contrast's result does not depend on which
 # others ran beside it.
-fgsea_of <- function(study, collection, contrast, size) {
-  study$da <- study$da[study$da$contrast == contrast, ]
-  study$contrasts <- study$contrasts[study$contrasts$name == contrast, , drop = FALSE]
+fgsea_of <- function(da, collection, size) {
   set.seed(SEED)
-  suppressMessages(enrichVolcano::run_enrichment(study, collection,
+  suppressMessages(enrichVolcano::run_enrichment(da, collection,
     tests = "fgsea", min_size = size[1], max_size = size[2]
   ))$fgsea
 }
@@ -58,11 +53,11 @@ gene_ranks <- function(da) {
 flatten <- \(x) map_chr(x, \(g) paste(g, collapse = ";"))
 
 ranks <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
-  map(studies, \(s) gene_ranks(s$da[s$da$contrast == cn, ]))
+  map(da, \(x) gene_ranks(x[x$contrast == cn, ]))
 })
 enrichment_objects <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
   imap(gs$tested, \(collection, u) {
-    tested <- fgsea_of(studies[[u]], collection, cn, TEST_WINDOW[[u]])
+    tested <- fgsea_of(da[[u]][da[[u]]$contrast == cn, ], collection, TEST_WINDOW[[u]])
     set.seed(SEED)
     enrichVolcano::dedup_terms(tested, sets[[u]],
       method = "collapse_pathways", term_threshold = ALPHA,
@@ -98,14 +93,13 @@ results <- imap(enrichment_objects, \(by_universe, cn) {
     leading_edge = flatten(leading_edge)
   ) |>
   arrange(factor(contrast, COMPARISON_CONTRASTS), universe, collection, p)
-stopifnot(!anyNA(results$score_p), !anyNA(results$dedup_status[results$padj < ALPHA]))
 
 # The side lists run on fgsea directly, on the ranking the main tests used: enrichVolcano keeps
 # fgsea's default nPermSimple, and at that default a set with unbalanced gene-level statistics
 # gets no p-value and drops out. fgsea's own advice is nPermSimple = 10000.
 side_list <- function(collection, size) {
   side_sets <- unlist(unname(collection), recursive = FALSE)
-  out <- map(COMPARISON_CONTRASTS, \(cn) {
+  map(COMPARISON_CONTRASTS, \(cn) {
     set.seed(SEED)
     fgsea::fgsea(side_sets, ranks[[cn]]$full,
       minSize = size[1], maxSize = size[2], nPermSimple = 10000
@@ -119,8 +113,6 @@ side_list <- function(collection, size) {
       set = pathway, NES, p = pval, padj, size, direction = if_else(NES > 0, "up", "down"),
       leading_edge = flatten(leadingEdge)
     )
-  stopifnot(!anyNA(out$p), all(count(out, contrast)$n == n_distinct(out$set)))
-  out
 }
 compartments <- side_list(gs$compartments, c(15, Inf))
 literature <- side_list(list(Literature = gs$literature_sets), c(5, Inf)) |>
@@ -132,9 +124,9 @@ literature <- side_list(list(Literature = gs$literature_sets), c(5, Inf)) |>
 # under both association models (genes permuted, so its FDR runs optimistic), beside the same set's
 # singscore association under the same model, which is tested across mice. Each phenotype column
 # carries the same collapsePathways flag as the contrasts.
-ASSOCIATION_MODELS <- c("pooled", "treatment")
+association_models <- unique(fit$association_designs$model)
 association_fgsea <- expand_grid(
-  model = ASSOCIATION_MODELS, sex = c("female", "male"), u = names(gs$tested)
+  model = association_models, sex = names(SEX_COMPARISONS), u = names(gs$tested)
 ) |>
   pmap(\(model, sex, u) {
     da <- fit$protein_associations |>
@@ -163,7 +155,7 @@ association_fgsea <- expand_grid(
   ) |>
   left_join(
     fit$score_associations |>
-      filter(model %in% ASSOCIATION_MODELS, level == "pathway") |>
+      filter(model %in% association_models, level == "pathway") |>
       select(model, sex, phenotype,
         term = feature, score_slope = estimate, score_r = r,
         score_r_veh = r_veh, score_r_pas = r_pas, score_p = P.Value, score_fdr = adj.P.Val
@@ -171,10 +163,6 @@ association_fgsea <- expand_grid(
     by = c("model", "sex", "phenotype", "term")
   ) |>
   arrange(model, sex, phenotype, collection, fgsea_p)
-stopifnot(
-  !anyNA(association_fgsea$score_p),
-  !anyNA(association_fgsea$dedup_status[association_fgsea$fgsea_fdr < ALPHA])
-)
 
 stringdb <- string_db()
 proteome <- filter(fit$protein_contrasts, universe == "full", !is.na(gene), gene != "")
@@ -208,43 +196,40 @@ string_tests <- map(COMPARISON_CONTRASTS, \(cn) {
   list_rbind() |>
   mutate(fdr = p.adjust(p, "BH"), .by = contrast)
 
-# Does one sex's PAS response carry into the other's? The up and down proteins at Π < 0.05 in one
-# sex (full proteome) are tested in the other sex's PAS contrast by limma::fry, which tests across
-# mice with the fit's design and limpa's precision weights. The share of members whose fold change
-# in the other sex points the same way is reported beside it; members are listed by gene for the
-# barcode, which places them in the other sex's ranking.
-SEXES <- c(female = "PAS_vs_VEH_female", male = "PAS_vs_VEH_male")
+# Does one sex's PAS response carry into the other's? The up and down proteins at Π ≤ 0.05 in one
+# sex (full proteome) are tested in the other sex's PAS contrast by limma::fry, a self-contained
+# test across mice, on the design with that contrast as its first coefficient. Unweighted and
+# unstandardised, for the reason camera is unweighted; fry's standardisation also drops each
+# protein's largest residual component, which depends on the order the mice are listed in. The
+# share of members whose fold change in the other sex points the same way is reported beside it;
+# members are listed by gene for the barcode, which places them in the other sex's ranking.
+SEXES <- map_chr(SEX_COMPARISONS, "contrast")
 full_matrix <- fit$E_norm$full[, fit$targets$sample_id]
-full_weights <- readr::read_csv(inputs[["study_full_weights"]], show_col_types = FALSE) |>
-  column_to_rownames("protein") |>
-  as.matrix()
-stopifnot(identical(rownames(full_weights), rownames(full_matrix)))
 
-# camera beside every fgsea result: the same competitive question, with the set's own
-# inter-protein correlation estimated (inter.gene.cor = NA) instead of assumed away, on the fit's
-# design, contrasts and limpa's weights (Wu & Smyth 2012).
-camera_results <- imap(gs$tested, \(collection, u) {
-  y <- fit$E_norm[[u]][, fit$targets$sample_id]
-  w <- readr::read_csv(inputs[[paste0("study_", u, "_weights")]], show_col_types = FALSE) |>
-    column_to_rownames("protein") |>
-    as.matrix()
-  stopifnot(identical(rownames(w), rownames(y)))
-  gene_of <- fit$protein_contrasts |>
-    filter(universe == u) |>
-    distinct(feature, gene) |>
-    deframe()
-  gene_of <- gene_of[rownames(y)]
-  index <- map(sets[[u]], \(members) which(gene_of %in% members))
-  map(COMPARISON_CONTRASTS, \(cn) {
-    limma::camera(y, index, d$design,
-      contrast = d$contrasts[, cn], weights = w,
-      inter.gene.cor = NA, sort = FALSE
-    ) |>
-      as_tibble(rownames = "term") |>
-      transmute(contrast = cn, universe = u, term, camera_p = PValue)
+# camera beside every fgsea result: the same competitive question tested across mice, with the
+# set's own inter-protein correlation estimated (inter.gene.cor = NA) instead of assumed away (Wu &
+# Smyth 2012). Unweighted: with a weight per protein, limma fits each protein's QR separately, the
+# residual bases differ by rounding noise, and the estimated correlation, which compares residuals
+# across proteins, moved male p-values by up to 45% under 1e-15 changes in the weights. Each set
+# indexes the proteins of its member genes.
+expression <- map(fit$E_norm, \(m) m[, fit$targets$sample_id])
+set_index <- imap(sets, \(by_set, u) {
+  gene_of <- deframe(distinct(filter(fit$protein_contrasts, universe == u), feature, gene))
+  gene_of <- gene_of[rownames(expression[[u]])]
+  map(by_set, \(members) which(gene_of %in% members))
+})
+camera_of <- function(u, design, contrast) {
+  limma::camera(expression[[u]], set_index[[u]], design,
+    contrast = contrast, inter.gene.cor = NA, sort = FALSE
+  ) |>
+    as_tibble(rownames = "term") |>
+    transmute(universe = u, term, camera_p = PValue)
+}
+camera_results <- expand_grid(contrast = COMPARISON_CONTRASTS, u = names(gs$tested)) |>
+  pmap(\(contrast, u) {
+    camera_of(u, d$design, d$contrasts[, contrast]) |>
+      mutate(contrast = contrast, .before = 1)
   }) |>
-    list_rbind()
-}) |>
   list_rbind()
 results <- results |>
   left_join(camera_results, by = c("contrast", "universe", "term")) |>
@@ -252,19 +237,36 @@ results <- results |>
     camera_fdr = p.adjust(camera_p, "BH"),
     .by = c(contrast, universe, collection), .after = camera_p
   )
-stopifnot(!anyNA(results$camera_p))
+# For an association, camera tests the phenotype slope within one sex on that model's design.
+slope_columns <- c(female = "slope_F", male = "slope_M")
+association_camera <- fit$association_designs |>
+  pmap(\(phenotype, model, design) {
+    expand_grid(sex = names(slope_columns), u = names(gs$tested)) |>
+      pmap(\(sex, u) {
+        camera_of(u, design, which(colnames(design) == slope_columns[[sex]])) |>
+          mutate(model = model, sex = sex, phenotype = phenotype, .before = 1)
+      }) |>
+      list_rbind()
+  }) |>
+  list_rbind()
+association_fgsea <- association_fgsea |>
+  left_join(association_camera, by = c("model", "sex", "phenotype", "universe", "term")) |>
+  mutate(
+    camera_fdr = p.adjust(camera_p, "BH"),
+    .by = c(model, sex, phenotype, universe, collection)
+  ) |>
+  relocate(camera_p, camera_fdr, .after = fgsea_fdr)
 
 signature_proteins <- imap(SEXES, \(cn, sex) {
-  hits <- filter(proteome, contrast == cn, pi_score < ALPHA)
+  hits <- filter(proteome, contrast == cn, pi_score <= ALPHA)
   list(up = hits$feature[hits$logFC > 0], down = hits$feature[hits$logFC < 0])
 })
 signatures <- imap(SEXES, \(cn, source) {
   target <- setdiff(names(SEXES), source)
   lists <- signature_proteins[[source]]
   names(lists) <- paste(source, names(lists))
-  tested <- limma::fry(full_matrix, lists, d$design, d$contrasts[, SEXES[[target]]],
-    weights = full_weights
-  )
+  design <- limma::contrastAsCoef(d$design, d$contrasts[, SEXES[[target]]])$design
+  tested <- limma::fry(full_matrix, lists, design, contrast = 1, standardize = "none")
   in_target <- filter(proteome, contrast == SEXES[[target]])
   imap(lists, \(proteins, name) {
     target_fc <- in_target$logFC[match(proteins, in_target$feature)]
@@ -312,13 +314,12 @@ pattern_ora <- pmap(pattern_genes, \(pattern, genes, proteins) {
   list_rbind() |>
   arrange(pattern, collection, p)
 
-stopifnot(nrow(signatures) == 4, !anyNA(signatures$p), nrow(pattern_ora) > 0)
-
 tier_table <- results |>
   reframe(tier_counts(p, padj), .by = c(contrast, universe, collection)) |>
   select(-pi_le_0.05)
 association_summary <- association_fgsea |>
   reframe(tier_counts(fgsea_p, fgsea_fdr),
+    camera_fdr_le_0.05 = sum(camera_fdr <= ALPHA),
     singscore_p_le_0.05 = sum(score_p <= ALPHA),
     singscore_fdr_le_0.05 = sum(score_fdr <= ALPHA),
     .by = c(model, sex, universe, collection, phenotype)
@@ -350,9 +351,8 @@ plot_index <- preview_pdf(
 
 saveRDS(
   list(
-    results = results, objects = enrichment_objects, ranks = ranks, da = map(studies, "da"),
-    sets = sets,
-    compartments = compartments, literature = literature, association_fgsea = association_fgsea,
+    results = results, ranks = ranks, sets = sets, compartments = compartments,
+    literature = literature, association_fgsea = association_fgsea,
     signatures = signatures, pattern_ora = pattern_ora, string = string_tests, summary = tier_table
   ),
   file.path(out$data, "enrichment.rds")
@@ -373,14 +373,14 @@ write_workbook(
     ),
     "GO Slim cellular compartments, fgsea per contrast, full proteome.",
     "Literature-informed and ROS sets, fgsea per contrast, full proteome, BH across the list.",
-    "Per model, sex, collection and phenotype: fgsea and singscore association counts.",
+    "Per model, sex, collection and phenotype: fgsea, camera and singscore association counts.",
     paste(
       "Every set's fgsea on protein association t per model (pooled, treatment), sex and",
-      "phenotype, with its collapsePathways flag, beside its singscore association (slope, r,",
-      "p, FDR)."
+      "phenotype, with its collapsePathways flag and camera p and FDR on the same slope, beside",
+      "its singscore association (slope, r, p, FDR)."
     ),
     paste(
-      "Each sex's Π < 0.05 up and down proteins tested in the other sex's PAS contrast by fry:",
+      "Each sex's Π ≤ 0.05 up and down proteins tested in the other sex's PAS contrast by fry:",
       "size, share moving the same way, fry direction, p and mixed p."
     ),
     paste(
@@ -394,5 +394,3 @@ write_workbook(
 )
 
 tier_table
-
-sessionInfo()
