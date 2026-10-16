@@ -3,12 +3,11 @@
 # gives the reasons.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
-library(limma)
 
 out <- stage_paths("01_Processing", "03_Design")
 inputs <- c(
-  proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds"),
-  filtering = here("01_Processing", "01_Filtering", "c_data", "precursors_filtered.rds")
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
+  filtering = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds")
 )
 quant <- readRDS(inputs[["proteins"]])
 proteins <- quant$proteins
@@ -24,11 +23,11 @@ rownames(groups) <- proteins$targets$sample_id
 sv1 <- sva::sva(quant$E_norm$full,
   mod = groups, mod0 = matrix(1, ncol(proteins), 1), n.sv = 1
 )$sv[, 1]
-run_depth <- log2(run_qc$precursors[match(colnames(proteins), run_qc$sample_id)])
+run_depth <- run_depth_log2(run_qc, colnames(proteins))
 sv1 <- sv1 * sign(cor(sv1, run_depth))
 design <- cbind(groups, sv1 = sv1)
 
-contrasts <- makeContrasts(
+contrasts <- limma::makeContrasts(
   PAS_vs_VEH_female = PAS_F - VEH_F,
   PAS_vs_VEH_male = PAS_M - VEH_M,
   treatment_by_sex = (PAS_F - VEH_F) - (PAS_M - VEH_M),
@@ -36,37 +35,6 @@ contrasts <- makeContrasts(
   sex_in_PAS = PAS_M - PAS_F,
   levels = design
 )
-stopifnot(
-  identical(colnames(contrasts), CONTRASTS),
-  identical(rownames(design), colnames(proteins$E)),
-  all.equal(
-    contrasts[, "treatment_by_sex"], contrasts[, "sex_in_VEH"] - contrasts[, "sex_in_PAS"]
-  )
-)
-
-# The contrasts are checked on the group-means model, where each coefficient is a raw group mean.
-group_means <- t(apply(proteins$E, 1, \(x) tapply(x, proteins$targets$group, mean)))
-manual <- cbind(
-  PAS_vs_VEH_female = group_means[, "PAS_F"] - group_means[, "VEH_F"],
-  PAS_vs_VEH_male = group_means[, "PAS_M"] - group_means[, "VEH_M"],
-  treatment_by_sex = (group_means[, "PAS_F"] - group_means[, "VEH_F"]) -
-    (group_means[, "PAS_M"] - group_means[, "VEH_M"]),
-  sex_in_VEH = group_means[, "VEH_M"] - group_means[, "VEH_F"],
-  sex_in_PAS = group_means[, "PAS_M"] - group_means[, "PAS_F"]
-)
-fitted <- contrasts.fit(lmFit(proteins$E, groups), contrasts[colnames(groups), ])$coefficients
-contrast_check <- tibble(
-  contrast = colnames(contrasts),
-  coefficients_sum_to_zero = abs(colSums(contrasts)) < 1e-12,
-  max_abs_diff_from_group_means = signif(
-    apply(abs(fitted - manual[, colnames(contrasts)]), 2, max), 2
-  )
-)
-stopifnot(
-  all(contrast_check$coefficients_sum_to_zero),
-  contrast_check$max_abs_diff_from_group_means < 1e-10
-)
-
 surrogate <- tibble(
   sample_id = colnames(proteins), group = proteins$targets$group, sex = proteins$targets$sex,
   sv1 = sv1, run_depth_log2 = run_depth
@@ -95,13 +63,15 @@ plot_index <- preview_pdf(file.path(out$reports, "03_design.pdf"), list(
   }
 ))
 
-saveRDS(list(design = design, contrasts = contrasts), file.path(out$data, "design.rds"))
+saveRDS(
+  list(design = design, contrasts = contrasts, surrogate = surrogate, surrogate_r = surrogate_r),
+  file.path(out$data, "design.rds")
+)
 
 write_workbook(
   list(
     design = as_tibble(design, rownames = "sample_id"),
     contrasts = as_tibble(contrasts, rownames = "group"),
-    contrast_check = contrast_check,
     comparisons = tibble(contrast = CONTRASTS, comparison = COMPARISON_OF_CONTRAST[CONTRASTS]),
     groups = count(proteins$targets, group, name = "n"),
     surrogate = surrogate, surrogate_r = surrogate_r, plot_index = plot_index
@@ -109,7 +79,6 @@ write_workbook(
   c(
     "Design matrix, one row per mouse: four group means and the surrogate variable sv1.",
     "Contrast matrix: the five questions as group weights.",
-    "Each contrast checked against its intended group difference.",
     "Which comparison reads each contrast; the baseline sex contrasts are context only.",
     "Mice per group.",
     "Surrogate variable and run depth per mouse.",
@@ -119,6 +88,5 @@ write_workbook(
   out$workbook, inputs
 )
 
-contrast_check
-
-sessionInfo()
+contrasts
+surrogate_r

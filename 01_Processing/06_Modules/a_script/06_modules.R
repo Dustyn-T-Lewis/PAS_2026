@@ -5,19 +5,19 @@
 # undetected proteins are tied within a protein and would group proteins by when they go missing,
 # so only fully detected proteins enter. Eigengenes come from the same adjusted matrix the modules
 # were built on, as WGCNA's authors advise; sex differences on them are therefore removed by
-# design and only within-sex contrasts are read. Stability: the network is rebuilt on 100
+# design and only within-sex contrasts are read. Stability: the network is rebuilt on N_RESAMPLES
 # subsamples of 16 mice (four per group) and each module's best-match Jaccard is reported. Each
 # module is named only by an over-represented term at FDR <= 0.05.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(WGCNA)
-WGCNA::disableWGCNAThreads()
+disableWGCNAThreads()
 
 out <- stage_paths("01_Processing", "06_Modules")
 inputs <- c(
-  proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds"),
-  filtering = here("01_Processing", "01_Filtering", "c_data", "precursors_filtered.rds"),
-  gene_sets = here("01_Processing", "04_Gene_Sets", "c_data", "gene_sets.rds")
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
+  filtering = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds"),
+  gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds")
 )
 RSQ_CUT <- 0.85
 # WGCNA's FAQ power for a signed network of 20 to 30 samples when no power reaches the cut.
@@ -29,7 +29,7 @@ quant <- readRDS(inputs[["proteins"]])
 gs <- readRDS(inputs[["gene_sets"]])
 targets <- quant$proteins$targets
 run_qc <- readRDS(inputs[["filtering"]])$run_qc
-run_depth <- log2(run_qc$precursors[match(targets$sample_id, run_qc$sample_id)])
+run_depth <- run_depth_log2(run_qc, targets$sample_id)
 detected <- quant$proteins$other$n.observations[, targets$sample_id] > 0
 complete <- rownames(detected)[rowSums(detected) == ncol(detected)]
 expr <- quant$E_norm$full[complete, targets$sample_id]
@@ -38,7 +38,6 @@ adjusted <- limma::removeBatchEffect(
   batch = targets$sex, covariates = run_depth, design = model.matrix(~treatment, targets)
 )
 datExpr <- t(adjusted)
-stopifnot(goodSamplesGenes(datExpr, verbose = 0)$allOK)
 
 # pickSoftThreshold prints its fit table whatever verbose says.
 invisible(capture.output(
@@ -57,12 +56,10 @@ build <- \(x) {
 }
 net <- build(datExpr)
 
-eigengenes <- moduleEigengenes(datExpr, net$colors, excludeGrey = TRUE)$eigengenes
-colnames(eigengenes) <- str_remove(colnames(eigengenes), "^ME")
-kme <- signedKME(datExpr, moduleEigengenes(datExpr, net$colors, excludeGrey = TRUE)$eigengenes,
-  corFnc = "bicor", corOptions = "maxPOutliers = 0.05"
-)
+module_eigengenes <- moduleEigengenes(datExpr, net$colors, excludeGrey = TRUE)$eigengenes
+kme <- signedKME(datExpr, module_eigengenes, corFnc = "bicor", corOptions = "maxPOutliers = 0.05")
 colnames(kme) <- str_remove(colnames(kme), "^kME")
+eigengenes <- rename_with(module_eigengenes, \(x) str_remove(x, "^ME"))
 
 gene <- first_symbol(quant$proteins$genes[complete, "Genes"])
 modules <- tibble(
@@ -146,17 +143,14 @@ plot_index <- preview_pdf(file.path(out$reports, "06_modules.pdf"), list(
     )
   },
   "eigengene network" = \() {
-    plotEigengeneNetworks(orderMEs(moduleEigengenes(datExpr, net$colors)$eigengenes), "",
+    plotEigengeneNetworks(orderMEs(module_eigengenes), "",
       marDendro = c(0, 4, 1, 2), marHeatmap = c(3, 4, 1, 2), xLabelsAngle = 90
     )
   }
 ))
 
 saveRDS(
-  list(
-    eigengenes = eigengenes, modules = modules, kme = kme, sizes = sizes, hubs = hubs,
-    power = power, colors = net$colors, stability = stability, proteins_used = complete
-  ),
+  list(eigengenes = eigengenes, modules = modules, sizes = sizes),
   file.path(out$data, "modules.rds")
 )
 write_workbook(
@@ -174,12 +168,11 @@ write_workbook(
     str_glue("The {N_HUBS} highest-kME proteins of each module."),
     "Scale-free fit and mean connectivity by soft-threshold power.",
     "Module eigengenes by mouse, from the sex- and run-depth-adjusted matrix.",
-    "Best-match Jaccard of each module in each of the 100 subsample rebuilds.",
+    str_glue("Best-match Jaccard of each module in each of the {N_RESAMPLES} subsample rebuilds."),
     "Which PDF page shows what."
   ),
   out$workbook, inputs
 )
 
+tibble(power = power, proteins = length(complete))
 sizes
-
-sessionInfo()

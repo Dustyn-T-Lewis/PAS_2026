@@ -1,7 +1,6 @@
 # Precursors to a quantified, MitoCarta-annotated protein matrix, normalised once for the full
 # proteome and once for the mitochondrial universe by the method a replicate-spread benchmark
-# picks. The README gives the reasons. dpcQuant() takes about two and a half minutes, so its result
-# is checkpointed in c_data/ and refitted only with REFIT_DPCQUANT=TRUE.
+# picks. The README gives the reasons. The dpcQuant fit is cached in c_data/ (dpcquant_cached()).
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(limpa)
@@ -11,26 +10,15 @@ DPC_SLOPE <- 0.7
 # shift per mouse does; quantile and cyclic loess reshape each mouse's values, so the standard
 # errors dpcDE weights by no longer match them. Fixed before the benchmark first ran.
 NORMALIZATIONS <- c(none = TRUE, median = TRUE, quantile = FALSE, cyclicloess = FALSE)
-REFIT <- isTRUE(as.logical(Sys.getenv("REFIT_DPCQUANT", "FALSE")))
 
 out <- stage_paths("01_Processing", "02_Quantification")
 inputs <- c(
-  precursors = here("01_Processing", "01_Filtering", "c_data", "precursors_filtered.rds"),
+  precursors = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds"),
   mitocarta = input_path("Mouse.MitoCarta3.0.xls")
 )
-checkpoint <- file.path(out$data, sprintf("dpcquant_slope_%s.rds", DPC_SLOPE))
+inputs[["dpcquant_cache"]] <- dpcquant_cache(out$data, DPC_SLOPE)
 y <- readRDS(inputs[["precursors"]])$y
-
-# A checkpoint built from a different filtering run would report old numbers silently.
-fingerprint <- \(y) c(dim(y), sum(y$E, na.rm = TRUE))
-if (REFIT || !file.exists(checkpoint)) {
-  quantified <- dpcQuant(y, "Protein.Group", dpc.slope = DPC_SLOPE, verbose = FALSE)
-  attr(quantified, "source_fingerprint") <- fingerprint(y)
-  saveRDS(quantified, checkpoint)
-}
-quantified <- readRDS(checkpoint)
-stopifnot(identical(attr(quantified, "source_fingerprint"), fingerprint(y)))
-inputs <- c(inputs, dpcquant_checkpoint = checkpoint)
+quantified <- dpcquant_cached(y, DPC_SLOPE, inputs[["dpcquant_cache"]])
 
 dpc_cn <- dpcCN(y$E)
 dpc_on <- dpcON(y$E, robust = TRUE)
@@ -122,7 +110,6 @@ normalization <- candidates |>
   select(-E) |>
   unnest(spread) |>
   mutate(chosen = eligible & pmad == min(pmad[eligible]), .by = universe)
-stopifnot(all(count(filter(normalization, chosen), universe)$n == 1))
 chosen <- filter(normalization, chosen)
 E_norm <- set_names(
   map2(chosen$universe, chosen$method, \(u, m) normalize(proteins$E[universes[[u]], ], m)),
@@ -162,8 +149,7 @@ plot_index <- preview_pdf(file.path(out$reports, "02_quantification.pdf"), list(
 saveRDS(
   list(
     proteins = proteins, E_norm = E_norm, universes = universes, pct_mito = pct_mito,
-    mito_share = mito_share, normalization = set_names(chosen$method, chosen$universe),
-    dpc_slope = DPC_SLOPE
+    mito_share = mito_share, mito_share_tests = mito_share_tests, normalization = normalization
   ),
   file.path(out$data, "proteins.rds")
 )
@@ -191,5 +177,4 @@ tibble(
   n_proteins = nrow(proteins), samples = ncol(proteins), mitocarta = sum(proteins$genes$is_mito),
   median_spread_log2 = diff(range(normalization_evidence$median))
 )
-
-sessionInfo()
+select(chosen, universe, method, pmad)

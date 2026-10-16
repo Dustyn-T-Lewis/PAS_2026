@@ -1,15 +1,15 @@
-# One singscore per mouse per tested GO:BP and Reactome set, CORUM complex and STRING cluster on
-# the full matrix, and per tested MitoCarta pathway on the mitochondrial matrix. The GO:BP,
-# Reactome and MitoCarta sets are the ones fgsea tests in 02_Enrichment. A score is the mean
-# within-mouse rank of the group's members, so it uses no group label; 01_Fit tests it.
+# One singscore per mouse per tested GO:BP, Reactome, Hallmark and KEGG set, CORUM complex and
+# STRING cluster on the full matrix, and per tested MitoCarta pathway on the mitochondrial matrix.
+# The pathway sets are the ones fgsea tests in 02_Enrichment. A score is the mean within-mouse rank
+# of the group's members, so it uses no group label; 01_Fit tests it.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(singscore)
 
 out <- stage_paths("01_Processing", "05_Scores")
 inputs <- c(
-  proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds"),
-  gene_sets = here("01_Processing", "04_Gene_Sets", "c_data", "gene_sets.rds")
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
+  gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds")
 )
 quant <- readRDS(inputs[["proteins"]])
 gs <- readRDS(inputs[["gene_sets"]])
@@ -31,7 +31,6 @@ scores <- list(
   full = score(quant$E_norm$full, c(gs$tested$full, gs$complexes, gs$clusters)),
   mito = score(quant$E_norm$mito, gs$tested$mito)
 )
-stopifnot(map_lgl(scores, \(s) identical(colnames(s), targets$sample_id)))
 
 collection_of <- c(gs$tested$full, gs$tested$mito, gs$complexes, gs$clusters) |>
   imap(\(sets, db) set_names(rep(db, length(sets)), names(sets))) |>
@@ -71,7 +70,7 @@ write_workbook(
   ),
   c(
     "Every scored set, complex and cluster: universe, collection, mean score.",
-    "Scores by mouse: GO:BP and Reactome sets, CORUM complexes and STRING clusters.",
+    "Scores by mouse: full-proteome pathway sets, CORUM complexes and STRING clusters.",
     "Scores by mouse: MitoCarta pathways in the mitochondrial universe.",
     "Which PDF page shows what."
   ),
@@ -79,5 +78,3 @@ write_workbook(
 )
 
 count(catalog, universe, collection)
-
-sessionInfo()

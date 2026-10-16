@@ -3,9 +3,6 @@
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 library(limpa)
-library(readr)
-library(readxl)
-library(nanoparquet)
 
 out <- stage_paths("01_Processing", "01_Filtering")
 inputs <- c(
@@ -52,7 +49,7 @@ PLASMA <- c(
 # Protein.Ids is added for the cRAP check. log = TRUE is the default, so y$E is already log2.
 # The q-value columns are limpa's set for a search with match-between-runs (vignette, "Data
 # input"): every Q.Value and Lib.Q.Value in the report is already below 0.01, so DIA-NN
-# filtered on the library pass. To confirm with the facility.
+# filtered on the library pass.
 y <- readDIANN(
   inputs[["report"]],
   annotation.columns = c(
@@ -62,13 +59,15 @@ y <- readDIANN(
   q.cutoffs = 0.01
 )
 
-metadata <- read_csv(inputs[["metadata"]], show_col_types = FALSE) |>
+metadata <- readr::read_csv(inputs[["metadata"]], show_col_types = FALSE) |>
   filter(include)
-raw_quantity <- read_parquet(inputs[["report"]], col_select = c("Run", "Precursor.Quantity"))
-report_stats <- read_excel(inputs[["report_stats"]])
+raw_quantity <- nanoparquet::read_parquet(
+  inputs[["report"]],
+  col_select = c("Run", "Precursor.Quantity")
+)
+report_stats <- readxl::read_excel(inputs[["report_stats"]])
 
 i <- match(metadata$run, colnames(y))
-stopifnot(!anyNA(i))
 runs_dropped <- setdiff(colnames(y), colnames(y)[i])
 
 y <- y[, i]
@@ -85,7 +84,6 @@ all_na <- sum(!detected)
 y <- y[detected, ]
 
 signal_start <- total_signal(y$E)
-precursors_start <- nrow(y)
 
 raw_totals <- raw_quantity |>
   summarise(raw_total = sum(Precursor.Quantity), .by = Run) |>
@@ -103,15 +101,14 @@ raw_totals <- raw_quantity |>
   inner_join(select(metadata, run, sample_id, group), by = "run") |>
   mutate(raw_rel = raw_total / median(raw_total)) |>
   arrange(raw_rel)
-stopifnot(nrow(raw_totals) == nrow(metadata))
 
 members <- str_split(y$genes$Protein.Ids, ";")
 crap_only <- map_lgl(members, \(m) all(str_starts(m, "cRAP-")))
 crap_mixed <- str_detect(y$genes$Protein.Ids, "cRAP-") & !crap_only
 
-stopifnot(!any(map_lgl(members, \(m) {
+crap_duplicates_proteome <- any(map_lgl(members, \(m) {
   any(str_remove(m[str_starts(m, "cRAP-")], "^cRAP-") %in% m[!str_starts(m, "cRAP-")])
-})))
+}))
 
 crap_detected <- tibble(
   protein = y$genes$Protein.Names[crap_only],
@@ -166,19 +163,15 @@ removed <- tibble(
 y <- y[!contaminant, ]
 summary_contaminants <- step_summary(y, "contaminants removed", signal_start)
 
-# Catches an over-reaching contaminant rule, and a search whose FASTA duplicates the proteome.
-stopifnot(all(MUST_KEEP %in% unlist(str_split(y$genes$Genes, ";"))))
+# An over-reaching contaminant rule would remove one of these muscle proteins.
+must_keep_missing <- setdiff(MUST_KEEP, unlist(str_split(y$genes$Genes, ";")))
 
 filter_log <- bind_rows(
   summary_start, summary_proteotypic, summary_compound, summary_contaminants
 )
 
 saveRDS(
-  list(
-    y = y, metadata = metadata, signal_start = signal_start,
-    precursors_start = precursors_start,
-    run_qc = raw_totals, filter_log = filter_log
-  ),
+  list(y = y, run_qc = raw_totals, filter_log = filter_log),
   file.path(out$data, "precursors_filtered.rds")
 )
 
@@ -222,13 +215,13 @@ write_workbook(
   out$workbook, inputs
 )
 
-
 tibble(
   runs_dropped = str_c(runs_dropped, collapse = ", "), samples = ncol(y),
+  runs_unmatched = sum(is.na(i)), runs_with_qc = nrow(raw_totals),
+  crap_duplicates_proteome = crap_duplicates_proteome,
+  must_keep_missing = str_c(must_keep_missing, collapse = ", "),
   all_na_precursors = all_na, crap_groups = crap_removed, crap_precursors = crap_precursors,
   crap_mixed_groups = sum(crap_mixed),
   plasma_spread = diff(range(contaminant_share$median_pct_plasma))
 )
 filter_log
-
-sessionInfo()

@@ -23,8 +23,9 @@ COMPARISONS <- list(
   )
 )
 COMPARISON_CONTRASTS <- map_chr(COMPARISONS, "contrast")
+SEX_COMPARISONS <- COMPARISONS[c("female", "male")]
 COMPARISON_OF_CONTRAST <- c(
-  PAS_vs_VEH_female = "female", PAS_vs_VEH_male = "male", treatment_by_sex = "sex_difference",
+  set_names(names(COMPARISONS), COMPARISON_CONTRASTS),
   sex_in_VEH = "context", sex_in_PAS = "context"
 )
 PHENOTYPES <- c(
@@ -49,6 +50,26 @@ stage_paths <- function(stage, step, reports = TRUE) {
 # min_size and max_size); 04_Gene_Sets trims the lists to it and 02_Enrichment passes it to fgsea.
 TEST_WINDOW <- list(full = c(15, 500), mito = c(10, 500))
 
+# dpcQuant takes about two and a half minutes per detection slope, so each fit is kept in c_data/
+# and refitted when the filtered precursors change or REFIT_DPCQUANT=TRUE.
+dpcquant_cache <- \(dir, slope) file.path(dir, sprintf("dpcquant_slope_%s.rds", slope))
+dpcquant_cached <- function(y, slope, file) {
+  fingerprint <- c(dim(y), sum(y$E, na.rm = TRUE))
+  refit <- isTRUE(as.logical(Sys.getenv("REFIT_DPCQUANT", "FALSE")))
+  cached <- if (file.exists(file) && !refit) readRDS(file)
+  if (is.null(cached) || !identical(attr(cached, "fingerprint"), fingerprint)) {
+    cached <- limpa::dpcQuant(y, "Protein.Group", dpc.slope = slope, verbose = FALSE)
+    attr(cached, "fingerprint") <- fingerprint
+    saveRDS(cached, file)
+  }
+  cached
+}
+
+# Run depth, the covariate the surrogate variable tracks: log2 precursors identified in each run.
+run_depth_log2 <- function(run_qc, sample_id) {
+  log2(run_qc$precursors[match(sample_id, run_qc$sample_id)])
+}
+
 # DIA-NN lists every gene of a protein group; the first names the group.
 first_symbol <- \(genes) str_split_i(genes, ";", 1)
 
@@ -56,10 +77,11 @@ first_symbol <- \(genes) str_split_i(genes, ";", 1)
 set_id <- \(x) str_to_upper(str_replace_all(x, "[^A-Za-z0-9]+", "_"))
 
 # STRING v12, mouse, medium confidence, read from the copies in 00_Setup/Input/STRING_v12.
-STRING_FILES <- set_names(
-  list.files(input_path("STRING_v12"), full.names = TRUE),
-  c("string_aliases", "string_info", "string_links")
-)
+STRING_FILES <- map_chr(c(
+  string_aliases = "10090.protein.aliases.v12.0.txt.gz",
+  string_info = "10090.protein.info.v12.0.txt.gz",
+  string_links = "10090.protein.links.v12.0.min400.txt.gz"
+), \(f) input_path("STRING_v12", f))
 string_db <- function() {
   STRINGdb::STRINGdb$new(
     version = "12.0", species = 10090, score_threshold = 400, network_type = "full",

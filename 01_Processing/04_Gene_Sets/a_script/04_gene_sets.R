@@ -9,12 +9,12 @@
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 out <- stage_paths("01_Processing", "04_Gene_Sets", reports = FALSE)
-MIN_DETECTED <- 5
+MIN_GROUP_SIZE <- 5
 inputs <- c(
   mitocarta = input_path("Mouse.MitoCarta3.0.xls"),
   corum = input_path("corum_complete.txt"),
   STRING_FILES,
-  proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds")
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds")
 )
 
 quant <- readRDS(inputs[["proteins"]])
@@ -125,7 +125,7 @@ complex_members <- corum |>
   filter(mouse %in% detected) |>
   distinct(complex_id, complex_name, organism, mouse) |>
   summarise(members = list(sort(unique(mouse))), .by = c(complex_id, complex_name, organism)) |>
-  filter(lengths(members) >= MIN_DETECTED) |>
+  filter(lengths(members) >= MIN_GROUP_SIZE) |>
   arrange(complex_id) |>
   distinct(members, .keep_all = TRUE) |>
   mutate(set = paste0(
@@ -143,7 +143,7 @@ stringdb <- string_db()
 string_map <- stringdb$map(data.frame(gene = detected), "gene", removeUnmappedRows = TRUE)
 string_clusters <- stringdb$get_clusters(unique(string_map$STRING_id), algorithm = "walktrap") |>
   map(\(ids) sort(unique(string_map$gene[string_map$STRING_id %in% ids]))) |>
-  keep(\(g) length(g) >= MIN_DETECTED)
+  keep(\(g) length(g) >= MIN_GROUP_SIZE)
 cluster_labels <- label_groups(string_clusters, full[c("Hallmark", "Reactome")], detected)
 clusters <- list(STRING = set_names(
   string_clusters,
@@ -238,10 +238,9 @@ versions <- c(
 
 saveRDS(
   list(
-    full = full, mito = mito, tested = tested, compartments = compartments,
-    complexes = complexes, clusters = clusters, membership = membership, goslim = goslim,
-    slim_terms = goslim$term[goslim$go_id %in% slim_bp], ros = ROS_SETS,
-    literature = LITERATURE_SETS, literature_sets = literature_sets, versions = versions
+    full = full, tested = tested, compartments = compartments, complexes = complexes,
+    clusters = clusters, membership = membership, goslim = goslim,
+    literature = LITERATURE_SETS, literature_sets = literature_sets
   ),
   file.path(out$data, "gene_sets.rds")
 )
@@ -273,5 +272,3 @@ write_workbook(
 )
 
 count(catalog, collection, tested)
-
-sessionInfo()
