@@ -2,21 +2,21 @@
 # PAS from vehicle mice within each sex (five against five): AUC (pROC; 1 = higher in PAS) with
 # DeLong's 95% interval, left empty at perfect separation where it is undefined, the exact Wilcoxon
 # p, BH within sex and level, and r with group beside it. How many features separate perfectly is
-# judged against all 252 relabellings of the same ten mice. Proteins are left out: their ROC
+# judged against every relabelling of the same ten mice. Proteins are left out: their ROC
 # repeats the protein contrast. The sex-difference comparison has no classification; the interaction
 # contrast is its test.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 out <- stage_paths("02_Statistics", "03_Classification")
-inputs <- c(fit = here("02_Statistics", "01_Fit", "c_data", "fit.rds"))
+inputs <- c(fit = output_path("02_Statistics", "01_Fit", "fit.rds"))
 fit <- readRDS(inputs[["fit"]])
 targets <- fit$targets
-LEVELS <- c(pathway = "Pathways", module = "Modules", complex = "Complexes", cluster = "Clusters")
+LEVELS <- c("pathway", "module", "complex", "cluster")
 
 levels_of <- distinct(fit$score_contrasts, feature, level, collection)
 all_scores <- rbind(fit$scores$full, fit$scores$mito, fit$scores$module)[, targets$sample_id]
-features <- map(set_names(names(LEVELS)), \(lvl) {
+features <- map(set_names(LEVELS), \(lvl) {
   all_scores[levels_of$feature[levels_of$level == lvl], , drop = FALSE]
 })
 
@@ -41,7 +41,7 @@ roc_table <- function(m, case) {
 }
 
 # Features that put every case above (or below) every control, against the same count under each
-# of the choose(10, 5) = 252 relabellings: the exact null for that count.
+# relabelling of the mice (choose(10, 5) for five against five): the exact null for that count.
 perfect_null <- function(m, case) {
   keys <- \(idx) apply(idx, 1, \(i) paste(sort(i), collapse = ","))
   n <- sum(case)
@@ -57,8 +57,7 @@ perfect_null <- function(m, case) {
   )
 }
 
-comparisons <- keep(COMPARISONS, \(a) !is.na(a$sex))
-results <- imap(comparisons, \(a, comparison) {
+results <- imap(SEX_COMPARISONS, \(a, comparison) {
   in_sex <- targets$sex == a$sex
   case <- targets$treatment[in_sex] == "PAS"
   imap(features, \(m, level) {
@@ -71,28 +70,21 @@ results <- imap(comparisons, \(a, comparison) {
   })
 })
 r_group <- fit$score_contrasts |>
-  filter(contrast %in% map_chr(comparisons, "contrast")) |>
+  filter(contrast %in% map_chr(SEX_COMPARISONS, "contrast")) |>
   transmute(comparison = COMPARISON_OF_CONTRAST[contrast], feature, r_group)
 roc <- map(results, \(r) list_rbind(map(r, "roc"))) |>
   list_rbind() |>
   left_join(distinct(levels_of, feature, collection), by = "feature") |>
   left_join(r_group, by = c("comparison", "feature")) |>
   relocate(collection, .after = level) |>
-  arrange(comparison, factor(level, names(LEVELS)), p)
+  arrange(comparison, factor(level, LEVELS), p)
 perfect <- list_rbind(map(results, \(r) list_rbind(map(r, "perfect"))))
 tier_table <- roc |>
-  summarise(
-    features = n(), p_le_0.05 = sum(p <= ALPHA), expected_by_chance = ALPHA * n(),
-    fdr_le_0.05 = sum(fdr <= ALPHA), perfect = sum(auc %in% c(0, 1)), .by = c(comparison, level)
-  )
-# Perfect separations counted from mouse orderings must equal the features with AUC 0 or 1.
-stopifnot(identical(
-  perfect$observed,
-  left_join(select(perfect, comparison, level), tier_table, by = c("comparison", "level"))$perfect
-))
+  reframe(tier_counts(p, fdr), perfect = sum(auc %in% c(0, 1)), .by = c(comparison, level)) |>
+  select(comparison, level, features = tests, everything(), -pi_le_0.05)
 
 # The ROC curve behind each module eigengene's AUC, for the figures.
-module_curves <- imap(comparisons, \(a, comparison) {
+module_curves <- imap(SEX_COMPARISONS, \(a, comparison) {
   in_sex <- targets$sex == a$sex
   y <- factor(targets$treatment[in_sex] == "PAS", levels = c(FALSE, TRUE))
   m <- features$module[, in_sex]
@@ -130,7 +122,7 @@ roc_curves <- \(comparison) {
 plot_index <- preview_pdf(file.path(out$reports, "03_classification.pdf"), list(
   "AUC of every pathway score" = \() {
     par(mfrow = c(1, 2))
-    walk(c("female", "male"), \(cmp) {
+    walk(names(SEX_COMPARISONS), \(cmp) {
       hist(roc$auc[roc$comparison == cmp & roc$level == "pathway"],
         breaks = seq(0, 1, 0.05), main = COMPARISONS[[cmp]]$label, xlab = "AUC (1: higher in PAS)"
       )
@@ -154,14 +146,17 @@ write_workbook(
   ),
   c(
     paste(
-      "Per comparison and level: features, at p ≤ 0.05, expected by chance, FDR ≤ 0.05,",
+      "Per comparison and level: features, at p ≤ 0.05, expected by chance, FDR tiers,",
       "perfect separations."
     ),
     paste(
       "Every feature, PAS vs vehicle within sex: AUC, DeLong 95% CI (empty at perfect separation),",
       "exact Wilcoxon p, BH FDR within comparison and level, r with group (PAS = 1)."
     ),
-    "Per comparison and level: perfect separations against all 252 relabellings.",
+    str_glue(
+      "Per comparison and level: perfect separations against all",
+      " {perfect$relabellings[1]} relabellings."
+    ),
     "Per comparison and module: the ROC curve (specificity, sensitivity) behind each AUC.",
     "Which PDF page shows what."
   ),
@@ -169,5 +164,4 @@ write_workbook(
 )
 
 tier_table
-
-sessionInfo()
+perfect

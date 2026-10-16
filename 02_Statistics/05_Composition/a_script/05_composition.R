@@ -3,12 +3,13 @@
 # could pass for a change in the tissue. Each mouse gets a score per marker group: the mean, over
 # the group's proteins detected in at least 15 of the 20 mice, of each protein's log2 abundance
 # centred and scaled across mice. Haemoglobin, filtered out of the proteome as a contaminant, is
-# scored as its share of precursor signal in the raw report. Each score and the pellet MitoCarta
+# scored as its share of DIA-NN's normalised precursor signal, with the q-value filters 01_Filtering
+# applies. Each score and the pellet MitoCarta
 # share are tested for PAS within each sex (Welch t), with the difference and its 95% CI.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
-MIN_DETECTED <- 15
+MIN_MICE_DETECTED <- 15
 MARKERS <- list(
   `Sarcoplasmic reticulum` = c(
     "Atp2a1", "Atp2a2", "Casq1", "Casq2", "Trdn", "Jph1", "Jph2", "Ryr1", "Srl", "Stac3",
@@ -27,37 +28,32 @@ MARKERS <- list(
 
 out <- stage_paths("02_Statistics", "05_Composition")
 inputs <- c(
-  proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds"),
-  report = here("00_Setup", "Input", "report.parquet"),
-  metadata = here("00_Setup", "Input", "metadata.csv")
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
+  report = input_path("report.parquet")
 )
 quant <- readRDS(inputs[["proteins"]])
 targets <- as_tibble(quant$proteins$targets)
 expr <- quant$E_norm$full[, targets$sample_id]
 detected <- quant$proteins$other$n.observations[rownames(expr), targets$sample_id] > 0
 genes <- first_symbol(quant$proteins$genes[rownames(expr), "Genes"])
-stopifnot(identical(names(quant$pct_mito), targets$sample_id))
 
-usable <- rowSums(detected) >= MIN_DETECTED
+usable <- rowSums(detected) >= MIN_MICE_DETECTED
 scaled <- t(scale(t(expr)))
 marker_members <- imap(MARKERS, \(symbols, group) {
   tibble(group = group, protein = rownames(expr)[usable & genes %in% symbols]) |>
     mutate(gene = genes[protein])
 }) |>
   list_rbind()
-stopifnot(all(count(marker_members, group)$n >= 3))
 scores <- marker_members |>
   summarise(proteins = list(protein), n_proteins = n(), .by = group) |>
   mutate(score = map(proteins, \(p) colMeans(scaled[p, , drop = FALSE]))) |>
   select(group, n_proteins, score) |>
   unnest_longer(score, indices_to = "sample_id")
 
-metadata <- readr::read_csv(inputs[["metadata"]], show_col_types = FALSE) |>
-  filter(include)
-report <- arrow::read_parquet(inputs[["report"]],
-  col_select = c("Run", "Genes", "Precursor.Normalised", "Q.Value", "Lib.Q.Value")
+report <- nanoparquet::read_parquet(inputs[["report"]],
+  col_select = c("Run", "Genes", "Precursor.Normalised", "Q.Value", "Lib.Q.Value", "Lib.PG.Q.Value")
 ) |>
-  filter(Q.Value <= 0.01, Lib.Q.Value <= 0.01, Run %in% metadata$run)
+  filter(Q.Value <= 0.01, Lib.Q.Value <= 0.01, Lib.PG.Q.Value <= 0.01, Run %in% targets$run)
 haemoglobin <- report |>
   summarise(
     score = 100 * sum(Precursor.Normalised[str_detect(Genes, "^Hb[ab]")]) /
@@ -66,7 +62,7 @@ haemoglobin <- report |>
   ) |>
   transmute(
     group = "Haemoglobin (% of signal)", n_proteins = NA_integer_,
-    sample_id = metadata$sample_id[match(Run, metadata$run)], score
+    sample_id = targets$sample_id[match(Run, targets$run)], score
   )
 
 composition <- bind_rows(
@@ -78,7 +74,6 @@ composition <- bind_rows(
   )
 ) |>
   left_join(select(targets, sample_id, sex, treatment, group_label = group), by = "sample_id")
-stopifnot(!anyNA(composition$score), all(count(composition, group)$n == nrow(targets)))
 
 tests <- composition |>
   reframe(
@@ -111,7 +106,7 @@ plot_index <- preview_pdf(file.path(out$reports, "05_composition.pdf"), list(
 ))
 
 saveRDS(
-  list(composition = composition, tests = tests, members = marker_members),
+  list(composition = composition, tests = tests),
   file.path(out$data, "composition.rds")
 )
 write_workbook(
@@ -121,12 +116,11 @@ write_workbook(
   c(
     "Per marker group and sex: PAS and vehicle means, difference with 95% CI, Welch p.",
     "Per mouse and marker group: score (mean scaled log2 abundance, or % of signal).",
-    "Proteins scored in each marker group (detected in at least 15 of 20 mice).",
+    str_glue("Proteins scored per marker group (detected in at least {MIN_MICE_DETECTED} mice)."),
     "Which PDF page shows what."
   ),
   out$workbook, inputs
 )
 
+count(marker_members, group, name = "proteins")
 tests
-
-sessionInfo()

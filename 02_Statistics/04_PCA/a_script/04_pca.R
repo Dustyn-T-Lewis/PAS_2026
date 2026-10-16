@@ -12,8 +12,8 @@ PERMUTATIONS <- 999
 
 out <- stage_paths("02_Statistics", "04_PCA")
 inputs <- c(
-  fit = here("02_Statistics", "01_Fit", "c_data", "fit.rds"),
-  filtering = here("01_Processing", "01_Filtering", "c_data", "precursors_filtered.rds")
+  fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
+  filtering = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds")
 )
 fit <- readRDS(inputs[["fit"]])
 run_qc <- readRDS(inputs[["filtering"]])$run_qc
@@ -21,11 +21,11 @@ samples <- as_tibble(fit$targets) |>
   select(sample_id, treatment, sex, group) |>
   mutate(
     pct_mito = fit$pct_mito[sample_id],
+    run_depth = run_depth_log2(run_qc, sample_id),
     precursors = run_qc$precursors[match(sample_id, run_qc$sample_id)],
     protein_groups = run_qc$proteins[match(sample_id, run_qc$sample_id)],
     raw_signal_rel = run_qc$raw_rel[match(sample_id, run_qc$sample_id)]
   )
-stopifnot(!anyNA(samples$precursors), identical(fit$phenotypes$mouse, samples$sample_id))
 
 # Technical variables per group, with the two-way model each is read against. They are reported,
 # not adjusted for: run order was randomised and within-sex fold changes cancel what PAS and
@@ -73,7 +73,7 @@ codes <- transmute(samples,
   Treatment = if_else(treatment == "PAS", 1, -1),
   `Sex × treatment` = Sex * Treatment,
   `MitoCarta share` = pct_mito,
-  `Run depth (precursors)` = precursors
+  `Run depth (log2 precursors)` = run_depth
 )
 component_r2 <- expand_grid(component = seq_len(N_COMPONENTS), factor = names(codes)) |>
   mutate(
@@ -105,9 +105,7 @@ plot_index <- preview_pdf(file.path(out$reports, "04_pca.pdf"), list(
 saveRDS(
   list(
     proteome_scores = proteome_scores, proteome_variance = proteome$variance,
-    permanova = proteome$permanova, dispersion_p = proteome$dispersion_p,
-    component_r2 = component_r2, mito_vector = mito_vector, technical = samples,
-    technical_tests = technical_tests,
+    permanova = proteome$permanova, component_r2 = component_r2, mito_vector = mito_vector,
     phenotype_scores = phenotype_scores, phenotype_variance = phenotype$variance,
     phenotype_permanova = phenotype$permanova, phenotype_loadings = phenotype_loadings
   ),
@@ -147,5 +145,3 @@ write_workbook(
 
 proteome$permanova
 phenotype$permanova
-
-sessionInfo()

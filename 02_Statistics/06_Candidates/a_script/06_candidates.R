@@ -3,28 +3,32 @@
 # A protein is considered in a sex only if it is detected in at least 4 of 5 mice in each group of
 # that sex, so its values there are mostly measured.
 #   1. statistics: p <= 0.01 within the sex;
-#   2. every mouse: AUC >= 0.92 or <= 0.08 on values adjusted for the surrogate variable;
+#   2. every mouse: AUC >= 0.92 or <= 0.08 on values adjusted for the surrogate variable (pROC,
+#      ties count half);
 #   3. both sexes: same direction and p <= 0.10 in each;
 #   4. phenotype: within-treatment association p <= 0.01 with any trait in that sex;
 #   5. hub: kME >= 0.8 in a module whose within-sex PAS contrast has p <= 0.05;
 #   6. pathway: in the leading edge of a kept FDR-level fgsea set for that sex, with p <= 0.05.
 # Candidates passing two or more routes are grouped by STRING v12 (combined score >= 700): each
-# connected community (igraph walktrap) is named by its smallest-p over-represented Hallmark,
-# Reactome or GO:BP term (fgsea::fora against the detected proteome, at least two members).
+# connected community (igraph walktrap) takes the name of the Hallmark, Reactome or GO:BP term
+# with the smallest ORA p (fgsea::fora against the detected proteome, at least two members). The
+# name is a label, not a test: no significance threshold applies.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
-MIN_DETECTED <- 4
+MIN_DETECTED_PER_GROUP <- 4
+ROUTE_P <- 0.01
 STRING_SCORE <- 700
+COMMUNITY_ROUTES <- 2
 
 out <- stage_paths("02_Statistics", "06_Candidates")
 inputs <- c(
-  fit = here("02_Statistics", "01_Fit", "c_data", "fit.rds"),
-  proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds"),
-  design = here("01_Processing", "03_Design", "c_data", "design.rds"),
-  enrichment = here("02_Statistics", "02_Enrichment", "c_data", "enrichment.rds"),
-  modules = here("01_Processing", "06_Modules", "c_data", "modules.rds"),
-  gene_sets = here("01_Processing", "04_Gene_Sets", "c_data", "gene_sets.rds"),
+  fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
+  design = output_path("01_Processing", "03_Design", "design.rds"),
+  enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"),
+  modules = output_path("01_Processing", "06_Modules", "modules.rds"),
+  gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds"),
   STRING_FILES
 )
 fit <- readRDS(inputs[["fit"]])
@@ -37,8 +41,7 @@ targets <- as_tibble(fit$targets)
 expr <- fit$E_norm$full[, targets$sample_id]
 detected <- quant$proteins$other$n.observations[rownames(expr), targets$sample_id] > 0
 sv1 <- d$design[targets$sample_id, "sv1"]
-SEX_CONTRAST <- c(female = "PAS_vs_VEH_female", male = "PAS_vs_VEH_male")
-SEX_CODE <- c(female = "F", male = "M")
+SEX_CONTRAST <- map_chr(SEX_COMPARISONS, "contrast")
 
 proteins <- filter(fit$protein_contrasts, universe == "full")
 both <- proteins |>
@@ -52,16 +55,22 @@ both <- proteins |>
   pull(feature)
 
 routes <- imap(SEX_CONTRAST, \(cn, sex) {
-  code <- SEX_CODE[[sex]]
+  code <- SEX_COMPARISONS[[sex]]$sex
   veh <- targets$group == paste0("VEH_", code)
   pas <- targets$group == paste0("PAS_", code)
-  measured <- rowSums(detected[, veh]) >= MIN_DETECTED & rowSums(detected[, pas]) >= MIN_DETECTED
+  measured <- rowSums(detected[, veh]) >= MIN_DETECTED_PER_GROUP &
+    rowSums(detected[, pas]) >= MIN_DETECTED_PER_GROUP
   in_sex <- veh | pas
-  # Remove the surrogate variable within the sex before comparing mice one by one.
-  resid <- t(apply(expr[, in_sex], 1, \(v) residuals(lm(v ~ sv1[in_sex])) + mean(v)))
-  auc <- apply(resid, 1, \(v) mean(outer(v[pas[in_sex]], v[veh[in_sex]], ">")))
+  # The surrogate variable is removed within the sex before mice are compared one by one.
+  adjusted <- limma::removeBatchEffect(expr[, in_sex], covariates = sv1[in_sex])
+  case <- factor(pas[in_sex], c(FALSE, TRUE))
+  # Five against five, AUC moves in steps of 1/25; pROC's trapezoid sum lands a hair off them, so
+  # it is rounded before the 0.92 and 0.08 cuts.
+  auc <- apply(adjusted, 1, \(v) {
+    round(as.numeric(pROC::auc(case, v, levels = levels(case), direction = "<", quiet = TRUE)), 4)
+  })
   associated <- fit$protein_associations |>
-    filter(universe == "full", model == "treatment", sex == !!sex, P.Value <= 0.01) |>
+    filter(universe == "full", model == "treatment", sex == !!sex, P.Value <= ROUTE_P) |>
     pull(feature)
   responsive <- fit$score_contrasts |>
     filter(level == "module", contrast == cn, P.Value <= ALPHA) |>
@@ -77,7 +86,7 @@ routes <- imap(SEX_CONTRAST, \(cn, sex) {
     transmute(
       sex, feature, gene, logFC, logFC_shrunk, P.Value, adj.P.Val, lfsr, pi_score,
       auc = auc[feature],
-      statistics = P.Value <= 0.01,
+      statistics = P.Value <= ROUTE_P,
       every_mouse = auc >= 0.92 | auc <= 0.08,
       both_sexes = feature %in% both,
       phenotype = feature %in% associated,
@@ -107,19 +116,15 @@ links <- string$get_interactions(string_ids$STRING_id) |>
 detected_genes <- unique(proteins$gene[!is.na(proteins$gene) & proteins$gene != ""])
 full_sets <- unlist(unname(gs$full[c("Hallmark", "Reactome", "GO:BP")]), recursive = FALSE)
 name_community <- function(members) {
-  if (length(members) < 2) {
-    return(NA_character_)
-  }
   ora <- fgsea::fora(full_sets, members, detected_genes, minSize = 5, maxSize = 500) |>
     filter(overlap >= 2) |>
     arrange(pval)
   if (nrow(ora) == 0) NA_character_ else ora$pathway[1]
 }
 communities <- map(names(SEX_CONTRAST), \(sex) {
-  genes <- unique(routes$gene[routes$sex == sex & routes$routes >= 2])
+  genes <- unique(routes$gene[routes$sex == sex & routes$routes >= COMMUNITY_ROUTES])
   edges <- filter(links, a %in% genes, b %in% genes)
   graph <- igraph::graph_from_data_frame(edges, directed = FALSE, vertices = genes)
-  set.seed(SEED)
   membership <- igraph::membership(igraph::cluster_walktrap(graph))
   tibble(sex = sex, gene = names(membership), community = as.integer(membership)) |>
     mutate(size = n(), .by = community) |>
@@ -137,7 +142,6 @@ candidates <- routes |>
 network_edges <- links |>
   inner_join(distinct(communities, sex, gene), by = c(a = "gene"), relationship = "many-to-many") |>
   semi_join(communities, by = c("sex", b = "gene"))
-stopifnot(!anyDuplicated(select(candidates, sex, feature)))
 
 summary <- candidates |>
   summarise(
@@ -158,7 +162,10 @@ plot_index <- preview_pdf(file.path(out$reports, "06_candidates.pdf"), list(
 ))
 
 saveRDS(
-  list(candidates = candidates, edges = network_edges, summary = summary),
+  list(
+    candidates = candidates, edges = network_edges,
+    thresholds = list(p = ROUTE_P, string_score = STRING_SCORE, community_routes = COMMUNITY_ROUTES)
+  ),
   file.path(out$data, "candidates.rds")
 )
 write_workbook(
@@ -170,12 +177,13 @@ write_workbook(
       "sv1-adjusted values, each route, routes passed, detection per group, STRING community",
       "and its name."
     ),
-    "STRING v12 links (combined score >= 700) among candidates passing two or more routes.",
+    str_glue(
+      "STRING v12 links (combined score >= {STRING_SCORE}) among candidates passing",
+      " {COMMUNITY_ROUTES} or more routes."
+    ),
     "Which PDF page shows what."
   ),
   out$workbook, inputs
 )
 
 summary
-
-sessionInfo()

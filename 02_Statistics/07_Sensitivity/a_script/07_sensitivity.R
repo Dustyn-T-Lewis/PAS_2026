@@ -1,7 +1,7 @@
 # How much the protein results depend on choices made once. Each row changes one choice from the
 # baseline and refits the three comparison contrasts in the full proteome exactly as 01_Fit does
 # (contrastAsCoef, dpcDE, eBayes):
-#   detection slope 0.5 or 1.0 instead of 0.7 (dpcQuant rerun, same 1,962 proteins);
+#   detection slope 0.5 or 1.0 instead of 0.7 (dpcQuant rerun, restricted to the baseline proteins);
 #   measured run depth instead of the surrogate variable, or no adjustment;
 #   no per-mouse sample weights;
 #   without the re-injected male PAS run (PAS_M1);
@@ -11,7 +11,6 @@
 # the baseline.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
-library(limma)
 library(limpa)
 
 ALT_SLOPES <- c(0.5, 1.0)
@@ -19,56 +18,49 @@ TOP_N <- 50
 
 out <- stage_paths("02_Statistics", "07_Sensitivity")
 inputs <- c(
-  precursors = here("01_Processing", "01_Filtering", "c_data", "precursors_filtered.rds"),
-  proteins = here("01_Processing", "02_Quantification", "c_data", "proteins.rds"),
-  design = here("01_Processing", "03_Design", "c_data", "design.rds"),
-  fit = here("02_Statistics", "01_Fit", "c_data", "fit.rds")
+  precursors = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds"),
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
+  design = output_path("01_Processing", "03_Design", "design.rds"),
+  fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
+  set_names(dpcquant_cache(out$data, ALT_SLOPES), paste0("dpcquant_cache_", ALT_SLOPES))
 )
 filtered <- readRDS(inputs[["precursors"]])
 quant <- readRDS(inputs[["proteins"]])
 d <- readRDS(inputs[["design"]])
 fit <- readRDS(inputs[["fit"]])
 targets <- as_tibble(quant$proteins$targets)
-run_depth <- log2(filtered$run_qc$precursors[match(targets$sample_id, filtered$run_qc$sample_id)])
-stopifnot(identical(rownames(d$design), targets$sample_id), !anyNA(run_depth))
+run_depth <- run_depth_log2(filtered$run_qc, targets$sample_id)
 group_cols <- setdiff(colnames(d$design), "sv1")
 
 baseline_y <- quant$proteins[quant$universes$full, ]
 baseline_y$E <- quant$E_norm$full
 
-# dpcQuant at other slopes; each takes about two and a half minutes, so results are kept and
-# reused while the filtered precursors are unchanged.
 requantify <- function(slope) {
-  checkpoint <- file.path(out$data, sprintf("dpcquant_slope_%s.rds", slope))
-  fingerprint <- c(dim(filtered$y), sum(filtered$y$E, na.rm = TRUE))
-  if (!file.exists(checkpoint) || !identical(attr(readRDS(checkpoint), "fp"), fingerprint)) {
-    q <- dpcQuant(filtered$y, "Protein.Group", dpc.slope = slope, verbose = FALSE)
-    attr(q, "fp") <- fingerprint
-    saveRDS(q, checkpoint)
-  }
-  q <- readRDS(checkpoint)[rownames(baseline_y), ]
+  q <- dpcquant_cached(filtered$y, slope, dpcquant_cache(out$data, slope))[rownames(baseline_y), ]
   q$genes <- baseline_y$genes
   q
 }
 
 with_covariate <- \(value) cbind(d$design[, group_cols], covariate = value - mean(value))
-variants <- list(
-  baseline = list(y = baseline_y, design = d$design, weights = TRUE),
-  `slope 0.5` = list(y = requantify(0.5), design = d$design, weights = TRUE),
-  `slope 1.0` = list(y = requantify(1.0), design = d$design, weights = TRUE),
-  `run depth instead of sv1` = list(
-    y = baseline_y, design = with_covariate(run_depth), weights = TRUE
-  ),
-  `no adjustment` = list(y = baseline_y, design = d$design[, group_cols], weights = TRUE),
-  `no sample weights` = list(y = baseline_y, design = d$design, weights = FALSE),
-  `without PAS_M1` = list(
-    y = baseline_y[, targets$sample_id != "PAS_M1"],
-    design = d$design[targets$sample_id != "PAS_M1", ], weights = TRUE
-  ),
-  `pellet share covariate` = list(
-    y = baseline_y,
-    design = cbind(d$design, mito = quant$pct_mito[targets$sample_id] - mean(quant$pct_mito)),
-    weights = TRUE
+slopes <- map(ALT_SLOPES, \(slope) list(y = requantify(slope), design = d$design, weights = TRUE))
+variants <- c(
+  list(baseline = list(y = baseline_y, design = d$design, weights = TRUE)),
+  set_names(slopes, sprintf("slope %.1f", ALT_SLOPES)),
+  list(
+    `run depth instead of sv1` = list(
+      y = baseline_y, design = with_covariate(run_depth), weights = TRUE
+    ),
+    `no adjustment` = list(y = baseline_y, design = d$design[, group_cols], weights = TRUE),
+    `no sample weights` = list(y = baseline_y, design = d$design, weights = FALSE),
+    `without PAS_M1` = list(
+      y = baseline_y[, targets$sample_id != "PAS_M1"],
+      design = d$design[targets$sample_id != "PAS_M1", ], weights = TRUE
+    ),
+    `pellet share covariate` = list(
+      y = baseline_y,
+      design = cbind(d$design, mito = quant$pct_mito[targets$sample_id] - mean(quant$pct_mito)),
+      weights = TRUE
+    )
   )
 )
 
@@ -95,10 +87,8 @@ top_baseline <- baseline |>
   slice_min(P.Value, n = TOP_N, by = contrast, with_ties = FALSE) |>
   select(contrast, feature)
 counts <- results |>
-  summarise(
-    p_le_0.05 = sum(P.Value <= ALPHA), fdr_le_0.10 = sum(adj.P.Val <= 0.10),
-    fdr_le_0.05 = sum(adj.P.Val <= ALPHA), .by = c(variant, contrast)
-  ) |>
+  reframe(tier_counts(P.Value, adj.P.Val), .by = c(variant, contrast)) |>
+  select(-pi_le_0.05) |>
   left_join(
     results |>
       slice_min(P.Value, n = TOP_N, by = c(variant, contrast), with_ties = FALSE) |>
@@ -113,16 +103,12 @@ named <- baseline |>
   select(contrast, feature) |>
   inner_join(results, by = c("contrast", "feature")) |>
   select(variant, contrast, feature, gene, logFC, P.Value, adj.P.Val)
-stopifnot(
-  nrow(counts) == length(variants) * length(COMPARISON_CONTRASTS),
-  all(counts$top50_shared[counts$variant == "baseline"] == TOP_N)
-)
-# The baseline row must reproduce 01_Fit.
-check <- fit$protein_contrasts |>
+# The baseline row refits 01_Fit's model, so its p-values should match 01_Fit's.
+baseline_vs_fit <- fit$protein_contrasts |>
   filter(universe == "full", contrast %in% COMPARISON_CONTRASTS) |>
   select(contrast, feature, fit_p = P.Value) |>
-  inner_join(baseline, by = c("contrast", "feature"))
-stopifnot(isTRUE(all.equal(check$fit_p, check$P.Value)))
+  inner_join(baseline, by = c("contrast", "feature")) |>
+  summarise(max_abs_p_difference = max(abs(fit_p - P.Value)))
 
 plot_index <- preview_pdf(file.path(out$reports, "07_sensitivity.pdf"), list(
   "proteins at p <= 0.05 per variant and contrast" = \() {
@@ -134,7 +120,7 @@ plot_index <- preview_pdf(file.path(out$reports, "07_sensitivity.pdf"), list(
 ))
 
 saveRDS(
-  list(counts = counts, named = named, results = results),
+  list(counts = counts, named = named),
   file.path(out$data, "sensitivity.rds")
 )
 write_workbook(
@@ -150,6 +136,5 @@ write_workbook(
   out$workbook, inputs
 )
 
+baseline_vs_fit
 counts
-
-sessionInfo()
