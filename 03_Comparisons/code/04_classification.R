@@ -5,10 +5,9 @@ source(here::here("00_Setup", "Shared_functions", "comparisons.R"))
 
 # Classification: which single pathway scores, modules, complexes and clusters separate PAS from
 # vehicle mice in this sex, sliced from 03_Classification (AUC, DeLong CI, exact Wilcoxon p, BH
-# within level, perfect separations against all 252 relabellings). Female and male comparisons only.
+# within level, perfect separations against every relabelling). Female and male comparisons only.
 report_classification <- function(comparison) {
   sex_code <- COMPARISONS[[comparison]]$sex
-  stopifnot(!is.na(sex_code))
   out <- comparison_paths(comparison, "04_classification")
   inputs <- c(
     classification = output_path("02_Statistics", "03_Classification", "classification.rds"),
@@ -48,19 +47,18 @@ report_classification <- function(comparison) {
     }
   ))
 
-  saveRDS(
-    list(roc = roc, perfect = perfect, summary = tier_table),
-    file.path(out$data, "04_classification.rds")
-  )
   write_workbook(
     list(summary = tier_table, roc = roc, perfect_separations = perfect, plot_index = plot_index),
     c(
-      "Per level: features, at p ≤ 0.05, expected by chance, FDR ≤ 0.05, perfect separations.",
+      "Per level: features, at p ≤ 0.05, expected by chance, FDR tiers, perfect separations.",
       paste(
         "Every feature, by p: AUC (PAS vs vehicle), DeLong 95% CI (empty at perfect separation),",
         "exact Wilcoxon p, BH FDR within level, r with PAS."
       ),
-      "Per level: perfect separations against all 252 relabellings.",
+      str_glue(
+        "Per level: perfect separations against all",
+        " {perfect$relabellings[1]} relabellings."
+      ),
       "Which PDF page shows what."
     ),
     out$workbook, inputs

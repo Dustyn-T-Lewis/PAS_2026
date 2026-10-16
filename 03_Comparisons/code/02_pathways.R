@@ -3,11 +3,11 @@
 
 source(here::here("00_Setup", "Shared_functions", "comparisons.R"))
 
-# Pathways: the comparison's contrast sliced from 02_Enrichment. fgsea on GO:BP and Reactome in the
-# full proteome and MitoCarta in the mitochondrial universe, BH within collection over every tested
-# set, each beside the same set's singscore contrast; GO Slim compartments and the literature list
-# alongside. GO Slim generic BP families (every slim ancestor a term reaches) summarise the GO:BP
-# terms; they never choose what is tested.
+# Pathways: the comparison's contrast sliced from 02_Enrichment. fgsea on GO:BP, Reactome, Hallmark
+# and KEGG in the full proteome and MitoCarta in the mitochondrial universe, BH within collection
+# over every tested set, each beside the same set's singscore contrast; GO Slim compartments and
+# the literature list alongside. GO Slim generic BP families (every slim ancestor a term reaches)
+# summarise the GO:BP terms; they never choose what is tested.
 report_pathways <- function(comparison) {
   out <- comparison_paths(comparison, "02_pathways")
   inputs <- c(
@@ -18,7 +18,7 @@ report_pathways <- function(comparison) {
   gs <- readRDS(inputs[["gene_sets"]])
   contrast <- COMPARISONS[[comparison]]$contrast
   label <- COMPARISONS[[comparison]]$label
-  collections <- c(`GO:BP` = "full", Reactome = "full", MitoCarta = "mito")
+  collections <- deframe(distinct(enr$results, collection, universe))
 
   results <- filter(enr$results, contrast == !!contrast) |>
     select(-contrast) |>
@@ -64,13 +64,6 @@ report_pathways <- function(comparison) {
     set_names(map(names(collections), gsea_table), paste("strongest sets,", names(collections)))
   )
 
-  saveRDS(
-    list(
-      compartments = compartments, results = results, families = family_summary,
-      literature = literature
-    ),
-    file.path(out$data, "02_pathways.rds")
-  )
   write_workbook(
     list(
       summary = tier_table, fgsea = results, families = family_summary, compartments = compartments,

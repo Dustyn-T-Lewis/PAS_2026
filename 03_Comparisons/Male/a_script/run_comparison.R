@@ -11,5 +11,3 @@ report_proteins("male")
 report_pathways("male")
 report_phenotypes("male")
 report_classification("male")
-
-sessionInfo()

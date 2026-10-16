@@ -1,5 +1,5 @@
-# Helpers the four steps in 03_Comparisons/code/ share: where a comparison writes, which mice it
-# looks at and a protein's tier. Sourced by every step; it sources helpers.R.
+# Helpers the four steps in 03_Comparisons/code/ share: where a comparison writes and which mice
+# it looks at. Sourced by every step; it sources helpers.R.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -18,16 +18,4 @@ comparison_paths <- function(comparison, step) {
 comparison_mice <- function(comparison, targets) {
   sex_code <- COMPARISONS[[comparison]]$sex
   if (is.na(sex_code)) targets$sample_id else targets$sample_id[targets$sex == sex_code]
-}
-
-# The strongest tier a protein reaches: FDR, then Π, then nominal p.
-tier_of <- function(p, fdr, pi) {
-  factor(
-    case_when(
-      fdr <= ALPHA ~ "FDR ≤ 0.05", pi <= ALPHA ~ "Π ≤ 0.05",
-      p <= ALPHA ~ "p ≤ 0.05",
-      .default = "p > 0.05"
-    ),
-    c("p > 0.05", "p ≤ 0.05", "Π ≤ 0.05", "FDR ≤ 0.05")
-  )
 }

@@ -23,7 +23,7 @@ robust_example <- function(associations, E, x, mice, max_tries = 50) {
 
 # Associations, two different questions kept apart. Phenotype effects: what PAS did to each
 # phenotype in this sex (% change against vehicle, a treatment effect). Phenotype associations:
-# which proteins, pathway scores (GO:BP, Reactome, MitoCarta), modules, complexes and clusters move
+# which proteins, pathway scores, modules, complexes and clusters move
 # with each phenotype across this sex's ten PAS and vehicle mice (01_Fit; r pooled and within each
 # group beside every test), under two models: pooled across PAS and vehicle, and within treatment
 # (treatment in the model). An association is co-movement, not a PAS effect. Pathway patterns also
@@ -119,14 +119,6 @@ report_phenotypes <- function(comparison) {
     }
   ))
 
-  saveRDS(
-    list(
-      effects = effects, associations = associations, association_summary = association_summary,
-      fgsea = fgsea,
-      examples = examples, treatment_r = r_group
-    ),
-    file.path(out$data, "03_phenotypes.rds")
-  )
   write_workbook(
     list(
       phenotype_effects = effects, association_summary = association_summary,

@@ -8,5 +8,3 @@ source(here::here("03_Comparisons", "code", "02_pathways.R"))
 
 report_proteins("sex_difference")
 report_pathways("sex_difference")
-
-sessionInfo()

@@ -3,6 +3,18 @@
 
 source(here::here("00_Setup", "Shared_functions", "comparisons.R"))
 
+# The strongest tier a protein reaches: FDR, then Π, then nominal p.
+tier_of <- function(p, fdr, pi) {
+  factor(
+    case_when(
+      fdr <= ALPHA ~ "FDR ≤ 0.05", pi <= ALPHA ~ "Π ≤ 0.05",
+      p <= ALPHA ~ "p ≤ 0.05",
+      .default = "p > 0.05"
+    ),
+    c("p > 0.05", "p ≤ 0.05", "Π ≤ 0.05", "FDR ≤ 0.05")
+  )
+}
+
 # Proteins: the comparison's contrast sliced from the shared fit, its tiers and Π lists, and the
 # STRING connectivity of those lists from 02_Enrichment (descriptive).
 report_proteins <- function(comparison) {
@@ -55,10 +67,6 @@ report_proteins <- function(comparison) {
     }
   ))
 
-  saveRDS(
-    list(results = results, summary = tier_table, pi_lists = pi_lists, string = string),
-    file.path(out$data, "01_proteins.rds")
-  )
   write_workbook(
     list(
       summary = tier_table, results = select(results, -genes), pi_lists = pi_lists, string = string,

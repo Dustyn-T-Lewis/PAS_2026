@@ -11,5 +11,3 @@ report_proteins("female")
 report_pathways("female")
 report_phenotypes("female")
 report_classification("female")
-
-sessionInfo()
