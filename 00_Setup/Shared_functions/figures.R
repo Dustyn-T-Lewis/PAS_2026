@@ -557,3 +557,114 @@ set_dot_matrix <- function(cells, title, subtitle, fdr_cap = 4, nes_limit = 2.5)
       panel.spacing = unit(0.8, "mm"), legend.box = "vertical"
     )
 }
+
+# One sex's candidates (two or more routes) as a STRING network: shaded hulls for STRING
+# communities, named by their best over-represented term; edges where STRING v12 scores >= 700;
+# node size routes passed, colour log2 fold change. Communities are kept together by adding
+# invisible within-community edges to the layout only. Proteins without a STRING partner are
+# listed under the plot. cands and edges come from 02_Statistics/06_Candidates.
+candidate_network <- function(cands, edges, sex, title, subtitle) {
+  nodes <- cands |>
+    filter(sex == !!sex, routes >= 2) |>
+    distinct(gene, .keep_all = TRUE) |>
+    mutate(group = if_else(is.na(name), NA_character_, set_label(name, 30)))
+  links <- edges |>
+    filter(sex == !!sex, a %in% nodes$gene, b %in% nodes$gene) |>
+    distinct(a, b)
+  linked <- nodes |> filter(!is.na(community) | gene %in% c(links$a, links$b))
+  alone <- setdiff(nodes$gene, linked$gene)
+  within <- linked |>
+    filter(!is.na(community)) |>
+    reframe(as_tibble(t(combn(gene, 2)), .name_repair = \(x) c("a", "b")), .by = community) |>
+    select(a, b)
+  layout_graph <- igraph::graph_from_data_frame(
+    bind_rows(mutate(links, w = 1), mutate(within, w = 4)),
+    directed = FALSE, vertices = select(linked, gene)
+  )
+  set.seed(SEED)
+  xy <- igraph::layout_with_fr(layout_graph, weights = igraph::E(layout_graph)$w)
+  positions <- tibble(gene = igraph::V(layout_graph)$name, x = xy[, 1], y = xy[, 2]) |>
+    left_join(linked, by = "gene")
+  segments <- links |>
+    left_join(select(positions, a = gene, x, y), by = "a") |>
+    left_join(select(positions, b = gene, xend = x, yend = y), by = "b")
+  limit <- max(abs(nodes$logFC))
+  ggplot(positions, aes(x, y)) +
+    ggforce::geom_mark_hull(
+      aes(fill = group, filter = !is.na(group)),
+      expand = unit(3.5, "mm"), radius = unit(3, "mm"), alpha = 0.18, colour = NA
+    ) +
+    geom_segment(aes(x, y, xend = xend, yend = yend), segments,
+      colour = "grey60", linewidth = 0.3
+    ) +
+    geom_point(aes(colour = logFC, size = routes)) +
+    ggrepel::geom_text_repel(aes(label = gene),
+      size = 1.9, seed = SEED, max.overlaps = Inf, box.padding = 0.15, point.padding = 0.1,
+      min.segment.length = 0.3, segment.size = 0.2
+    ) +
+    scale_colour_gradient2(
+      low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
+      limits = c(-limit, limit), name = "log2 FC",
+      guide = guide_colourbar(order = 1, barwidth = unit(14, "mm"), barheight = unit(2, "mm"))
+    ) +
+    scale_fill_brewer(
+      palette = "Set2", name = NULL, na.translate = FALSE,
+      guide = guide_legend(order = 3, ncol = 1, override.aes = list(alpha = 0.4))
+    ) +
+    scale_size_continuous(
+      range = c(1.6, 3.6), breaks = 2:4, name = "routes",
+      guide = guide_legend(order = 2)
+    ) +
+    coord_cartesian(clip = "off") +
+    labs(
+      x = NULL, y = NULL, title = title, subtitle = subtitle,
+      caption = if (length(alone)) {
+        str_wrap(paste("No STRING partner:", paste(sort(alone), collapse = ", ")), 95)
+      }
+    ) +
+    theme_figure() +
+    theme(
+      axis.text = element_blank(), panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(), legend.box = "vertical",
+      plot.caption = element_text(size = 5.2, hjust = 0, colour = "grey30")
+    )
+}
+
+# Per-mouse values for a set of candidates: each protein's log2 abundance minus its own sex's
+# vehicle mean, all four groups, open circles where the protein was not detected in that mouse.
+candidate_dots <- function(values, detected, targets, genes, title, subtitle, ncol = 7) {
+  targets <- mutate(targets, group = factor(group, FIGURE_GROUPS))
+  centred <- values - sapply(c(F = "VEH_F", M = "VEH_M"), \(g) {
+    rowMeans(values[, targets$group == g, drop = FALSE])
+  })[, targets$sex]
+  points <- as_tibble(centred, rownames = "feature") |>
+    pivot_longer(-feature, names_to = "sample_id", values_to = "value") |>
+    left_join(select(targets, sample_id, group), by = "sample_id") |>
+    mutate(
+      seen = detected[cbind(feature, sample_id)],
+      protein = factor(genes[feature], unique(genes))
+    )
+  ggplot(points, aes(group, value, colour = group)) +
+    geom_hline(yintercept = 0, colour = "grey70", linewidth = 0.25) +
+    stat_summary(
+      fun = mean, geom = "crossbar", width = 0.5, linewidth = 0.25, colour = "grey30"
+    ) +
+    geom_point(aes(shape = seen),
+      position = position_jitter(width = 0.12, seed = SEED), size = 0.9
+    ) +
+    facet_wrap(~protein, ncol = ncol, scales = "free_y") +
+    scale_colour_manual(values = GROUP_COLOURS, labels = GROUP_LABELS, name = NULL) +
+    scale_shape_manual(
+      values = c(`TRUE` = 16, `FALSE` = 1),
+      labels = c(`TRUE` = "detected", `FALSE` = "not detected"),
+      name = NULL
+    ) +
+    scale_x_discrete(labels = GROUP_SHORT) +
+    labs(x = NULL, y = "log2 vs own-sex vehicle", title = title, subtitle = subtitle) +
+    theme_figure() +
+    theme(
+      axis.text.x = element_blank(), strip.text = element_text(face = "bold", size = 5.5),
+      panel.spacing = unit(1.2, "mm")
+    ) +
+    guides(colour = guide_legend(nrow = 1, order = 1), shape = guide_legend(order = 2))
+}

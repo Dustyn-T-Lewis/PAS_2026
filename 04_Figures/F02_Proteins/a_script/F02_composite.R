@@ -1,45 +1,38 @@
-# Figure 2, proteins: the proteins PAS changes in either sex, by response pattern, and what each
-# pattern holds. Each panel is its own script in panels/; this file runs them, checks the plotted
-# counts against 01_fit.xlsx and 02_enrichment.xlsx, stitches them and writes one workbook.
+# Figure 2, candidate proteins: within each sex, the proteins passing two or more of the six
+# candidate routes as a STRING network, and every mouse for those passing three or more. Each
+# panel is its own script in panels/; this file runs them, checks them against
+# 06_candidates.xlsx, stitches them and writes one workbook.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
-PANELS <- c("a_ftest_heatmap", "b_pattern_ora")
+PANELS <- c("a_female_network", "b_male_network", "c_female_candidates", "d_male_candidates")
 panels <- run_panels("F02_Proteins", PANELS)
 
-fit_workbook <- output_path("02_Statistics", "01_Fit", "01_fit.xlsx")
-ftest <- readxl::read_excel(fit_workbook, "protein_ftest") |>
-  filter(universe == "full", P.Value <= ALPHA)
-ora <- readxl::read_excel(
-  output_path("02_Statistics", "02_Enrichment", "02_enrichment.xlsx"), "pattern_ora"
+candidates <- readxl::read_excel(
+  output_path("02_Statistics", "06_Candidates", "06_candidates.xlsx"), "candidates"
 )
-heatmap_rows <- panels$a_ftest_heatmap$data
+expected <- \(s, k) sum(candidates$sex == s & candidates$routes >= k)
 stopifnot(
-  setequal(heatmap_rows$feature, ftest$feature),
-  identical(
-    deframe(count(heatmap_rows, pattern = as.character(pattern))),
-    deframe(count(ftest, pattern))
-  ),
-  isTRUE(all.equal(
-    panels$b_pattern_ora$data$fdr,
-    ora$fdr[match(
-      paste(panels$b_pattern_ora$data$pattern, panels$b_pattern_ora$data$term),
-      paste(ora$pattern, ora$term)
-    )]
-  ))
+  nrow(panels$a_female_network$data) == expected("female", 2),
+  nrow(panels$b_male_network$data) == expected("male", 2),
+  nrow(panels$c_female_candidates$data) == expected("female", 3),
+  nrow(panels$d_male_candidates$data) == expected("male", 3)
 )
 
-figure <- wrap_plots(map(panels, "plot"), widths = c(116, 25))
+top <- wrap_plots(panels$a_female_network$plot, panels$b_male_network$plot, ncol = 2)
+figure <- wrap_elements(full = top) /
+  panels$c_female_candidates$plot /
+  panels$d_male_candidates$plot +
+  plot_layout(heights = c(110, 62, 62))
 out <- stage_paths("04_Figures", "F02_Proteins")
-save_figure(figure, out$reports, "F02_composite", width_mm = 180, height_mm = 145)
+save_figure(figure, out$reports, "F02_composite", width_mm = 180, height_mm = 240)
 
 write_figure_workbook(
   panels,
   c(
-    paste(
-      "Panel a: each protein at moderated F p ≤ 0.05 (full proteome), its pattern, F, p, FDR,",
-      "both PAS log2 FCs, and its pooled r with each trait per sex."
-    ),
-    "Panel b: the three smallest-p ORA sets per pattern: overlap, size, p, BH FDR."
+    "Panel a: female candidates passing two or more routes: routes, STRING community and name.",
+    "Panel b: male candidates passing two or more routes: routes, STRING community and name.",
+    "Panel c: female candidates passing three or more routes: effect, p, FDR, lfsr, detection.",
+    "Panel d: male candidates passing three or more routes: effect, p, FDR, lfsr, detection."
   ),
   file.path(out$data, "F02.xlsx")
 )

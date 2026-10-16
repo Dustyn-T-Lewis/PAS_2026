@@ -1,4 +1,4 @@
-# F02 a: the proteins PAS changes in either sex (moderated F over the two PAS contrasts, p <= 0.05)
+# S6 a: the proteins PAS changes in either sex (moderated F over the two PAS contrasts, p <= 0.05)
 # across all twenty mice, each centred on its own sex's vehicle mean, split by response pattern
 # and clustered within each split. Beside each protein, its r with each phenotype within each sex.
 # Rows were chosen for differing, so the clustering describes them and tests nothing.
@@ -60,7 +60,7 @@ plot <- wrap_elements(plot = heatmap) +
   ) +
   theme_figure()
 
-save_panel(plot, "F02_Proteins", "a_ftest_heatmap", 116, 145)
+save_panel(plot, "S6_Protein_patterns", "a_ftest_heatmap", 116, 145)
 list(
   plot = plot,
   data = selected |>

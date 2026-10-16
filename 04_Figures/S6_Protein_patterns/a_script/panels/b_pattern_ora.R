@@ -1,4 +1,4 @@
-# F02 b: what each response pattern of panel a holds. Over-representation (fgsea::fora) of each
+# S6 b: what each response pattern of panel a holds. Over-representation (fgsea::fora) of each
 # pattern's proteins against the detected proteome, full collections, from 02_Enrichment: the
 # three sets with the smallest p per pattern, outlined where BH FDR <= 0.05.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
@@ -43,5 +43,5 @@ plot <- ggplot(top, aes(-log10(p), row)) +
     colour = guide_legend(order = 2, override.aes = list(fill = "white"))
   )
 
-save_panel(plot, "F02_Proteins", "b_pattern_ora", 64, 145)
+save_panel(plot, "S6_Protein_patterns", "b_pattern_ora", 64, 145)
 list(plot = plot, data = select(top, -row), inputs = inputs)
