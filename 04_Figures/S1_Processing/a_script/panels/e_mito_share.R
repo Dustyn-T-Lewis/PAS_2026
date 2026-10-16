@@ -1,15 +1,26 @@
-# S1 e: the share of each pellet's protein signal from MitoCarta proteins, by group, with the
-# sex and treatment p from 02_Quantification.
+# S1 e: the share of each pellet's protein signal from MitoCarta proteins, by group, with the sex
+# p from 02_Quantification and the PAS effect within each sex (difference, 95% CI and Welch p)
+# from 05_Composition.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(
-  quantification = output_path("01_Processing", "02_Quantification", "02_quantification.xlsx")
+  quantification = output_path("01_Processing", "02_Quantification", "02_quantification.xlsx"),
+  composition = output_path("02_Statistics", "05_Composition", "composition.rds")
 )
 share <- readxl::read_excel(inputs[["quantification"]], "mito_share") |>
   mutate(group = factor(group, FIGURE_GROUPS))
-tests <- readxl::read_excel(inputs[["quantification"]], "mito_share_tests")
+sex_p <- readxl::read_excel(inputs[["quantification"]], "mito_share_tests") |>
+  filter(factor == "sex") |>
+  pull(p_value)
+within <- readRDS(inputs[["composition"]])$tests |>
+  filter(group == "MitoCarta share (% of signal)")
 label <- paste(
-  sprintf("%s p = %.2g", str_to_sentence(tests$factor), tests$p_value),
+  c(
+    sprintf("Sex p = %.2g", sex_p),
+    with(within, sprintf(
+      "PAS in %ss %+.1f points (%.1f to %.1f), p = %.2f", sex, difference, ci_low, ci_high, p
+    ))
+  ),
   collapse = "\n"
 )
 
@@ -24,7 +35,7 @@ plot <- ggplot(share, aes(group, pct_mito_signal, colour = group)) +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.3))) +
   labs(
     x = NULL, y = "% signal from MitoCarta", title = "Pellet mitochondrial share",
-    subtitle = "Differs by sex, not by treatment"
+    subtitle = "Differs by sex; no detectable PAS shift within sex"
   ) +
   theme_figure()
 
