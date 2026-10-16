@@ -4,12 +4,12 @@ Study data and the reference files the pipeline reads, so it runs without a netw
 
 | File | What one row is | Used by |
 |---|---|---|
-| `report.parquet` | one precursor in one MS run | `01_Processing/01_Filtering` |
+| `report.parquet` | one precursor in one MS run | `01_Processing/01_Filtering`, `02_Statistics/05_Composition` (haemoglobin) |
 | `metadata.csv` | one MS run, 21 rows | `01_Processing/01_Filtering` |
 | `report_stats.xlsx` | one MS run, DIA-NN's own QC table | `01_Processing/01_Filtering` |
 | `Mouse.MitoCarta3.0.xls` | one mouse gene, 1,140 mitochondrial | `01_Processing/02_Quantification`, `01_Processing/04_Gene_Sets` |
 | `corum_complete.txt` | one CORUM 5.3 complex (release 2026-04-14), every organism | `01_Processing/04_Gene_Sets` |
-| `STRING_v12/` | STRING v12 mouse aliases, protein info and links at score ≥ 400, as STRINGdb downloads them | `01_Processing/04_Gene_Sets`, `02_Statistics/02_Enrichment` |
+| `STRING_v12/` | STRING v12 mouse aliases, protein info and links at score ≥ 400, as STRINGdb downloads them | `01_Processing/04_Gene_Sets`, `02_Statistics/02_Enrichment`, `02_Statistics/06_Candidates` |
 | `phenotypes.xlsx` | one mouse, 41 physiology measures, with a `dictionary` and `notes` sheet | `02_Statistics/01_Fit`; six are analysed |
 | `VEH_PAS_HLI_Master Data.xlsx` | one measure per row, one mouse per column, as delivered | nothing; the source of `phenotypes.xlsx` |
 

@@ -1,6 +1,6 @@
 # 05_Scores
 
-One singscore per mouse per tested set, complex and cluster: a set's mean within-mouse rank, which uses no group label. `02_Statistics/01_Fit` tests these scores.
+One singscore per mouse per tested set, complex and cluster: a set's mean within-mouse rank. `02_Statistics/01_Fit` tests these scores.
 
 | | |
 |---|---|
@@ -10,4 +10,4 @@ One singscore per mouse per tested set, complex and cluster: a set's mean within
 
 - **Method:** `singscore::rankGenes()` and `multiScore()`, one protein per gene (the most abundant). Full matrix: GO:BP, Reactome, Hallmark, KEGG, CORUM, STRING; mitochondrial matrix: MitoCarta.
 - **Result:** 1,110 scores per mouse: 755 GO:BP, 139 Reactome, 34 Hallmark, 33 KEGG, 98 complexes, 7 clusters, 44 MitoCarta.
-- **Basis:** Foroutan et al. 2018 (*BMC Bioinformatics*), singscore's paper: a single-sample score from within-sample ranks, so it needs no group label and no other sample. Rebuilt by hand from that definition, it matches exactly.
+- **Basis:** Foroutan et al. 2018 (*BMC Bioinformatics*), singscore's paper: a single-sample score from within-sample ranks, so it needs no group label and no other sample. Scores rebuilt by hand from that definition match `multiScore()` exactly.

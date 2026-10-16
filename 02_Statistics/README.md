@@ -2,7 +2,7 @@
 
 Every model and test, run once on all 20 mice (the sensitivity step refits under other choices on purpose). The three comparisons read these results; nothing here is computed again downstream.
 
-![The four statistics steps, the five contrasts and who reads the results](schematic.png)
+![The seven statistics steps, the five contrasts and who reads the results](schematic.png)
 
 | Step | Asks | Method |
 |---|---|---|

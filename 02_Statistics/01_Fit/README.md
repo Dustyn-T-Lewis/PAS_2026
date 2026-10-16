@@ -5,7 +5,7 @@ Every model the comparisons read, fitted once on all 20 mice.
 | | |
 |---|---|
 | Reads | `01_Processing/02_Quantification/c_data/proteins.rds`, `01_Processing/03_Design/c_data/design.rds`, `01_Processing/05_Scores/c_data/scores.rds`, `01_Processing/06_Modules/c_data/modules.rds`, `00_Setup/Input/phenotypes.xlsx` |
-| Writes | `c_data/01_fit.xlsx`, `c_data/fit.rds` (read by 02_Enrichment to 04_PCA, `03_Comparisons` and `04_Figures/`), `c_data/study_full/` and `c_data/study_mito/` (enrichVolcano study tables read by 02_Enrichment), `b_reports/01_fit.pdf` |
+| Writes | `c_data/01_fit.xlsx`, `c_data/fit.rds` (read by 02_Enrichment, 03_Classification, 04_PCA, 06_Candidates, 07_Sensitivity, `03_Comparisons` steps 01, 03 and 04, and `04_Figures/` F01, F02, F05_Modules, F05_Complexes, S2, S4 and S6), `b_reports/01_fit.pdf` |
 | Run | `Rscript 02_Statistics/01_Fit/a_script/01_fit.R` |
 
 - **Proteins:** `limpa::dpcDE(sample.weights = TRUE)` per universe on the design's four group means and surrogate variable. Each contrast is refitted as the first coefficient of an equivalent design (`limma::contrastAsCoef()`) and moderated with `eBayes()`; BH within universe and contrast; Π = p^|log2 FC| beside p and FDR; r with group (first group = 1) beside each two-group contrast.
@@ -18,4 +18,4 @@ Every model the comparisons read, fitted once on all 20 mice.
 - **Effect size on one scale:** every limma table also carries `r_equiv = t / sqrt(t^2 + df)`, the r-equivalent of the t on the df it is tested against (residual plus prior df for moderated tables), so a contrast and a phenotype association can share one colour scale in the figures; unlike Pearson r it comes from the same test as the p beside it.
 - **Workbook:** `protein_contrasts` and `score_contrasts` hold every contrast; `protein_associations` and `score_associations` every phenotype association; `association_summary` the counts by `model`.
 - **Basis:** limpa vignette, "Differential expression" (DE must go through `dpcDE`; `sample.weights = TRUE` downweights outlying samples); limma's help for `contrasts.fit()` and `contrastAsCoef()`: contrasts.fit takes coefficient correlations as common to all features, exact only for orthogonal designs or equal weights, which limpa's per-protein weights and the surrogate variable rule out; Smyth 2004 for `eBayes()`; limma User's Guide on covariates for the treatment-adjusted association. Recomputed by hand, logFC and residual SD match limma to 1e-13; t matches limma's legacy moderation to 1e-13, and the saved t, from limma's current prior for unequal residual df, differs from that by at most 0.06.
-- **Note:** The script stops unless each joint association model equals a regression within one sex, and unless every r joins exactly once.
+- **Note:** The script stops if an r fails to join its row, or if a contrast row would take more than one r.

@@ -7,20 +7,31 @@ Figure 3: which pathways each comparison moves.
 | | |
 |---|---|
 | Reads | `02_Statistics/02_Enrichment/c_data/enrichment.rds` |
-| Writes | `b_reports/panels/<panel>.pdf/.png`, `b_reports/F03_composite.pdf/.png` (180 × 150 mm), `c_data/F03.xlsx` |
-| Run | `Rscript 04_Figures/F03_Pathways/a_script/F03_composite.R` (each panel script also runs alone) |
+| Writes | `b_reports/panels/a_pathways.pdf/.png`, `b_reports/F03_composite.pdf/.png` (180 × 124 mm), `c_data/F03.xlsx` |
+| Run | `Rscript 04_Figures/F03_Pathways/a_script/F03_composite.R` (the panel script also runs alone) |
 
-Each panel is its own script in `a_script/panels/`; the composite runs them, adds the letters, stitches them and checks that the rows are exactly the sets at FDR ≤ 0.05 that collapsePathways keeps, each drawn in all three contrasts. Panels read saved outputs and compute nothing beyond counts, filtering and scaling.
+The figure is one panel, its own script in `a_script/panels/`; the composite runs it, adds the letter and writes one workbook. The panel reads saved outputs and computes nothing beyond filtering and ordering: its rows are the sets 02_Enrichment flags as `shown`, and each row is drawn in all three contrasts. Within one contrast, the sets at fgsea FDR ≤ 0.05 are grouped by an average-linkage Jaccard tree on their tested members, cut at 0.70, and each group is shown by its most specific set whose p is within 10-fold of the group's best; `representative_sets()` in `helpers.R` gives the rule and its sources (EnrichmentMap, DAVID, HRvLR).
 
 ## Panels
 
-| Panel | Shows | Source |
-|---|---|---|
-| a | GO:BP, Reactome, Hallmark and KEGG legacy sets in the full proteome at fgsea FDR ≤ 0.05 in any contrast that collapsePathways keeps, listed once under the first contrast that selects them and drawn in all three. Dot fill: NES; size: −log10 FDR; square: collection. | `enrichment.rds`: `results` |
-| b | MitoCarta pathways in the mitochondrial universe, selected and drawn the same way. | `enrichment.rds`: `results` |
+### a. Pathways per contrast
 
-fgsea permutes genes, so its FDR runs optimistic when genes are correlated (Wu & Smyth 2012). Two checks sit beside every set in the 02_Enrichment workbook: camera (`camera_p`, `camera_fdr`), which estimates the set's own inter-protein correlation, and the set's singscore contrast tested across mice. Of the 42 kept sets at fgsea FDR ≤ 0.05 in the three contrasts, camera gives p ≤ 0.05 for 7 and FDR ≤ 0.05 for none. The 7 include proteasome-mediated catabolism, lower in female PAS (camera p 0.001) and in the interaction (p 0.008), and MitoCarta ROS and glutathione metabolism in the interaction (p 0.009). Read the rest as rankings, not confirmed set shifts.
+![Panel a](b_reports/panels/a_pathways.png)
+
+One row per gene set and one column per contrast: PAS against vehicle in females, the same in males, and the interaction (F − M, the female response minus the male). Each dot's fill is the fgsea normalised enrichment score, magenta for sets whose proteins fall and green for sets that rise, on a scale set by the largest |NES| drawn (±2.3); its size is −log10 FDR, capped at 4. The square before each row gives its collection: GO:BP grey, Reactome blue, Hallmark orange, KEGG legacy pink, MitoCarta green. The rows sit in four blocks. Female, Male and F − M hold the full-proteome sets that contrast shows, by FDR, up to 10 each; MitoCarta holds the MitoCarta pathways (mitochondrial universe, 595 proteins) shown in any contrast, by their smallest p. A set is listed once, in the first block that reaches it. That gives 34 rows: 6 Female, 10 Male, 10 F − M and 8 MitoCarta.
+
+Females show six full-proteome sets, four up (myogenesis at FDR 0.00029, muscle system process, skeletal muscle contraction, small molecule catabolism) and two down (mitotic cell cycle, proteasome-mediated catabolism). Males show 14, and the 10 drawn are all down, among them supramolecular fibre organisation (FDR 1.5e-05), cell adhesion, actin, extracellular matrix, EMT, plasma membrane and cardiac sets. The interaction shows 16; four are already listed in the blocks above, and 10 of the other 12 are drawn, all higher in the female response and led by striated muscle contraction (FDR 9.2e-05).
+
+Read across the columns and the sexes mostly disagree: female and male NES differ in sign in 20 of the 26 full-proteome rows, and the interaction takes the female sign in 23. Because F − M subtracts the male response, a green interaction dot can come from a male fall as much as a female rise, and all 10 male rows pair a male fall with a small female NES (|NES| ≤ 1.22). Two male FDR-level sets, actin filament based process and homeostatic process, sit under F − M because another set represents each of their groups in males. The male falls in cytoskeletal, extracellular matrix and cardiac-muscle sets line up with the lower vessel, nerve, red-cell and myofibril content of male PAS pellets (S1), so they may reflect pellet composition as much as a change in the fibres.
+
+In the MitoCarta block, females gain the broad metabolism set (NES 1.65) and carbohydrate metabolism (1.97), both at FDR 0.0033 and both also shown in the interaction. The other six rows come from the interaction alone: ROS and glutathione metabolism (NES 2.02, FDR 0.0024), lysine metabolism (1.86, 0.023), complex I subunits (−1.70, 0.031), the mitochondrial ribosome (−1.60, 0.048), and amino acid and lipid metabolism (1.55 and 1.52, both 0.050). No MitoCarta set reaches FDR ≤ 0.05 in males. The female and male NES differ in sign in all eight rows, so each interaction result combines a move one way in females with a move the other way in males. For the six interaction-only sets, neither sex reaches FDR ≤ 0.05 alone (female 0.089 to 0.30, male 0.12 to 0.68).
+
+The pellet's MitoCarta share differs by sex but not between PAS and vehicle within either sex (S1), so the within-sex results here are not confounded by how mitochondrial the pellet was. ROS and glutathione metabolism in the interaction is one of the four rows camera supports at p ≤ 0.05 (p 0.013), and 02_Enrichment notes that several FDR-level MitoCarta terms have singscore p > 0.2.
+
+## Notes
+
+fgsea permutes genes, so its FDR runs optimistic when genes are correlated (Wu & Smyth 2012). Two checks sit beside every set in the 02_Enrichment workbook: camera (`camera_p`, `camera_fdr`), which estimates the set's own inter-protein correlation, and the set's singscore contrast tested across mice. Of the 34 rows, camera gives p ≤ 0.05 in the contrast that shows the set for 4 and FDR ≤ 0.05 for none. The 4 are proteasome-mediated catabolism, lower in female PAS (camera p 0.003), plasma membrane organisation in males (p 0.034), and nervous system process (p 0.043) and MitoCarta ROS and glutathione metabolism (p 0.013) in the interaction. Read the rest as rankings, not confirmed set shifts.
 
 ## Workbook
 
-`c_data/F03.xlsx` holds one sheet per panel with the numbers it draws, plus `read_me`, `input_manifest` and `package_versions`.
+`c_data/F03.xlsx` holds one sheet, `a_pathways`, with every drawn cell (block, set, collection, universe, contrast, NES, p, FDR, whether that contrast shows the set, camera p and FDR), plus `read_me`, `input_manifest` and `package_versions`.

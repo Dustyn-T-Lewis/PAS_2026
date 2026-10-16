@@ -44,7 +44,7 @@ Data flows one way: processing feeds statistics, each comparison slices the stat
 └── <comparison>/
     ├── a_script/  run_comparison.R: runs the steps for this contrast
     ├── b_reports/ one preview PDF per step
-    ├── c_data/    one workbook and one .rds per step, named by step
+    ├── c_data/    one workbook per step, named by step
     └── README.md  the comparison's results
 ```
 
@@ -68,7 +68,7 @@ Rscript -e 'renv::restore()'
 Rscript run_all.R
 ```
 
-About 5 minutes on a laptop. R 4.6.0. `renv.lock` pins every package; enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. It needs no network: CORUM and STRING are read from `00_Setup/Input/`. limpa's quantification is checkpointed; `01_Processing/02_Quantification/README.md` says how to refit it.
+About 7.5 minutes on a laptop from a fresh clone. R 4.6.0. `renv.lock` pins every package; enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. It needs no network: CORUM and STRING are read from `00_Setup/Input/`. limpa's quantification is checkpointed in the repository at each detection slope; `01_Processing/02_Quantification/README.md` says how to refit it.
 
 ## Open with Dr. Ismaeel
 
