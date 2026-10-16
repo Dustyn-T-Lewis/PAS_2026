@@ -668,3 +668,53 @@ candidate_dots <- function(values, detected, targets, genes, title, subtitle, nc
     ) +
     guides(colour = guide_legend(nrow = 1, order = 1), shape = guide_legend(order = 2))
 }
+
+# Which of the six routes each candidate passed: one row per protein passing at least min_routes,
+# most routes first and smallest p within, a filled tile per route passed, the log2 FC as a tile and
+# the STRING neighbourhood's name to the right.
+CANDIDATE_ROUTES <- c(
+  statistics = "p ≤ 0.01", every_mouse = "Every mouse", both_sexes = "Both sexes",
+  phenotype = "Phenotype", hub = "Module hub", pathway = "Leading edge"
+)
+candidate_routes <- function(cands, sex, title, subtitle, min_routes = 2) {
+  shown <- cands |>
+    filter(sex == !!sex, routes >= min_routes) |>
+    arrange(desc(routes), P.Value) |>
+    mutate(
+      row = factor(make.unique(gene, sep = " #"), rev(make.unique(gene, sep = " #"))),
+      group = if_else(is.na(name), "", set_label(name, 46))
+    )
+  tiles <- shown |>
+    select(row, all_of(names(CANDIDATE_ROUTES))) |>
+    pivot_longer(-row, names_to = "route", values_to = "passed") |>
+    mutate(route = factor(CANDIDATE_ROUTES[route], c(CANDIDATE_ROUTES, "log2 FC")))
+  limit <- max(abs(shown$logFC))
+  ggplot(tiles, aes(route, row)) +
+    geom_tile(aes(fill = passed), colour = "white", linewidth = 0.4) +
+    scale_fill_manual(
+      values = c(`TRUE` = "grey25", `FALSE` = "grey92"), guide = "none"
+    ) +
+    fc_tile_column(shown, limit) +
+    geom_text(aes(x = 7.7, label = group), shown, hjust = 0, size = 1.6, colour = "grey30") +
+    scale_x_discrete(position = "top", drop = FALSE, expand = expansion(add = c(0.6, 9.5))) +
+    coord_cartesian(clip = "off") +
+    labs(x = NULL, y = NULL, title = title, subtitle = subtitle) +
+    theme_figure() +
+    theme(
+      panel.grid.major = element_blank(),
+      axis.text.x.top = element_text(angle = 45, hjust = 0, vjust = 0, size = 5.5),
+      axis.text.y = element_text(size = 5.2, face = "italic")
+    )
+}
+
+# The log2 FC column as square points, so the route tiles keep the fill scale to themselves.
+fc_tile_column <- function(shown, limit) {
+  list(
+    geom_point(aes(x = 7, y = row, colour = logFC), shown, shape = 15, size = 2.2),
+    scale_colour_gradient2(
+      low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
+      limits = c(-limit, limit), name = "log2 FC",
+      guide = guide_colourbar(barwidth = unit(14, "mm"), barheight = unit(2, "mm"))
+    )
+  )
+}
