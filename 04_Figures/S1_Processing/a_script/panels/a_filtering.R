@@ -15,11 +15,12 @@ plot <- ggplot(steps, aes(n, step)) +
   geom_text(aes(label = format(n, big.mark = ",")), hjust = 1.08, size = 1.7, colour = "white") +
   facet_wrap(~unit, scales = "free_x") +
   scale_x_continuous(
-    labels = scales::label_comma(), n.breaks = 3, expand = expansion(mult = c(0, 0.04))
+    labels = scales::label_comma(), breaks = scales::breaks_pretty(2),
+    expand = expansion(mult = c(0, 0.04))
   ) +
   labs(x = "remaining", y = NULL, title = "Filtering", subtitle = "Counts after each step") +
   theme_figure() +
-  theme(panel.grid.major.y = element_blank())
+  theme(panel.grid.major.y = element_blank(), panel.spacing.x = unit(4, "mm"))
 
 save_panel(plot, "S1_Processing", "a_filtering", 70, 55)
 list(plot = plot, data = steps, inputs = inputs)

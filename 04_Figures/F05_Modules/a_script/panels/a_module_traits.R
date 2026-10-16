@@ -65,10 +65,11 @@ heatmap <- ggplot(cells, aes(column, row)) +
     panel.spacing.x = unit(1.5, "mm")
   )
 
+size_breaks <- keep(pretty(c(0, max(sizes$proteins)), n = 3), \(x) x <= max(sizes$proteins))
 size_bar <- ggplot(sizes, aes(proteins, row)) +
   geom_col(aes(fill = I(module)), colour = "grey30", linewidth = 0.2, width = 0.75) +
-  geom_text(aes(label = sprintf("%.0f%%", 100 * mito_share)), hjust = 1.15, size = 1.55) +
-  scale_x_reverse(expand = expansion(mult = c(0.25, 0))) +
+  geom_text(aes(label = sprintf("%.0f%%", 100 * mito_share)), hjust = 1.15, size = 5.3 / .pt) +
+  scale_x_reverse(breaks = size_breaks, expand = expansion(mult = c(0.3, 0))) +
   scale_y_discrete(labels = deframe(select(sizes, row, name)), position = "right") +
   coord_cartesian(clip = "off") +
   labs(x = "proteins (% MitoCarta)", y = NULL) +
@@ -80,7 +81,9 @@ size_bar <- ggplot(sizes, aes(proteins, row)) +
 plot <- wrap_elements(plot = (size_bar | heatmap) + plot_layout(widths = c(1, 4.2))) +
   labs(
     title = "Modules against contrasts and phenotypes",
-    subtitle = sprintf("r-equivalent of each t; bold |r| ≥ %s; J: subsample stability", BOLD_R)
+    subtitle = sprintf(
+      "r-equivalent of each t; bold: absolute r ≥ %s; J: subsample stability", BOLD_R
+    )
   ) +
   theme_figure()
 

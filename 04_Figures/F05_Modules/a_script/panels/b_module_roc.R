@@ -29,11 +29,11 @@ curves <- cls$module_curves |>
   )
 # The area under each curve, closed along the bottom edge.
 areas <- curves |>
-  group_by(cell, feature) |>
+  group_by(cell, comparison) |>
   reframe(fpr = c(fpr, 1, 0), tpr = c(tpr, 0, 0))
 
 plot <- ggplot(curves, aes(fpr, tpr)) +
-  geom_polygon(aes(fill = I(feature)), areas, alpha = 0.35) +
+  geom_polygon(aes(fill = I(SEX_COLOURS[str_to_sentence(comparison)])), areas, alpha = 0.3) +
   geom_abline(linetype = "dashed", colour = "grey60", linewidth = 0.25) +
   geom_path(linewidth = 0.4, colour = "grey15") +
   geom_text(
@@ -45,7 +45,7 @@ plot <- ggplot(curves, aes(fpr, tpr)) +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1")) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1")) +
   labs(
-    x = "1 − specificity", y = "sensitivity", title = "Modules that separate PAS from vehicle",
+    x = "1 − specificity", y = "sensitivity", title = "ROC of module eigengenes, PAS vs vehicle",
     subtitle = sprintf("Eigengene alone, within sex; Wilcoxon p ≤ %s", ALPHA)
   ) +
   theme_figure() +

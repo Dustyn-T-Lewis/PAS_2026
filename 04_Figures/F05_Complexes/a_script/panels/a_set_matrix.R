@@ -41,7 +41,7 @@ plot <- ggplot(cells, aes(column, row)) +
     shape = 21, colour = "grey15"
   ) +
   ggh4x::facet_grid2(group ~ section,
-    scales = "free", space = "free", switch = "y"
+    scales = "free", space = "free", switch = "y", labeller = labeller(group = label_wrap_gen(12))
   ) +
   scale_y_discrete(labels = deframe(distinct(cells, row, label))) +
   scale_x_discrete(position = "top") +

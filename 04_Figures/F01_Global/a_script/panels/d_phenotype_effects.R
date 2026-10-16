@@ -21,7 +21,9 @@ plot <- ggplot(effects, aes(pct_change, trait, colour = sex)) +
   scale_x_continuous(
     transform = "log2", breaks = c(0.5, 1, 2, 4), labels = \(x) sprintf("%+.0f%%", 100 * (x - 1))
   ) +
-  scale_y_discrete(labels = \(x) sprintf("%s\nF − M p %.2g", x, interaction_p[x])) +
+  scale_y_discrete(labels = \(x) {
+    sprintf("%s\n%s p %.2g", x, CONTRAST_SHORT[["treatment_by_sex"]], interaction_p[x])
+  }) +
   scale_colour_manual(values = SEX_COLOURS, breaks = c("Female", "Male"), name = NULL) +
   scale_shape_manual(
     values = c(`TRUE` = 16, `FALSE` = 21),
@@ -29,7 +31,7 @@ plot <- ggplot(effects, aes(pct_change, trait, colour = sex)) +
   ) +
   labs(
     x = "% change (95% CI, log scale)", y = NULL, title = "Phenotype effects",
-    subtitle = "PAS vs vehicle within sex; F − M p: treatment × sex"
+    subtitle = "PAS vs vehicle within sex"
   ) +
   theme_figure() +
   theme(legend.box = "horizontal", legend.spacing.x = unit(2, "mm")) +

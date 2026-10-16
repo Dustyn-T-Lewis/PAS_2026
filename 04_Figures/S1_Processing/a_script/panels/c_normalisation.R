@@ -22,7 +22,7 @@ plot <- ggplot(benchmark, aes(spread, method)) +
   scale_colour_manual(
     values = c(chosen = "black", eligible = "black", `changes SEs` = "grey60"), name = NULL
   ) +
-  scale_x_continuous(breaks = scales::breaks_pretty(2), expand = expansion(mult = 0.15)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(2), expand = expansion(mult = 0.3)) +
   labs(
     x = "within-group spread", y = NULL, title = "Normalisation",
     subtitle = "Lower is tighter; chosen among SE-preserving methods"

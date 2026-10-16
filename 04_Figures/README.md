@@ -8,7 +8,7 @@ Figures that cross the comparisons, one question each. Each figure folder holds 
 |---|---|---|
 | [`F01_Global`](F01_Global/README.md) | What the design is, what PAS did to the phenotypes, and how the proteome is structured | design; phenotype effects and PCA; proteome PCA; proteins per contrast; cross-sex signatures |
 | [`F02_Proteins`](F02_Proteins/README.md) | Which proteins are worth following up in each sex | candidate STRING networks per sex; every mouse for proteins passing three or more routes |
-| [`F03_Pathways`](F03_Pathways/README.md) | Which pathways each comparison moves | one grid: shown sets per contrast (female, male, F − M) and MitoCarta, drawn in all three contrasts |
+| [`F03_Pathways`](F03_Pathways/README.md) | Which pathways each comparison moves | one grid: shown sets per contrast (female, male, Treatment × sex) and MitoCarta, drawn in all three contrasts |
 | [`F04_Phenotype_pathways`](F04_Phenotype_pathways/README.md) | Which pathways track each phenotype within each sex | one grid: female and male trait blocks, within-treatment model |
 | [`F05_Modules`](F05_Modules/README.md) | How the protein modules relate to PAS and to the phenotypes (WGCNA version) | module × trait heatmap with stability; ROC curves; eigengene scatters |
 | [`F05_Complexes`](F05_Complexes/README.md) | Which complexes and mitochondrial pathways PAS shifts (alternative Figure 5) | CORUM and MitoCarta dot matrix against contrasts and traits |

@@ -13,12 +13,15 @@ runs <- readRDS(inputs[["filtering"]])$run_qc |>
 plot <- ggplot(runs, aes(group, n, colour = group)) +
   geom_point(position = position_jitter(width = 0.15, seed = SEED), size = 1.2) +
   facet_wrap(~unit, scales = "free_y") +
-  scale_colour_manual(values = GROUP_COLOURS, guide = "none") +
+  scale_colour_manual(
+    values = GROUP_COLOURS, labels = GROUP_SHORT, name = NULL,
+    guide = guide_legend(nrow = 2, byrow = TRUE)
+  ) +
   scale_x_discrete(labels = GROUP_SHORT) +
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     x = NULL, y = "identified per run", title = "Depth per run",
-    subtitle = "One point per mouse; groups coloured as in d"
+    subtitle = "One point per mouse"
   ) +
   theme_figure() +
   theme(axis.text.x = element_blank())

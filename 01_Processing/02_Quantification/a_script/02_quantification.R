@@ -108,7 +108,11 @@ E_norm <- set_names(
 
 group <- factor(proteins$targets$group, FIGURE_GROUPS)
 plot_index <- preview_pdf(file.path(out$reports, "02_quantification.pdf"), list(
-  "detection probability curve" = \() plotDPC(dpc_cn),
+  # plotDPC jitters its points.
+  "detection probability curve" = \() {
+    set.seed(SEED)
+    plotDPC(dpc_cn)
+  },
   "detection against average intensity" = \() plotAveVsMis(y),
   "MitoCarta share by group" = \() {
     boxplot(pct_mito_signal ~ group,

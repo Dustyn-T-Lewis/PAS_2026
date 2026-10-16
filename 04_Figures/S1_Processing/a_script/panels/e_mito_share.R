@@ -17,7 +17,7 @@ composition <- readRDS(inputs[["composition"]])
 within <- filter(composition$tests, group == composition$groups$mito_share)
 label <- paste(
   c(
-    sprintf("Sex p = %.2g", sex_p),
+    paste("Sex", format_p(sex_p)),
     with(within, sprintf(
       "PAS in %ss %+.1f points (%.1f to %.1f), p = %.2f", sex, difference, ci_low, ci_high, p
     ))

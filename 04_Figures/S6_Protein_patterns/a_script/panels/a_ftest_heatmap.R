@@ -1,11 +1,16 @@
 # S6 a: the proteins PAS changes in either sex (moderated F over the two PAS contrasts, p <= 0.05)
 # across every mouse, each centred on its own sex's vehicle mean, split by response pattern
-# and clustered within each split. Beside each protein, its r with each phenotype within each sex.
+# and clustered within each split, grey where not detected in that mouse (02_Quantification).
+# Beside each protein, its r with each phenotype within each sex.
 # Rows were chosen for differing, so the clustering describes them and tests nothing.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
-inputs <- c(fit = output_path("02_Statistics", "01_Fit", "fit.rds"))
+inputs <- c(
+  fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds")
+)
 fit <- readRDS(inputs[["fit"]])
+observations <- readRDS(inputs[["proteins"]])$proteins$other$n.observations
 
 selected <- fit$protein_ftest |>
   filter(universe == "full", P.Value <= ALPHA) |>
@@ -37,12 +42,13 @@ right <- ComplexHeatmap::rowAnnotation(
 )
 
 heatmap <- protein_heatmap(fit$E_norm$full[selected$feature, targets$sample_id], targets,
+  observations[selected$feature, targets$sample_id] > 0,
   row_split = selected$pattern, split_sep = "\n", right = right, limit = 1.5, width_mm = 116,
   height_mm = 132
 )
 plot <- wrap_elements(plot = heatmap) +
   labs(
-    title = "Proteins PAS changes in either sex",
+    title = "Proteins by response pattern",
     subtitle = sprintf("Moderated F p ≤ %s: %d proteins", ALPHA, nrow(selected))
   ) +
   theme_figure()

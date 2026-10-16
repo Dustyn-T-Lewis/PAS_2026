@@ -6,7 +6,7 @@ Supplementary Figure 2: each comparison's own protein list.
 
 | | |
 |---|---|
-| Reads | `02_Statistics/01_Fit/c_data/fit.rds` |
+| Reads | `02_Statistics/01_Fit/c_data/fit.rds`, `01_Processing/02_Quantification/c_data/proteins.rds` |
 | Writes | `b_reports/panels/<panel>.pdf/.png`, `b_reports/S2_composite.pdf/.png` (180 × 192 mm), `c_data/S2.xlsx` |
 | Run | `Rscript 04_Figures/S2_Proteins/a_script/S2_composite.R` (each panel script also runs alone) |
 
@@ -18,9 +18,9 @@ Each panel is its own script in `a_script/panels/`; the composite runs them, add
 
 ![Panel a](b_reports/panels/a_pi_female.png)
 
-Each row is one of the 107 full-proteome proteins at Π ≤ 0.05 in the female PAS against vehicle contrast (`fit.rds`: `protein_contrasts`), and each column one of the 20 mice, grouped as female vehicle, female PAS, male vehicle and male PAS under the group colour bar. A cell is the protein's normalised log2 abundance (`E_norm`) minus its mean over the vehicle mice of the same sex, so green is above own-sex vehicle and magenta below, with the colour full at ±1.5. Rows are split by the sign of the female fold change and clustered within each block: 44 up (log2 FC 0.55 to 1.81) and 63 down (−2.08 to −0.57).
+Each row is one of the 107 full-proteome proteins at Π ≤ 0.05 in the female PAS against vehicle contrast (`fit.rds`: `protein_contrasts`), and each column one of the 20 mice, grouped as female vehicle, female PAS, male vehicle and male PAS under the group colour bar. A cell is the protein's normalised log2 abundance (`E_norm`) minus its mean over the vehicle mice of the same sex, so green is above own-sex vehicle and magenta below, with the colour full at ±1.5; a grey cell marks a mouse in which the protein was not detected (no precursor observed). Rows are split by the sign of the female fold change and clustered within each block: 44 up (log2 FC 0.55 to 1.81) and 63 down (−2.08 to −0.57).
 
-The female PAS block separates by construction, since the female contrast chose the rows; the male columns are the informative part, and only 6 of the 107 are also on the male list. Of the 107, 20 have no precursor observed in any male run, so limpa's estimate is nearly flat across males and those rows look white there.
+The female PAS block separates by construction, since the female contrast chose the rows; the male columns are the informative part, and only 6 of the 107 are also on the male list. Of the 107, 20 have no precursor observed in any male run, so their male cells are grey.
 
 ### b. Male PAS against vehicle
 
@@ -34,7 +34,7 @@ The same layout for the 106 proteins at Π ≤ 0.05 in the male PAS against vehi
 
 The same layout for the 142 proteins at Π ≤ 0.05 in the treatment × sex contrast, the female PAS effect minus the male PAS effect. Rows are split by the sign of that difference: F > M (97 proteins, log2 FC 0.75 to 3.60) where the female effect is the more positive, and F < M (45, −2.76 to −0.91) where it is the more negative.
 
-A positive difference can come from a rise in females, a fall in males or both, and the heatmap shows which: many F > M rows are green in female PAS and magenta in male PAS. Of the 142, 60 are also on the female list and 45 on the male list, and 15 have no precursor observed in any male run, so their male columns are flat and the difference rests on the females alone. No protein reaches FDR ≤ 0.05 (smallest 0.21).
+A positive difference can come from a rise in females, a fall in males or both, and the heatmap shows which: many F > M rows are green in female PAS and magenta in male PAS. Of the 142, 60 are also on the female list and 45 on the male list, and 15 have no precursor observed in any male run, so their male cells are grey and the difference rests on the females alone. No protein reaches FDR ≤ 0.05 (smallest 0.21).
 
 ### d. Volcano plots
 

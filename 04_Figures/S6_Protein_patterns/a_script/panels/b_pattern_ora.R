@@ -10,7 +10,9 @@ top <- enr$pattern_ora |>
   slice_min(p, n = 3, by = pattern, with_ties = FALSE) |>
   mutate(
     pattern = factor(pattern, FTEST_PATTERNS),
-    label = sprintf("%s (%d/%d)", set_label(term, 32), overlap, size),
+    label = sprintf(
+      "%s (%d/%d)", label_with_database(set_label(term, 32), collection), overlap, size
+    ),
     row = reorder(paste(pattern, term), -p),
     significant = fdr <= ALPHA
   ) |>
@@ -21,14 +23,14 @@ plot <- ggplot(top, aes(-log10(p), row)) +
   geom_vline(xintercept = -log10(ALPHA), linetype = "dashed", linewidth = 0.25) +
   facet_wrap(~pattern, ncol = 1, scales = "free_y") +
   scale_y_discrete(labels = deframe(distinct(top, row, label))) +
-  scale_x_continuous(expand = expansion(mult = c(0, 0.05))) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.12))) +
   scale_fill_manual(values = DATABASE_COLOURS, name = NULL) +
   scale_colour_manual(
     values = c(`TRUE` = "black", `FALSE` = "transparent"), breaks = "TRUE",
     labels = paste("FDR ≤", ALPHA), name = NULL
   ) +
   labs(
-    x = "-log10 p", y = NULL, title = "What each pattern holds",
+    x = "-log10 p", y = NULL, title = "Over-representation per pattern",
     subtitle = paste("ORA vs detected proteome; dashed: p =", ALPHA)
   ) +
   theme_figure() +

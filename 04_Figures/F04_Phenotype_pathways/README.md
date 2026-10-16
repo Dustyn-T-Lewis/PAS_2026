@@ -14,7 +14,7 @@ The figure is one panel, its own script in `a_script/panels/`; the composite run
 
 ## Panels
 
-### a. Pathways that follow each phenotype
+### a. Pathways per phenotype
 
 ![Panel a](b_reports/panels/a_trait_pathways.png)
 

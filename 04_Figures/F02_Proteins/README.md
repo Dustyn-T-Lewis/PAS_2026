@@ -42,7 +42,7 @@ Nine proteins fall and five rise in female PAS mice (log2 FC −1.39 to +0.85, p
 
 ![Panel d](b_reports/panels/d_male_candidates.png)
 
-The same drawing for the 11 male protein groups passing three or more routes. Cav1 appears twice, as two protein groups; the second is labelled "Cav1 (3) #1". Nine fall and two rise (Mdh1, Comtd1), with log2 FC from −1.97 to +0.76 and p from 8.3e-05 to 0.0097. None reaches FDR ≤ 0.05 (the smallest is Cd36 at 0.094), and only Cd36 has lfsr ≤ 0.05 (0.013). Both Cav1 groups went undetected in one male PAS mouse, and Comtd1 in one male vehicle mouse. None of the 11 moves in females at p ≤ 0.05 (female p 0.11 to 0.98), and Tnnt3 and Tpm1 point the other way in female PAS mice (log2 FC +0.78 and +1.2). The list mixes myofibril (Tnnt3, Tpm1), extracellular matrix (Fbn1, Mfap5) and red-cell (Spta1) proteins, so the composition caveat from panel b applies here too.
+The same drawing for the 11 male protein groups passing three or more routes. Cav1 appears twice, as two protein groups, each labelled with its accession (D3Z0J2, P49817). Nine fall and two rise (Mdh1, Comtd1), with log2 FC from −1.97 to +0.76 and p from 8.3e-05 to 0.0097. None reaches FDR ≤ 0.05 (the smallest is Cd36 at 0.094), and only Cd36 has lfsr ≤ 0.05 (0.013). Both Cav1 groups went undetected in one male PAS mouse, and Comtd1 in one male vehicle mouse. None of the 11 moves in females at p ≤ 0.05 (female p 0.11 to 0.98), and Tnnt3 and Tpm1 point the other way in female PAS mice (log2 FC +0.78 and +1.2). The list mixes myofibril (Tnnt3, Tpm1), extracellular matrix (Fbn1, Mfap5) and red-cell (Spta1) proteins, so the composition caveat from panel b applies here too.
 
 ## Notes
 

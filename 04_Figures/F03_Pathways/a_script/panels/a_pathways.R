@@ -23,7 +23,7 @@ mitocarta <- enr$results |>
 rows <- bind_rows(by_contrast, mitocarta) |>
   mutate(block = factor(block, names(TONES))) |>
   list_once(ROWS_PER_BLOCK) |>
-  mutate(label = set_label(term, 60))
+  mutate(label = label_with_database(set_label(term, 60), collection))
 
 drawn <- enr$results |>
   inner_join(select(rows, term, block), by = "term") |>

@@ -7,8 +7,9 @@ PANELS <- "a_set_matrix"
 panels <- run_panels("F05_Complexes", PANELS)
 
 out <- stage_paths("04_Figures", "F05_Complexes")
+# Wrapped like the multi-panel composites, so the letter keeps the same margin from the edge.
 save_figure(
-  panels$a_set_matrix$plot, out$reports, "F05_complexes_composite",
+  wrap_plots(panels$a_set_matrix$plot), out$reports, "F05_complexes_composite",
   width_mm = 180, height_mm = 120
 )
 

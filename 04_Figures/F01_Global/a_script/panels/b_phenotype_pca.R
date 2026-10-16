@@ -9,7 +9,7 @@ reach <- 0.8 * max(abs(c(scores$PC1, scores$PC2)))
 loadings <- pca$phenotype_loadings |>
   transmute(
     x = PC1 / max(abs(c(PC1, PC2))) * reach, y = PC2 / max(abs(c(PC1, PC2))) * reach,
-    label = TRAIT_SHORT[phenotype]
+    label = PHENOTYPE_LABELS[phenotype]
   )
 
 plot <- pca_panel(

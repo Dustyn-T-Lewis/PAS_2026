@@ -10,21 +10,22 @@ top <- associations |>
   filter(model == "treatment") |>
   slice_min(P.Value, n = 1, by = c(phenotype, sex), with_ties = FALSE) |>
   select(phenotype, sex, feature, gene)
+# Traits top to bottom in panel a's order.
 shown <- associations |>
   semi_join(top, by = c("phenotype", "sex", "feature")) |>
   mutate(
     sex = factor(str_to_sentence(sex), c("Female", "Male")),
-    row = factor(
-      sprintf("%s: %s", PHENOTYPE_LABELS[phenotype], gene),
-      rev(unique(sprintf("%s: %s", PHENOTYPE_LABELS[phenotype], gene)[order(phenotype)]))
-    ),
+    row = sprintf("%s: %s", PHENOTYPE_LABELS[phenotype], gene),
+    row = factor(row, rev(unique(row[order(match(phenotype, names(PHENOTYPE_LABELS)))]))),
     model = factor(MODEL_LABELS[model], MODEL_LABELS)
   )
 
 plot <- ggplot(shown, aes(r_equiv, row)) +
   geom_vline(xintercept = 0, colour = "grey50", linewidth = 0.25) +
   geom_line(aes(group = row), colour = "grey70", linewidth = 0.4) +
-  geom_point(aes(colour = model, shape = adj.P.Val <= ALPHA), size = 1.6) +
+  geom_point(aes(colour = model, shape = adj.P.Val <= ALPHA),
+    size = 1.6, position = position_dodge(width = 0.35, orientation = "y")
+  ) +
   facet_wrap(~sex, scales = "free_y") +
   scale_colour_manual(
     values = set_names(MODEL_COLOURS[names(MODEL_LABELS)], MODEL_LABELS), name = NULL

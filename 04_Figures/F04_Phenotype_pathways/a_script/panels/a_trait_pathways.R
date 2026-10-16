@@ -19,7 +19,7 @@ rows <- map(set_names(names(SEX_BLOCKS)), \(s) {
     arrange(fgsea_fdr, fgsea_p) |>
     transmute(block = factor(TRAIT_SHORT[phenotype], TRAIT_SHORT), term, collection) |>
     list_once(ROWS_PER_TRAIT) |>
-    mutate(label = set_label(term, 40))
+    mutate(label = label_with_database(set_label(term, 40), collection))
 })
 drawn <- imap(rows, \(r, s) {
   assoc |>
@@ -42,7 +42,7 @@ grids <- imap(rows, \(r, s) {
 })
 plot <- wrap_elements(full = wrap_plots(grids, nrow = 1) + plot_layout(guides = "collect")) +
   labs(
-    title = "Pathways that follow each phenotype",
+    title = "Pathways per phenotype",
     subtitle = sprintf(
       paste(
         "Within-treatment model, fgsea FDR ≤ %s; one set per group of overlapping sets (most",

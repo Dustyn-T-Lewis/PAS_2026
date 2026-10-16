@@ -36,7 +36,7 @@ The benchmark that chose the normalisation, run separately for the full proteome
 
 ![Panel d](b_reports/panels/d_surrogate.png)
 
-One point per mouse: its surrogate variable sv1 against run depth (log2 of the precursors identified), coloured by group with triangles for males. sv1 is the strongest pattern sva finds in the full proteome once the four group means are removed, and it enters every model as a covariate. It rises with run depth, r = 0.85 across all mice, 0.86 within females and 0.92 within males, and PAS and vehicle mice are interleaved along it (Welch p 0.46 in females, 0.71 in males). So sv1 absorbs run-depth noise and not the PAS effect.
+One point per mouse: its surrogate variable sv1 against run depth (log2 of the precursors identified), filled by group with shape for treatment (circle vehicle, triangle PAS), as in F01. sv1 is the strongest pattern sva finds in the full proteome once the four group means are removed, and it enters every model as a covariate. It rises with run depth, r = 0.85 across all mice, 0.86 within females and 0.92 within males, and PAS and vehicle mice are interleaved along it (Welch p 0.46 in females, 0.71 in males). So sv1 absorbs run-depth noise and not the PAS effect.
 
 ### e. Pellet mitochondrial share
 

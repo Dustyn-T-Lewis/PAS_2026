@@ -6,7 +6,7 @@ Supplementary Figure 6: which proteins PAS changes in either sex, and how the tw
 
 | | |
 |---|---|
-| Reads | `02_Statistics/01_Fit/c_data/fit.rds`, `02_Statistics/02_Enrichment/c_data/enrichment.rds` |
+| Reads | `02_Statistics/01_Fit/c_data/fit.rds`, `01_Processing/02_Quantification/c_data/proteins.rds`, `02_Statistics/02_Enrichment/c_data/enrichment.rds` |
 | Writes | `b_reports/panels/<panel>.pdf/.png`, `b_reports/S6_composite.pdf/.png` (180 × 145 mm), `c_data/S6.xlsx` |
 | Run | `Rscript 04_Figures/S6_Protein_patterns/a_script/S6_composite.R` (each panel script also runs alone) |
 
@@ -14,15 +14,15 @@ Each panel is its own script in `a_script/panels/`; the composite runs them, add
 
 ## Panels
 
-### a. Proteins PAS changes in either sex
+### a. Proteins by response pattern
 
 ![Panel a](b_reports/panels/a_ftest_heatmap.png)
 
-Each row is one of the 215 full-proteome proteins with a moderated F p ≤ 0.05 over the two within-sex PAS contrasts (`protein_ftest`). Each column is one of the 20 mice, grouped as female vehicle, female PAS, male vehicle and male PAS. A cell is that mouse's log2 abundance (`E_norm`) minus its own sex's vehicle mean, so green is higher, magenta lower, and colour stops changing beyond ±1.5. Rows are split by the signs of the two fold changes (56 up in both sexes, 83 down in both, 56 up in females and down in males, 20 down in females and up in males) and clustered within each split. The twelve narrow columns give each protein's Pearson r with each phenotype within one sex across its ten mice (`protein_associations`, pooled model): teal positive, brown negative, grey where no r exists (17 proteins in males, 2 in females).
+Each row is one of the 215 full-proteome proteins with a moderated F p ≤ 0.05 over the two within-sex PAS contrasts (`protein_ftest`). Each column is one of the 20 mice, grouped as female vehicle, female PAS, male vehicle and male PAS. A cell is that mouse's log2 abundance (`E_norm`) minus its own sex's vehicle mean, so green is higher, magenta lower, and colour stops changing beyond ±1.5; a grey cell marks a mouse in which the protein was not detected. Rows are split by the signs of the two fold changes (56 up in both sexes, 83 down in both, 56 up in females and down in males, 20 down in females and up in males) and clustered within each split. The twelve narrow columns give each protein's Pearson r with each phenotype within one sex across its ten mice (`protein_associations`, pooled model): teal positive, brown negative, grey where no r exists (17 proteins in males, 2 in females).
 
 The F p-values run from 8.5e-05 to 0.0498 and the FDRs from 0.097 to 0.45. The r columns follow the treatment direction: female CSA has median r 0.55 in the up-in-both rows and −0.46 in the down-in-both rows.
 
-### b. What each pattern holds
+### b. Over-representation per pattern
 
 ![Panel b](b_reports/panels/b_pattern_ora.png)
 

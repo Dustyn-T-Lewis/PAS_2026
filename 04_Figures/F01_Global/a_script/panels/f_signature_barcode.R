@@ -57,7 +57,7 @@ plot <- ggplot() +
   geom_line(aes(rank, y, colour = direction), worms, linewidth = 0.4, show.legend = FALSE) +
   geom_text(
     aes(x, y, label = text, hjust = hjust, vjust = vjust, colour = direction), labels,
-    size = 1.9, fontface = "bold", show.legend = FALSE
+    size = 1.7, fontface = "bold", show.legend = FALSE
   ) +
   facet_wrap(~lane, ncol = 1, strip.position = "left") +
   scale_colour_manual(

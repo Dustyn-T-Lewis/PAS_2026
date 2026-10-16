@@ -12,7 +12,7 @@ top <- fit$score_associations |>
   slice_min(P.Value, n = 4, with_ties = FALSE) |>
   mutate(
     sex_code = if_else(sex == "female", "F", "M"),
-    cell = sprintf("%s ~ %s, %s", feature, TRAIT_SHORT[phenotype], sex),
+    cell = sprintf("%s ~ %s, %s", feature, PHENOTYPE_LABELS[phenotype], sex),
     cell = factor(cell, cell),
     text = sprintf("Pearson r = %.2f\nslope p = %.2g", r, P.Value)
   )
@@ -37,8 +37,9 @@ plot <- ggplot(points, aes(trait, eigengene)) +
     aes(-Inf, Inf, label = text), top,
     hjust = -0.08, vjust = 1.15, size = 1.7, lineheight = 0.9, inherit.aes = FALSE
   ) +
-  facet_wrap(~cell, ncol = 2, scales = "free") +
+  facet_wrap(~cell, ncol = 2, scales = "free", labeller = label_wrap_gen(24)) +
   scale_colour_manual(values = GROUP_COLOURS, labels = GROUP_LABELS, name = NULL, drop = TRUE) +
+  scale_x_continuous(breaks = scales::breaks_pretty(3)) +
   scale_y_continuous(expand = expansion(mult = c(0.08, 0.3))) +
   labs(
     x = "trait value", y = "eigengene", title = "Strongest module–trait pairs",

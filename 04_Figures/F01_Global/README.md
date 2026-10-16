@@ -40,7 +40,7 @@ PC1 carries 43.1% of the variance and PC2 11.1%. The sexes separate completely a
 
 ![Panel d](b_reports/panels/d_phenotype_effects.png)
 
-One point per trait and sex: the % change of PAS against the same sex's vehicle mice, with its 95% CI as a bar, from a Welch t-test on log values. Orange is female, blue male; a filled point has p ≤ 0.05 and an open one does not. The axis is log-scaled, so +100% and −50% sit the same distance from zero. Under each trait, "F − M p" is the treatment × sex interaction from `lm(log(value) ~ treatment * sex)`, the female response relative to the male.
+One point per trait and sex: the % change of PAS against the same sex's vehicle mice, with its 95% CI as a bar, from a Welch t-test on log values. Orange is female, blue male; a filled point has p ≤ 0.05 and an open one does not. The axis is log-scaled, so +100% and −50% sit the same distance from zero. Under each trait, "Treatment × sex p" is the interaction from `lm(log(value) ~ treatment * sex)`, the female response relative to the male.
 
 Females gain capillary density (+138%, CI +41 to +303%, p 0.005), CSA (+22%, +10 to +34%, p 0.002) and satellite cells per fibre (+47%, +13 to +91%, p 0.009). The three respiration traits show no detectable change in females (p 0.30 to 0.45) and carry wide intervals; soleus octanoylcarnitine runs from −57% to +600%. No male trait reaches p ≤ 0.05 (p 0.086 to 0.77). Only capillary density has an interaction (p 0.014); for CSA (0.47) and satellite cells (0.89) a female-only result does not show that the sexes respond differently. The twelve p-values are not corrected for multiplicity, and respiration was measured in soleus and plantaris, not in the gastrocnemius that was sequenced.
 

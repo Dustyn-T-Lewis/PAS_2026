@@ -18,7 +18,9 @@ plot <- ggplot(perfect, aes(y = level)) +
   geom_segment(aes(x = 0, xend = null_q95), colour = "grey80", linewidth = 2.2) +
   geom_point(aes(x = null_median), shape = 124, size = 3, colour = "grey40") +
   geom_point(aes(x = observed, colour = sex), size = 1.8) +
-  geom_text(aes(x = pmax(observed, null_q95), label = text), hjust = -0.25, size = 1.7) +
+  geom_text(aes(x = pmax(observed, null_q95), label = text),
+    hjust = 0, nudge_x = 2.5, size = 1.7
+  ) +
   facet_wrap(~sex) +
   scale_colour_manual(values = SEX_COLOURS, guide = "none") +
   scale_x_continuous(expand = expansion(mult = c(0.02, 0.45))) +

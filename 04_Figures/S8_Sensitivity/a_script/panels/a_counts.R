@@ -1,6 +1,6 @@
 # S8 a: how many proteins each sensitivity variant finds per contrast, against the baseline. Each
-# cell holds the count; its colour is the log2 ratio to the baseline (one added to both), so a
-# variant that loses results is magenta and one that gains them green.
+# cell holds the count; its colour is the log2 ratio to the baseline (one added to both), red where
+# a variant loses results and grey where it gains them, away from the up and down colours.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(sensitivity = output_path("02_Statistics", "07_Sensitivity", "sensitivity.rds"))
@@ -33,7 +33,7 @@ plot <- ggplot(cells, aes(metric, variant, fill = ratio)) +
     strip = contrast_strips(COMPARISON_CONTRASTS)
   ) +
   scale_fill_gradient2(
-    low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
+    low = "#D6604D", high = "#878787",
     limits = c(-2.5, 2.5), oob = scales::squish, name = "log2 ratio to baseline",
     guide = guide_colourbar(barwidth = unit(18, "mm"), barheight = unit(2, "mm"))
   ) +

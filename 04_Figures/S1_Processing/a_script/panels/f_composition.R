@@ -12,7 +12,7 @@ scores <- shown |>
 labels <- comp$tests |>
   filter(group %in% MARKERS) |>
   summarise(
-    text = paste(sprintf("%s: p = %.2g", if_else(sex == "female", "F", "M"), p), collapse = "\n"),
+    text = paste(paste0(if_else(sex == "female", "F: ", "M: "), format_p(p)), collapse = "\n"),
     .by = group
   ) |>
   mutate(marker = factor(group, MARKERS))
@@ -28,7 +28,7 @@ plot <- ggplot(scores, aes(group, score, colour = group)) +
   scale_colour_manual(values = GROUP_COLOURS, labels = GROUP_LABELS, name = NULL) +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.35))) +
   labs(
-    x = NULL, y = "score", title = "Pellet composition",
+    x = NULL, y = "score / %", title = "Pellet composition",
     subtitle = "Mean scaled log2 abundance of marker proteins; haemoglobin: % of precursor signal"
   ) +
   theme_figure() +
