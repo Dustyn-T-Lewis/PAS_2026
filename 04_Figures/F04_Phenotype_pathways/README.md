@@ -19,7 +19,7 @@ Each panel is its own script in `a_script/panels/`; the composite runs them, add
 | a | Females. fgsea on each protein's association t with each phenotype, pooled over treatment and within treatment. Phenotype by phenotype, the four kept sets at FDR ≤ 0.05 under either model with the smallest FDR that no earlier phenotype already lists; each set drawn for every phenotype under both models. | `enrichment.rds`: `association_fgsea` |
 | b | Males, selected and drawn the same way. | `enrichment.rds`: `association_fgsea` |
 
-These are co-movement across mice, not PAS effects. The gene-permutation FDR runs optimistic; each set's singscore association, tested across mice, is in the 02_Enrichment workbook.
+These are co-movement across mice, not PAS effects. The gene-permutation FDR runs optimistic (Wu & Smyth 2012). camera was added for the contrasts (F03) but not for these associations; the check here is each set's singscore slope on the trait, tested across mice (`score_p`, `score_fdr` in the `association_fgsea` sheet).
 
 ## Workbook
 
