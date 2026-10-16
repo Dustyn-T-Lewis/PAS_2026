@@ -397,8 +397,8 @@ write_workbook(
       "slope (log2 per SD across all 20 mice), t, p, FDR, r (pooled, VEH, PAS)."
     ),
     paste(
-      "Every GO:BP, Reactome, MitoCarta, complex, cluster and module score: the five contrasts,",
-      "r with group."
+      "Every pathway (GO:BP, Reactome, Hallmark, KEGG, MitoCarta), complex, cluster and module",
+      "score: the five contrasts, r with group."
     ),
     paste(
       "Every score's association with each phenotype per sex and model: slope, t, p, FDR,",

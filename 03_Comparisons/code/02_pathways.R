@@ -72,8 +72,9 @@ report_pathways <- function(comparison) {
     c(
       "Per universe and collection: p ≤ 0.05, chance, FDR tiers.",
       paste(
-        "Every tested set, by p: NES, p, BH FDR within collection, size, redundancy flag,",
-        "singscore contrast (log2 FC, p, FDR, r with group), GO Slim families, leading edge."
+        "Every tested set, by p: NES, p, BH FDR within collection, size, redundancy flag, camera",
+        "p and FDR, singscore contrast (log2 FC, p, FDR, r with group), GO Slim families,",
+        "leading edge."
       ),
       "Per GO Slim family: GO:BP terms tested and at p and FDR ≤ 0.05 by direction.",
       "GO Slim cellular compartments: fgsea, full proteome.",
