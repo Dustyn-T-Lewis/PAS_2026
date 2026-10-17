@@ -68,7 +68,7 @@ Rscript -e 'renv::restore()'
 Rscript run_all.R
 ```
 
-About 7.5 minutes on a laptop from a fresh clone. R 4.6.0. `renv.lock` pins every package; enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. It needs no network: CORUM and STRING are read from `00_Setup/Input/`. limpa's quantification is checkpointed in the repository at each detection slope; `01_Processing/02_Quantification/README.md` says how to refit it.
+About 7.5 minutes on a laptop from a fresh clone. R 4.6.0. `renv.lock` pins every package; enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. CORUM and the STRING network are read from `00_Setup/Input/`, but it needs internet: STRINGdb checks string-db.org when it starts, and the STRING connectivity test in 02_Enrichment runs on its server. limpa's quantification is checkpointed in the repository at each detection slope; `01_Processing/02_Quantification/README.md` says how to refit it.
 
 ## Open with Dr. Ismaeel
 
