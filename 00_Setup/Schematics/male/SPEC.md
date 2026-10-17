@@ -7,7 +7,7 @@ Title at top left, bold: "Male: does PAS change males?".
 Left: a blue card titled in bold "contrast", with the line "PAS_M − VEH_M" below the title and, under it, the small line "read from 02_Statistics". One arrow runs right from this card to a thin vertical bracket that spans the left edges of all four step cards.
 
 Centre and right: four step cards side by side in one row, all the same size, with no arrows between them. Each card has a steel blue outline and a very pale sky-blue fill, its two-digit number large at top left, a bold title beside it, and short lines of text kept fully inside the card:
-- "01" "Proteins": "193 at p ≤ 0.05 (98 expected)" and "none at FDR ≤ 0.05".
+- "01" "Proteins": "193 at p ≤ 0.05" and "none at FDR ≤ 0.05".
 - "02" "Pathways": "at FDR ≤ 0.05: GO:BP 35, Hallmark 1, KEGG 5" and "actin and cytoskeleton organisation down".
 - "03" "Phenotypes": "no phenotype effect at p ≤ 0.05".
 - "04" "Classification": "perfect separation of PAS and VEH:", "5 pathway scores (null median 2, p 0.33)" and "0 of 8 modules".

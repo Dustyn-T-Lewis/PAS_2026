@@ -11,3 +11,5 @@
 - subscript text
 - colour names or colour codes written as text
 - an arrow or line to or from the note card
+- subscript or lowered letters in PAS_F, VEH_F, PAS_M or VEH_M (the F and M are full-size capitals after a visible underscore)
+- any word of the title repeated

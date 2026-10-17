@@ -2,12 +2,12 @@ STYLE (shared by all seven schematics): A flat, clean scientific schematic in th
 
 CONTENT: the Sex_Difference comparison and its two steps.
 
-Title at top left, bold: "Sex_Difference: does the PAS response differ by sex?".
+Title at top left, bold, on a single line: "Sex_Difference: does the PAS response differ by sex?" (each word once).
 
 Left: a purple card (lavender fill, plum outline; violet, not pink) titled in bold "contrast", with the line "(PAS_F − VEH_F) − (PAS_M − VEH_M)" on one line below the title, written with plain underscores and no subscripts, and under it the small line "read from 02_Statistics". One arrow runs right from this card to a thin vertical bracket that spans the left edges of the two step cards.
 
 Centre: two step cards side by side, the same size, with no arrow between them. Layout rules for the step cards: the contrast card is wide enough to hold "(PAS_F − VEH_F) − (PAS_M − VEH_M)" on one unbroken line; the step cards and the note card are tall, filling most of the height between the title and the bottom bar, and spread evenly across the width, with no large empty areas; each step card has its two-digit number on its own line and its bold title on the line below; text lines are left-aligned with even margins; a value is never split from its label across a line break (keep "(p 0.014)", "p ≤ 0.05" and "FDR ≤ 0.05" each on one line). Each card has a plum outline and a very pale lavender fill (a cool bluish lilac, the same hue as the contrast card, not pink or mauve), its two-digit number large at top left, the bold title under it, and short lines of text kept fully inside the card:
-- "01" "Proteins": "162 at p ≤ 0.05 (98 expected)" and "none at FDR ≤ 0.05".
+- "01" "Proteins": "162 at p ≤ 0.05" and "none at FDR ≤ 0.05".
 - "02" "Pathways": "at FDR ≤ 0.05: GO:BP 20, Reactome 6, Hallmark 3, KEGG 2, MitoCarta 11" and "muscle contraction and extracellular matrix higher in the female response".
 
 Right: one neutral light grey note card, not connected to anything, with two short lines: "phenotype interaction: capillary density only (p 0.014), in 02_Statistics/01_Fit" and "no classification step".
