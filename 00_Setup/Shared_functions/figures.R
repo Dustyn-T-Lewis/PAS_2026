@@ -163,7 +163,7 @@ pca_panel <- function(scores, variance, title, subtitle, permanova, arrows, arro
     group = factor(group, FIGURE_GROUPS), treatment = factor(treatment, c("VEH", "PAS"))
   )
   arrows <- mutate(arrows, label = factor(label, names(arrow_colours)))
-  terms <- c(sex = "Sex", treatment = "Treatment", `sex:treatment` = "Sex × treatment")
+  terms <- c(sex = "Sex", treatment = "Treatment", `sex:treatment` = "Treatment × sex")
   permanova <- permanova |>
     filter(term %in% names(terms)) |>
     transmute(

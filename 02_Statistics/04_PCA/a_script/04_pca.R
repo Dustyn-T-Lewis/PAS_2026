@@ -69,7 +69,7 @@ mito_vector <- tibble(
 codes <- transmute(samples,
   Sex = if_else(sex == "M", 1, -1),
   Treatment = if_else(treatment == "PAS", 1, -1),
-  `Sex × treatment` = Sex * Treatment,
+  `Treatment × sex` = Treatment * Sex,
   `MitoCarta share` = pct_mito,
   `Run depth (log2 precursors)` = run_depth
 )
