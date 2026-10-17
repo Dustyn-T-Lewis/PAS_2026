@@ -27,7 +27,8 @@ plot <- ggplot(effects, aes(pct_change, trait, colour = sex)) +
   scale_colour_manual(values = SEX_COLOURS, breaks = c("Female", "Male"), name = NULL) +
   scale_shape_manual(
     values = c(`TRUE` = 16, `FALSE` = 21),
-    labels = c(`TRUE` = paste("p ≤", ALPHA), `FALSE` = "ns"), name = NULL
+    labels = c(`TRUE` = paste("filled: p ≤", ALPHA), `FALSE` = paste("open: p >", ALPHA)),
+    name = NULL
   ) +
   labs(
     x = "% change (95% CI, log scale)", y = NULL, title = "Phenotype effects",
@@ -35,7 +36,10 @@ plot <- ggplot(effects, aes(pct_change, trait, colour = sex)) +
   ) +
   theme_figure() +
   theme(legend.box = "horizontal", legend.spacing.x = unit(2, "mm")) +
-  guides(colour = guide_legend(order = 1), shape = guide_legend(order = 2, reverse = TRUE))
+  guides(
+    colour = guide_legend(order = 1, ncol = 1),
+    shape = guide_legend(order = 2, ncol = 1, reverse = TRUE)
+  )
 
 save_panel(plot, "F01_Global", "d_phenotype_effects", 66, 64)
 list(

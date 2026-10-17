@@ -71,7 +71,7 @@ plot <- ggplot() +
   labs(
     x = sprintf("rank in the other sex (n = %s)", format(n_total, big.mark = ",")),
     y = NULL, title = "Cross-sex signatures",
-    subtitle = sprintf("Each sex's Π ≤ %s proteins, ranked in the other sex", ALPHA)
+    subtitle = sprintf("Each sex's Π ≤ %s proteins, ranked in the other", ALPHA)
   ) +
   theme_figure() +
   theme(

@@ -32,15 +32,15 @@ PC1 carries 29.7% of the variance and PC2 20.9%. CSA (loading 0.59) and soleus o
 
 ![Panel c](b_reports/panels/c_proteome_pca.png)
 
-The same drawing for the proteome: one point per mouse on the first two components of the 1,962 normalised proteins, centred but not scaled.
+The same drawing for the proteome: one point per mouse on the first two components of the 1,962 normalised proteins, centred but not scaled. Its group key is the one in panel b.
 
-PC1 carries 43.1% of the variance and PC2 11.1%. The sexes separate completely along PC1, females from −31.1 to −15.0 and males from 5.4 to 37.9, and within each sex PAS and vehicle mice overlap. The PERMANOVA agrees: sex R² 0.39 (p 0.001), treatment 0.04 (p 0.29), interaction 0.04 (p 0.24), with group spreads alike (betadisper p 0.49). The single green arrow is the direction in which the pellet's MitoCarta share rises, fitted onto PC1 and PC2 by envfit (R² 0.91, p 0.001); it points almost along PC1. On PC1 alone sex explains R² 0.89, the MitoCarta share 0.88 and run depth 0.69. Sex and pellet composition therefore coincide on the main axis, and this panel cannot tell them apart. PAS leaves no detectable mark on the global proteome, which is why the comparisons set PAS against vehicle within one sex, where the pellet MitoCarta share does not differ detectably between PAS and vehicle, although several marker scores do (S1 panel f). The PCA is descriptive and does not use the surrogate variable.
+PC1 carries 43.1% of the variance and PC2 11.1%. The sexes separate completely along PC1, females from −31.1 to −15.0 and males from 5.4 to 37.9, and within each sex PAS and vehicle mice overlap. The PERMANOVA agrees: sex R² 0.39 (p 0.001), treatment 0.04 (p 0.29), interaction 0.04 (p 0.24), with group spreads alike (betadisper p 0.49). The single dark grey arrow is the direction in which the pellet's MitoCarta share rises, fitted onto PC1 and PC2 by envfit (R² 0.91, p 0.001); it points almost along PC1. On PC1 alone sex explains R² 0.89, the MitoCarta share 0.88 and run depth 0.69. Sex and pellet composition therefore coincide on the main axis, and this panel cannot tell them apart. A treatment effect on the global proteome was not detected (R² 0.04, p 0.29), which is why the comparisons set PAS against vehicle within one sex, where the pellet MitoCarta share does not differ detectably between PAS and vehicle, although several marker scores do (S1 panel f). The PCA is descriptive and does not use the surrogate variable.
 
 ### d. Phenotype effects
 
 ![Panel d](b_reports/panels/d_phenotype_effects.png)
 
-One point per trait and sex: the % change of PAS against the same sex's vehicle mice, with its 95% CI as a bar, from a Welch t-test on log values. Orange is female, blue male; a filled point has p ≤ 0.05 and an open one does not. The axis is log-scaled, so +100% and −50% sit the same distance from zero. Under each trait, "Treatment × sex p" is the interaction from `lm(log(value) ~ treatment * sex)`, the female response relative to the male.
+One point per trait and sex: the % change of PAS against the same sex's vehicle mice, with its 95% CI as a bar, from a Welch t-test on log values. Orange is female, blue male; the key reads filled for p ≤ 0.05 and open for p > 0.05. The axis is log-scaled, so +100% and −50% sit the same distance from zero. Under each trait, "Treatment × sex p" is the interaction from `lm(log(value) ~ treatment * sex)`, the female response relative to the male.
 
 Females gain capillary density (+138%, CI +41 to +303%, p 0.005), CSA (+22%, +10 to +34%, p 0.002) and satellite cells per fibre (+47%, +13 to +91%, p 0.009). The three respiration traits show no detectable change in females (p 0.30 to 0.45) and carry wide intervals; soleus octanoylcarnitine runs from −57% to +600%. No male trait reaches p ≤ 0.05 (p 0.086 to 0.77). Only capillary density has an interaction (p 0.014); for CSA (0.47) and satellite cells (0.89) a female-only result does not show that the sexes respond differently. The twelve p-values are not corrected for multiplicity, and respiration was measured in soleus and plantaris, not in the gastrocnemius that was sequenced.
 
@@ -48,7 +48,7 @@ Females gain capillary density (+138%, CI +41 to +303%, p 0.005), CSA (+22%, +10
 
 ![Panel e](b_reports/panels/e_protein_bars.png)
 
-One row per contrast, the full proteome (1,962 proteins) above the mitochondrial universe (595). Bars to the left count proteins down and bars to the right proteins up. The light bar counts proteins at p ≤ 0.05; the dark bar drawn over it counts those at Π ≤ 0.05, which is always the smaller number. The box naming each row gives its count at FDR ≤ 0.05.
+One row per contrast, the full proteome (1,962 proteins) above the mitochondrial universe (595). Bars to the left count proteins down and bars to the right proteins up. The light bar counts proteins at p ≤ 0.05; the dark bar drawn over it counts those at Π ≤ 0.05, which is always the smaller number. The box naming each row gives its count at FDR ≤ 0.05; the subtitle is the key to all three.
 
 In the full proteome females have 95 down (63 at Π) and 82 up (44), males 119 down (79) and 74 up (27), and the interaction 59 down (45) and 103 up (97), where up means a larger female than male response. These nominal counts are exploratory: only three proteins pass FDR ≤ 0.05, all down in females (Cops3, Cops8, Dusp3), and none does in the mitochondrial universe. There, females have 17 down and 25 up, males 25 and 12, and the interaction 12 and 34. Π sits close to p in the interaction row because Π = p^|log2 FC| rewards large fold changes: the median |log2 FC| of p ≤ 0.05 proteins is 1.10 for the interaction against 0.81 and 0.82 within females and males (`01_fit.xlsx`, `protein_contrasts`).
 
@@ -64,7 +64,7 @@ The female up list (43 ranked) moves the same way in 50% of cases (p 0.31), the 
 
 Π (Xiao et al. 2014) ranks a protein on p and fold change together and controls no error rate; Π ≤ 0.05 can include proteins with p > 0.05. Two error-controlled measures sit beside it in `01_fit.xlsx`. TREAT tests for a fold change above 1.2 (McCarthy & Smyth 2009); no protein reaches TREAT FDR ≤ 0.05 in any contrast. ashr's local false sign rate (Stephens 2017) is ≤ 0.05 for five female proteins (Cops3, Dusp3, Ugp2, Appl1, Hook3), one male (Cd36) and no interaction protein.
 
-Panel a is a 600 dpi redraw (2026-10-16) of an illustration drawn from `assets/design_spec/`. SPEC.md holds every label, EVIDENCE.md the source of each element and DONOTDRAW.md what the evidence rules out. The redraw labels the interaction "Sex Interaction"; the figures call it "Treatment × sex".
+Panel a is a 600 dpi redraw (2026-10-16) of an illustration drawn from `assets/design_spec/`. SPEC.md holds every label, EVIDENCE.md the source of each element and DONOTDRAW.md what the evidence rules out. The redraw labelled the interaction "Sex Interaction"; on 2026-10-17 that text was edited in the pixels to "Treatment × sex", the name the figures use.
 
 ## Workbook
 

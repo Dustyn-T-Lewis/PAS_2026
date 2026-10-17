@@ -19,8 +19,10 @@ plot <- pca_panel(
   str_glue(
     "{format(n_proteins, big.mark = ',')} proteins; {nrow(scores)} mice; PERMANOVA top right"
   ),
-  pca$permanova, mito_arrow, set_names("#1B9E77", mito_label)
-)
+  pca$permanova, mito_arrow, set_names("grey30", mito_label)
+) +
+  # Panel b beside it already carries the group key.
+  guides(fill = "none")
 
 save_panel(plot, "F01_Global", "c_proteome_pca", 57, 64)
 list(

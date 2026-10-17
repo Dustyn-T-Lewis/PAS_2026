@@ -66,7 +66,8 @@ plot <- ggplot(bars, aes(signed, row)) +
     labels = \(x) sprintf("%s\nFDR 0", CONTRAST_SHORT[x]), expand = expansion(add = 0.5)
   ) +
   labs(
-    x = "proteins (down / up)", y = NULL, title = "Proteins per contrast"
+    x = "proteins (down / up)", y = NULL, title = "Proteins per contrast",
+    subtitle = str_glue("Light: p ≤ {ALPHA}; dark: Π ≤ {ALPHA}; box: count at FDR ≤ {ALPHA}")
   ) +
   theme_figure() +
   theme(
