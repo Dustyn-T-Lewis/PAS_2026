@@ -1,6 +1,6 @@
 # Supplementary Figure 5, structure: whether more features separate PAS from vehicle perfectly
-# than chance allows, and what the main proteome components track. Each panel is its own script in
-# panels/; this file runs them, stitches them and writes one workbook.
+# than under relabelling of the mice, and what the main proteome components track. Each panel is
+# its own script in panels/; this file runs them, stitches them and writes one workbook.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 PANELS <- c("a_perfect_separators", "b_component_r2")

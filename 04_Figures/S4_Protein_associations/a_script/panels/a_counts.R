@@ -1,5 +1,5 @@
 # S4 a: proteins associated with each phenotype at p <= 0.05 within each sex, under each
-# association model, against the count expected by chance (01_Fit, full proteome).
+# association model (01_Fit, full proteome).
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(fit = output_path("02_Statistics", "01_Fit", "fit.rds"))
@@ -17,7 +17,6 @@ counts <- readRDS(inputs[["fit"]])$association_summary |>
 
 plot <- ggplot(counts, aes(trait, p_le_0.05, fill = model)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.75) +
-  geom_hline(aes(yintercept = expected_by_chance), linetype = "dashed", linewidth = 0.25) +
   facet_wrap(~sex) +
   scale_fill_manual(
     values = set_names(MODEL_COLOURS[names(ASSOCIATION_LABELS)], ASSOCIATION_LABELS), name = NULL
@@ -25,7 +24,7 @@ plot <- ggplot(counts, aes(trait, p_le_0.05, fill = model)) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
   labs(
     x = NULL, y = "proteins at p ≤ 0.05", title = "Protein–phenotype associations",
-    subtitle = "Full proteome, within sex; dashed: expected by chance"
+    subtitle = "Full proteome, within sex"
   ) +
   theme_figure() +
   theme(panel.grid.major.x = element_blank())

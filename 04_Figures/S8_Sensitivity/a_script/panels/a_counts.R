@@ -40,8 +40,8 @@ plot <- ggplot(cells, aes(metric, variant, fill = ratio)) +
   labs(
     x = NULL, y = NULL, title = "Protein results under each variant",
     subtitle = sprintf(
-      "%s proteins, %.0f expected at p ≤ %s; top %d kept: of the baseline's %d smallest p",
-      format(n_proteins, big.mark = ","), ALPHA * n_proteins, ALPHA, top_n, top_n
+      "%s proteins; top %d kept: of the baseline's %d smallest p",
+      format(n_proteins, big.mark = ","), top_n, top_n
     )
   ) +
   theme_figure() +

@@ -73,7 +73,7 @@ report_proteins <- function(comparison) {
       plot_index = plot_index
     ),
     c(
-      "Per universe and direction: p ≤ 0.05, chance, Π ≤ 0.05, FDR tiers.",
+      "Per universe and direction: p ≤ 0.05, Π ≤ 0.05, FDR tiers.",
       paste(
         "Every protein in both universes, by p:",
         "log2 FC with 95% CI, t, p, BH FDR, Π, r with PAS (empty for the interaction), tier."

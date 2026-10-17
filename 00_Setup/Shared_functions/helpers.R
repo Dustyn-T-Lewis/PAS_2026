@@ -136,7 +136,7 @@ pi_score <- \(p, logfc) p^abs(logfc)
 
 tier_counts <- function(p, fdr, pi = NULL) {
   tibble(
-    tests = length(p), p_le_0.05 = sum(p <= ALPHA), expected_by_chance = ALPHA * length(p),
+    tests = length(p), p_le_0.05 = sum(p <= ALPHA),
     pi_le_0.05 = if (is.null(pi)) NA_integer_ else sum(pi <= ALPHA),
     fdr_le_0.10 = sum(fdr <= 0.10), fdr_le_0.05 = sum(fdr <= ALPHA)
   )

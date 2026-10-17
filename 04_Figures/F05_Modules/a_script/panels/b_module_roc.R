@@ -27,10 +27,10 @@ curves <- cls$module_curves |>
     fpr = if_else(lower, specificity, 1 - specificity),
     tpr = if_else(lower, 1 - sensitivity, sensitivity)
   )
-# The area under each curve, closed along the bottom edge.
+# The area under each curve, walked from (0, 0) to (1, 1) and closed along the bottom edge.
 areas <- curves |>
-  group_by(cell, comparison) |>
-  reframe(fpr = c(fpr, 1, 0), tpr = c(tpr, 0, 0))
+  arrange(cell, fpr, tpr) |>
+  reframe(fpr = c(fpr, 1, 0), tpr = c(tpr, 0, 0), .by = c(cell, comparison))
 
 plot <- ggplot(curves, aes(fpr, tpr)) +
   geom_polygon(aes(fill = I(SEX_COLOURS[str_to_sentence(comparison)])), areas, alpha = 0.3) +

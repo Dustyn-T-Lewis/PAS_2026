@@ -17,7 +17,7 @@ save_figure(figure, out$reports, "S4_composite", width_mm = 180, height_mm = 135
 write_figure_workbook(
   panels,
   c(
-    "Panel a: per phenotype, sex and model, proteins at p ≤ 0.05, expected by chance, FDR counts.",
+    "Panel a: per phenotype, sex and model, proteins at p ≤ 0.05 and FDR counts.",
     "Panel b: the strongest within-treatment protein per phenotype and sex, under both models."
   ),
   file.path(out$data, "S4.xlsx")

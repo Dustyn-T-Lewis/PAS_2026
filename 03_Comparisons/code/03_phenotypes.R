@@ -103,7 +103,6 @@ report_phenotypes <- function(comparison) {
         beside = TRUE, legend.text = TRUE, las = 2, cex.names = 0.7,
         ylab = "proteins at p ≤ 0.05", main = str_glue("{label}: protein associations")
       )
-      abline(h = protein_counts$expected_by_chance[1], lty = 2)
     },
     "strongest robust protein per phenotype" = \() {
       par(mfrow = c(2, 3))
@@ -130,7 +129,7 @@ report_phenotypes <- function(comparison) {
     c(
       "Phenotype effects: PAS vs vehicle per phenotype in this sex, % change, 95% CI, Welch p.",
       paste(
-        "Per level, universe, phenotype and model: associations at p ≤ 0.05, chance, FDR tiers;",
+        "Per level, universe, phenotype and model: associations at p ≤ 0.05, FDR tiers;",
         "pooled_mito adds the pellet mito share to the pooled model."
       ),
       paste(

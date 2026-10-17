@@ -1,6 +1,6 @@
 # S5_Structure
 
-Supplementary Figure 5: whether perfect separation exceeds chance, and what the proteome components track.
+Supplementary Figure 5: whether perfect separation exceeds the relabelling null, and what the proteome components track.
 
 ![Supplementary Figure 5](b_reports/S5_composite.png)
 
@@ -14,13 +14,13 @@ Each panel is its own script in `a_script/panels/`; the composite runs them, add
 
 ## Panels
 
-### a. Perfect separators against chance
+### a. Perfect separators against relabelling
 
 ![Panel a](b_reports/panels/a_perfect_separators.png)
 
 Each row is one feature level within one sex: 1,005 pathway scores, 8 module eigengenes, 98 complex scores and 7 cluster scores (`classification.rds`: `perfect`). The coloured dot counts the features that put all five PAS mice above, or all five below, all five vehicle mice. The grey bar runs from 0 to the 95th centile of the same count over all 252 ways of relabelling that sex's ten mice, a tick marks the null median, and the text gives the exact p, the share of relabellings with a count at least as large.
 
-No level exceeds chance at p ≤ 0.05. Female pathways give the largest count, 16 against a null median of 4 (95th centile 30, p 0.13), and one female module separates perfectly against a null median of 0 (p 0.063). One female complex separates perfectly (p 0.35); male pathways give 5 against 2 (p 0.33), and no male module, complex or cluster separates. With five mice a side, some features will separate perfectly by chance alone, as the null shows.
+No level exceeds the relabelling null at p ≤ 0.05. Female pathways give the largest count, 16 against a null median of 4 (95th centile 30, p 0.13), and one female module separates perfectly against a null median of 0 (p 0.063). One female complex separates perfectly (p 0.35); male pathways give 5 against 2 (p 0.33), and no male module, complex or cluster separates. With five mice a side, some features will separate perfectly by chance alone, as the null shows.
 
 ### b. What the proteome components track
 

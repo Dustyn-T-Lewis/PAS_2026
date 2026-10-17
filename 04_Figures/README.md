@@ -15,8 +15,8 @@ Figures that cross the comparisons, one question each. Each figure folder holds 
 | [`S1_Processing`](S1_Processing/README.md) | What processing kept and chose, and what else is in the pellet | filtering; run depth; normalisation; surrogate variable; MitoCarta share; composition markers |
 | [`S2_Proteins`](S2_Proteins/README.md) | Each comparison's own protein list | three Π heatmaps; volcanoes |
 | [`S3_Pathway_sets`](S3_Pathway_sets/README.md) | The GO Slim compartments and the literature-informed and ROS sets | compartments; literature hypotheses |
-| [`S4_Protein_associations`](S4_Protein_associations/README.md) | How many proteins track each phenotype | counts against chance; strongest protein per trait |
-| [`S5_Structure`](S5_Structure/README.md) | Whether perfect separation beats chance; what the PCs track | perfect separators; component R² |
+| [`S4_Protein_associations`](S4_Protein_associations/README.md) | How many proteins track each phenotype | counts at p ≤ 0.05; strongest protein per trait |
+| [`S5_Structure`](S5_Structure/README.md) | Whether perfect separation beats the relabelling null; what the PCs track | perfect separators; component R² |
 | [`S6_Protein_patterns`](S6_Protein_patterns/README.md) | Which proteins PAS changes in either sex, by response pattern | F-test heatmap; ORA per pattern |
 | [`S7_Candidates`](S7_Candidates/README.md) | Which candidate routes each protein passed | route matrix per sex; full ranked table in the workbook |
 | [`S8_Sensitivity`](S8_Sensitivity/README.md) | Whether the protein results survive other processing and model choices | counts per variant; baseline proteins across variants |

@@ -18,9 +18,9 @@ Each panel is its own script in `a_script/panels/`; the composite runs them, add
 
 ![Panel a](b_reports/panels/a_counts.png)
 
-Each bar counts the full-proteome proteins whose association with one phenotype, within one sex, reaches p ≤ 0.05 under one model (`fit.rds`: `association_summary`): pooled across PAS and vehicle mice (dark grey), pooled with the pellet's MitoCarta share added (light grey), and within treatment (red). The within-treatment model removes the group means and asks whether a protein tracks the trait among mice given the same treatment. The dashed line is the 98.1 expected by chance from 1,962 tests.
+Each bar counts the full-proteome proteins whose association with one phenotype, within one sex, reaches p ≤ 0.05 under one model (`fit.rds`: `association_summary`): pooled across PAS and vehicle mice (dark grey), pooled with the pellet's MitoCarta share added (light grey), and within treatment (red). The within-treatment model removes the group means and asks whether a protein tracks the trait among mice given the same treatment.
 
-Female satellite cells per fibre stand out under the pooled models (231 and 241), and fall to 156 within treatment. Female capillary density rises from 110 pooled to 169 within treatment, and female soleus pyruvate sits below chance pooled (67) but above it within treatment (124). In males, plantaris pyruvate gives the highest counts under all three models (184, 187 and 164), and satellite cells drop to 47 within treatment. FDR ≤ 0.05 is rare, at most 8 proteins in any bar (male soleus pyruvate, pooled + MitoCarta share). Proteins co-vary and each sex has ten mice, so a count above the line is not itself a test.
+Female satellite cells per fibre stand out under the pooled models (231 and 241), and fall to 156 within treatment. Female capillary density rises from 110 pooled to 169 within treatment, and female soleus pyruvate rises from 67 pooled to 124 within treatment. In males, plantaris pyruvate gives the highest counts under all three models (184, 187 and 164), and satellite cells drop to 47 within treatment. FDR ≤ 0.05 is rare, at most 8 proteins in any bar (male soleus pyruvate, pooled + MitoCarta share). Proteins co-vary and each sex has ten mice, so a count is not itself a test.
 
 ### b. Strongest protein per phenotype
 

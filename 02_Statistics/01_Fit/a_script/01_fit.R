@@ -374,9 +374,9 @@ write_workbook(
     plot_index = plot_index
   ),
   c(
-    "Per level, universe and contrast: p ≤ 0.05, chance, Π ≤ 0.05, FDR tiers, true-effect share.",
+    "Per level, universe and contrast: p ≤ 0.05, Π ≤ 0.05, FDR tiers, true-effect share.",
     paste(
-      "Per level, universe, phenotype, sex and model: p ≤ 0.05, chance, FDR tiers;",
+      "Per level, universe, phenotype, sex and model: p ≤ 0.05, FDR tiers;",
       "pooled_mito is the pellet mito-share check."
     ),
     paste(

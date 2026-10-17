@@ -50,7 +50,7 @@ report_classification <- function(comparison) {
   write_workbook(
     list(summary = tier_table, roc = roc, perfect_separations = perfect, plot_index = plot_index),
     c(
-      "Per level: features, at p ≤ 0.05, expected by chance, FDR tiers, perfect separations.",
+      "Per level: features, at p ≤ 0.05, FDR tiers, perfect separations.",
       paste(
         "Every feature, by p: AUC (PAS vs vehicle), DeLong 95% CI (empty at perfect separation),",
         "exact Wilcoxon p, BH FDR within level, r with PAS."

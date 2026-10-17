@@ -94,7 +94,12 @@ theme_figure <- function() {
 }
 
 # The key every continuous fill or colour scale uses.
-colour_bar <- \(...) guide_colourbar(barwidth = unit(14, "mm"), barheight = unit(2, "mm"), ...)
+colour_bar <- \(...) {
+  guide_colourbar(
+    barwidth = unit(14, "mm"), barheight = unit(2, "mm"),
+    theme = theme(legend.text = element_text(margin = margin(t = 1.5))), ...
+  )
+}
 
 # p as the labels print it, without scientific notation.
 format_p <- \(p) if_else(p < 0.001, "p < 0.001", sprintf("p = %.2g", p))
@@ -503,7 +508,7 @@ candidate_network <- function(cand, sex, title) {
   shown <- filter(cand$candidates, sex == !!sex, routes >= limits$community_routes)
   nodes <- shown |>
     distinct(gene, .keep_all = TRUE) |>
-    mutate(group = if_else(is.na(name), NA_character_, set_label(name, 30)))
+    mutate(group = if_else(is.na(name), NA_character_, str_wrap(set_label(name, 200), 30)))
   links <- cand$edges |>
     filter(sex == !!sex, a %in% nodes$gene, b %in% nodes$gene) |>
     distinct(a, b)

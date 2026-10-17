@@ -364,7 +364,7 @@ write_workbook(
     plot_index = plot_index
   ),
   c(
-    "Per contrast and collection: sets tested, at p ≤ 0.05, expected by chance, FDR tiers.",
+    "Per contrast and collection: sets tested, at p ≤ 0.05, FDR tiers.",
     paste(
       "Every tested set and contrast: NES, p, BH FDR, size, collapsePathways flag, overlap group",
       "and whether F03 shows the set (one per group of overlapping sets at FDR ≤ 0.05), camera p",

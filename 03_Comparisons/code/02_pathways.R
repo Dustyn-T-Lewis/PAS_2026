@@ -52,7 +52,7 @@ report_pathways <- function(comparison) {
       literature = literature, plot_index = plot_index
     ),
     c(
-      "Per universe and collection: p ≤ 0.05, chance, FDR tiers.",
+      "Per universe and collection: p ≤ 0.05, FDR tiers.",
       paste(
         "Every tested set, by p: NES, p, BH FDR within collection, size, redundancy flag, camera",
         "p and FDR, singscore contrast (log2 FC, p, FDR, r with group), GO Slim families,",

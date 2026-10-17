@@ -25,7 +25,7 @@ plot <- ggplot(perfect, aes(y = level)) +
   scale_colour_manual(values = SEX_COLOURS, guide = "none") +
   scale_x_continuous(expand = expansion(mult = c(0.02, 0.45))) +
   labs(
-    x = "features separating perfectly", y = NULL, title = "Perfect separators against chance",
+    x = "features separating perfectly", y = NULL, title = "Perfect separators against relabelling",
     subtitle = "Dot: observed; bar: 0 to the null's 95th centile; tick: null median"
   ) +
   theme_figure() +

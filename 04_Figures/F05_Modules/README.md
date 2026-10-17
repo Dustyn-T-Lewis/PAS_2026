@@ -22,7 +22,7 @@ Each panel is its own script in `a_script/panels/`; the composite runs them, add
 
 One row per module, after YvO's module–trait heatmap. The bar on the left is the module's size in proteins, with its MitoCarta share as a percentage; the label gives its stability J (median best-match Jaccard over 100 subsamples of four mice per group) and its top annotated set, if any (`modules.rds`: `sizes`). Each cell holds the r-equivalent of one limma t, t / √(t² + df), for the three contrasts and for each trait's slope within each sex (pooled model, adjusted for the surrogate variable; `fit.rds`: `score_contrasts`, `score_associations`), so value and outline come from one test. Fill runs from brown (lower in PAS, or falling with the trait) to teal; a solid outline would mark FDR ≤ 0.05 over the eight modules, a dashed one p ≤ 0.05, and bold text |r| ≥ 0.4.
 
-No cell reaches FDR ≤ 0.05 (lowest 0.074). Male PAS raises brown (r 0.50, p 0.042), turquoise (OXPHOS, 84% MitoCarta) differs between the sexes' PAS effects (r −0.48, p 0.049), and female PAS raises blue (r 0.48, p 0.052). Four of the 96 trait cells reach p ≤ 0.05, about the five expected by chance. Pink is the least stable module (J 0.29) and red the most (J 0.67).
+No cell reaches FDR ≤ 0.05 (lowest 0.074). Brown is higher in male PAS mice (r 0.50, p 0.042), turquoise (OXPHOS, 84% MitoCarta) differs between the sexes' PAS effects (r −0.48, p 0.049), and blue is higher in female PAS mice (r 0.48, p 0.052). Four of the 96 trait cells reach p ≤ 0.05. Pink is the least stable module (J 0.29) and red the most (J 0.67).
 
 ### b. ROC for single modules
 

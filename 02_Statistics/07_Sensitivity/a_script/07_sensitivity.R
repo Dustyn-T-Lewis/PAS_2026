@@ -118,7 +118,6 @@ plot_index <- preview_pdf(file.path(out$reports, "07_sensitivity.pdf"), list(
     m <- xtabs(p_le_0.05 ~ variant + contrast, counts)
     par(mar = c(10, 4, 2, 1))
     barplot(t(m), beside = TRUE, las = 2, legend.text = colnames(m), ylab = "p <= 0.05")
-    abline(h = ALPHA * nrow(baseline_y), lty = 2)
   }
 ))
 

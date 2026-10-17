@@ -148,7 +148,7 @@ write_workbook(
   ),
   c(
     paste(
-      "Per comparison and level: features, at p ≤ 0.05, expected by chance, FDR tiers,",
+      "Per comparison and level: features, at p ≤ 0.05, FDR tiers,",
       "perfect separations."
     ),
     paste(
