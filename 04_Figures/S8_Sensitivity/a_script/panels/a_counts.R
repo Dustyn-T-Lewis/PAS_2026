@@ -35,7 +35,7 @@ plot <- ggplot(cells, aes(metric, variant, fill = ratio)) +
   scale_fill_gradient2(
     low = "#D6604D", high = "#878787",
     limits = c(-2.5, 2.5), oob = scales::squish, name = "log2 ratio to baseline",
-    guide = guide_colourbar(barwidth = unit(18, "mm"), barheight = unit(2, "mm"))
+    guide = colour_bar()
   ) +
   labs(
     x = NULL, y = NULL, title = "Protein results under each variant",
