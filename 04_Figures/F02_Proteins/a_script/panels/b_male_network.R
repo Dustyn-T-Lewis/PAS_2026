@@ -6,5 +6,5 @@ inputs <- c(candidates = output_path("02_Statistics", "06_Candidates", "candidat
 cand <- readRDS(inputs[["candidates"]])
 network <- candidate_network(cand, "male", "Males: candidate proteins")
 
-save_panel(network$plot, "F02_Proteins", "b_male_network", 90, 110)
+save_panel(network$plot, "F02_Proteins", "b_male_network", 90, 90)
 list(plot = network$plot, data = network$data, inputs = inputs)

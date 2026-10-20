@@ -498,17 +498,18 @@ score_cells <- function(contrasts, associations) {
 }
 
 # One sex's candidates (those passing community_routes or more routes) as a STRING network:
-# shaded hulls for communities, labelled by their ORA term; edges at the STRING score
+# shaded hulls for communities, each named beside it by its ORA term; edges at the STRING score
 # 06_Candidates used; node size routes passed, colour log2 fold change. Communities are kept
 # together by adding invisible within-community edges to the layout only. Proteins without a
-# STRING partner are listed under the plot. cand is candidates.rds from
-# 02_Statistics/06_Candidates. Returns the plot and the candidates drawn.
+# STRING partner are left out of the drawing, counted under it and flagged by has_partner in the
+# data. cand is candidates.rds from 02_Statistics/06_Candidates. Returns the plot and the
+# candidates drawn.
 candidate_network <- function(cand, sex, title) {
   limits <- cand$thresholds
   shown <- filter(cand$candidates, sex == !!sex, routes >= limits$community_routes)
   nodes <- shown |>
     distinct(gene, .keep_all = TRUE) |>
-    mutate(group = if_else(is.na(name), NA_character_, str_wrap(set_label(name, 200), 30)))
+    mutate(group = if_else(is.na(name), NA_character_, str_wrap(set_label(name, 200), 24)))
   links <- cand$edges |>
     filter(sex == !!sex, a %in% nodes$gene, b %in% nodes$gene) |>
     distinct(a, b)
@@ -529,6 +530,15 @@ candidate_network <- function(cand, sex, title) {
   segments <- links |>
     left_join(select(positions, a = gene, x, y), by = "a") |>
     left_join(select(positions, b = gene, xend = x, yend = y), by = "b")
+  # Gene and community names repelled together, so neither covers a node or the other; each
+  # community name starts above its hull's highest member.
+  labels <- bind_rows(
+    transmute(positions, x, y, label = gene, size = 1.9, colour = "black"),
+    positions |>
+      filter(!is.na(group)) |>
+      summarise(x = mean(x), y = max(y), .by = group) |>
+      transmute(x, y, label = group, size = 1.6, colour = "grey30")
+  )
   limit <- max(abs(nodes$logFC))
   plot <- ggplot(positions, aes(x, y)) +
     ggforce::geom_mark_hull(
@@ -539,24 +549,25 @@ candidate_network <- function(cand, sex, title) {
       colour = "grey60", linewidth = 0.3
     ) +
     geom_point(aes(colour = logFC, size = routes)) +
-    ggrepel::geom_text_repel(aes(label = gene),
-      size = 1.9, seed = SEED, max.overlaps = Inf, box.padding = 0.15, point.padding = 0.1,
+    ggrepel::geom_text_repel(aes(label = label), labels,
+      size = labels$size, colour = labels$colour, lineheight = 0.9, seed = SEED,
+      max.overlaps = Inf, box.padding = 0.15, point.padding = 0.1,
       min.segment.length = 0.3, segment.size = 0.2, bg.color = "white", bg.r = 0.15
     ) +
     scale_colour_gradient2(
       low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
       limits = c(-limit, limit), name = "log2 FC", guide = colour_bar(order = 1)
     ) +
-    scale_fill_brewer(
-      palette = "Set2", name = NULL, na.translate = FALSE,
-      guide = guide_legend(order = 3, ncol = 1, override.aes = list(alpha = 0.4))
-    ) +
+    scale_fill_brewer(palette = "Set2", guide = "none") +
     # One size key for both sexes: the limits span every candidate passing community_routes.
     scale_size_continuous(
       range = c(1.6, 3.6), limits = c(limits$community_routes, max(cand$candidates$routes)),
       breaks = seq(limits$community_routes, max(cand$candidates$routes)), name = "routes",
       guide = guide_legend(order = 2)
     ) +
+    # Room around the network for the community names.
+    scale_x_continuous(expand = expansion(mult = 0.1)) +
+    scale_y_continuous(expand = expansion(mult = 0.1)) +
     coord_cartesian(clip = "off") +
     labs(
       x = NULL, y = NULL, title = title,
@@ -565,7 +576,7 @@ candidate_network <- function(cand, sex, title) {
         nrow(shown), limits$community_routes, limits$string_score
       ),
       caption = if (length(alone)) {
-        str_wrap(paste("No STRING partner:", paste(sort(alone), collapse = ", ")), 85)
+        sprintf("%d proteins without a STRING partner (listed in the workbook)", length(alone))
       }
     ) +
     theme_figure() +
@@ -576,7 +587,9 @@ candidate_network <- function(cand, sex, title) {
     )
   list(
     plot = plot,
-    data = select(shown, gene, logFC, P.Value, lfsr, routes, statistics:pathway, community, name)
+    data = shown |>
+      mutate(has_partner = gene %in% linked$gene) |>
+      select(gene, logFC, P.Value, lfsr, routes, statistics:pathway, community, name, has_partner)
   )
 }
 
@@ -618,7 +631,7 @@ candidate_dots <- function(cands, fit, quant, sex, title, ncol = 7) {
       labels = c(`TRUE` = "detected", `FALSE` = "not detected"),
       name = NULL
     ) +
-    scale_x_discrete(labels = GROUP_SHORT) +
+    scale_x_discrete(labels = \(g) str_wrap(GROUP_SHORT[g], 3)) +
     labs(
       x = NULL, y = "log2 vs own-sex vehicle", title = title,
       subtitle = sprintf(
@@ -628,8 +641,8 @@ candidate_dots <- function(cands, fit, quant, sex, title, ncol = 7) {
     ) +
     theme_figure() +
     theme(
-      axis.text.x = element_blank(), strip.text = element_text(size = 5.5),
-      panel.spacing = unit(1.2, "mm")
+      axis.text.x = element_text(size = 4.5, lineheight = 0.9),
+      strip.text = element_text(size = 5.5), panel.spacing = unit(1.2, "mm")
     ) +
     guides(colour = guide_legend(nrow = 1, order = 1), shape = guide_legend(order = 2))
   list(
