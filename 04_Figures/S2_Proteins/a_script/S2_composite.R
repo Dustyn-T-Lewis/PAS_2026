@@ -11,9 +11,9 @@ heatmaps <- panels[1:3]
 key <- pi_heatmap_key(unique(list_rbind(map(heatmaps, c("data", "ora")))$collection))
 figure <- wrap_elements(full = wrap_plots(map(heatmaps, "plot"), nrow = 1)) /
   wrap_elements(full = key) / wrap_elements(full = panels$d_volcanoes$plot) +
-  plot_layout(heights = c(126, 9, 62))
+  plot_layout(heights = c(178, 9, 55))
 out <- stage_paths("04_Figures", "S2_Proteins")
-save_figure(figure, out$reports, "S2_composite", width_mm = 180, height_mm = 197)
+save_figure(figure, out$reports, "S2_composite", width_mm = 180, height_mm = 242)
 
 ORA_HOLDS <- paste(
   "The panel's ORA bars: per block, the five sets with the smallest p (then FDR) among those at",

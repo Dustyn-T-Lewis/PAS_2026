@@ -610,8 +610,8 @@ write_figure_workbook <- function(panels, holds, file) {
 # fit is 01_Fit's output and quant 02_Quantification's. width_mm and height_mm are the panel's
 # size, returned for save_panel; the title and subtitle take the top 10 mm and the bars ora_mm of
 # the width.
-pi_heatmap_panel <- function(fit, quant, ora, contrast, width_mm = 60, height_mm = 126,
-                             ora_mm = 34, n_sets = 5) {
+pi_heatmap_panel <- function(fit, quant, ora, contrast, width_mm = 60, height_mm = 178,
+                             ora_mm = 22, n_sets = 5) {
   names <- if (contrast == "treatment_by_sex") c("F > M", "F < M") else c("up", "down")
   targets <- arrange(fit$targets, factor(group, FIGURE_GROUPS))
   selected <- fit$protein_contrasts |>
@@ -659,29 +659,27 @@ pi_heatmap_panel <- function(fit, quant, ora, contrast, width_mm = 60, height_mm
 # The ORA bars beside each row block of a heatmap, as a ComplexHeatmap row annotation: per block, a
 # frame of n_slots slots centred on the block and filled from the top, each set a -log10 p bar on
 # the range 0 to reach, filled by database, outlined black at FDR <= ALPHA, named "Set
-# (overlap/size)" above the bar (on two lines only when one is too long), with a dotted mark at
+# (overlap/size)" above the bar (wrapped at 28 characters, at most two lines), a dotted mark at
 # p = ALPHA across the bar; the axis hangs under the last block's frame. top holds direction (the
 # block), collection, term, overlap, size, p and fdr, in drawing order; blocks gives each heatmap
 # row's block.
-ora_bars <- function(top, blocks, width_mm, reach, n_slots, slot_mm = 4.7, bar_mm = 0.7) {
-  # A name too long for one line beside the heatmap, split at the space that best evens the lines.
-  two_lines <- function(label, width = 42) {
-    if (nchar(label) <= width) {
-      return(label)
-    }
-    words <- str_split_1(label, " ")
-    ends <- cumsum(nchar(words) + 1) - 1
-    cut <- which.min(pmax(ends, nchar(label) - ends - 1)[-length(words)])
-    paste(str_flatten(words[seq_len(cut)], " "), str_flatten(words[-seq_len(cut)], " "), sep = "\n")
+ora_bars <- function(top, blocks, width_mm, reach, n_slots, slot_mm = 7, bar_mm = 0.7) {
+  # The name cut short, with an ellipsis, when it and its counts would need a third line.
+  two_lines <- function(name, counts, width = 28) {
+    wrapped <- \(n) str_wrap(paste(str_trunc(name, n), counts), width)
+    n <- nchar(name)
+    while (str_count(wrapped(n), "\n") > 1) n <- n - 1
+    wrapped(n)
   }
   bar <- bar_mm / slot_mm / 2
   top <- mutate(top,
     slot = n_slots + 1 - seq_along(p), .by = direction,
-    bar_y = slot - 0.41,
-    label = sprintf(
-      "%s (%d/%d)", label_with_database(set_label(term, 200), collection), overlap, size
-    ),
-    label = map_chr(label, two_lines)
+    # The bar's centre 1.2 mm plus half its thickness above the slot's foot.
+    bar_y = slot - 0.5 + (1.2 + bar_mm / 2) / slot_mm,
+    label = map2_chr(
+      label_with_database(set_label(term, 200), collection), sprintf("(%d/%d)", overlap, size),
+      two_lines
+    )
   )
   draw <- function(index, levels) {
     block <- blocks[index[1]]
