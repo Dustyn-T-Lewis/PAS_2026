@@ -1,7 +1,8 @@
 # Every pathway test the comparisons read, run once: fgsea on each comparison contrast's moderated
 # t and on each protein-phenotype association t, camera beside each across mice, side lists, fry
-# for one sex's response in the other, ORA of the F-test patterns, and STRING connectivity. fgsea
-# permutes genes, so camera and the singscore tests from 01_Fit are the mouse-level checks on it.
+# for one sex's response in the other, ORA of the F-test patterns and of each contrast's Π lists,
+# and STRING connectivity. fgsea permutes genes, so camera and the singscore tests from 01_Fit are
+# the mouse-level checks on it.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -48,12 +49,12 @@ ranks <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
 # A set's tested members: its genes in the ranking, the same genes in every contrast and
 # association.
 tested_members <- imap(sets, \(by_set, u) map(by_set, intersect, names(ranks[[1]][[u]])))
-# The sets each test shows (the rows sharing `by` are one test): those at FDR <= ALPHA, grouped and
-# picked by representative_sets(); above FDR, no group and not shown.
-mark_shown <- function(tests, by) {
+# The sets each test shows (the rows sharing `by` are one test): those `called` (by default FDR <=
+# ALPHA), grouped and picked by representative_sets(); the rest, no group and not shown.
+mark_shown <- function(tests, by, called = padj <= ALPHA) {
   key <- union(by, c("universe", "term"))
   called <- tests |>
-    filter(padj <= ALPHA) |>
+    filter({{ called }}) |>
     mutate(
       representative_sets(map2(universe, term, \(u, s) tested_members[[u]][[s]]), p),
       .by = all_of(by)
@@ -298,32 +299,43 @@ signatures <- imap(SEXES, \(cn, source) {
 }) |>
   list_rbind()
 
-# What the PAS F-test proteins share: ORA (fgsea::fora) of each response pattern's genes against
-# every detected gene, on the full-proteome collections; BH within pattern and collection.
-# Descriptive: the patterns come from proteins chosen for responding.
+# What a list of proteins shares: ORA (fgsea::fora) of its genes against every detected gene, on
+# the full-proteome collections; BH within collection. Descriptive: every list here comes from
+# proteins chosen for responding.
 full_sets <- gs$tested$full |>
   imap(\(sets, db) tibble(collection = db, term = names(sets), genes = sets)) |>
   list_rbind()
 detected_genes <- names(ranks[[1]]$full)
-pattern_genes <- fit$protein_ftest |>
-  filter(universe == "full", P.Value <= ALPHA, !is.na(gene), gene != "") |>
-  summarise(genes = list(unique(gene)), proteins = n(), .by = pattern)
-pattern_ora <- pmap(pattern_genes, \(pattern, genes, proteins) {
+ora_of <- function(genes) {
   map(split(full_sets, full_sets$collection), \(sets) {
     fgsea::fora(set_names(sets$genes, sets$term), genes, detected_genes,
       minSize = TEST_WINDOW$full[1], maxSize = TEST_WINDOW$full[2]
     ) |>
       as_tibble() |>
       transmute(
-        pattern = pattern, collection = sets$collection[1], term = pathway, overlap, size,
-        p = pval, fdr = padj, genes_in_pattern = length(genes),
+        collection = sets$collection[1], term = pathway, overlap, size, p = pval, fdr = padj,
+        genes_in_list = length(genes),
         overlap_genes = map_chr(overlapGenes, \(g) paste(g, collapse = ";"))
       )
   }) |>
     list_rbind()
-}) |>
-  list_rbind() |>
+}
+# The PAS F-test proteins, per response pattern.
+pattern_ora <- fit$protein_ftest |>
+  filter(universe == "full", P.Value <= ALPHA, !is.na(gene), gene != "") |>
+  reframe(ora_of(unique(gene)), .by = pattern) |>
+  rename(genes_in_pattern = genes_in_list) |>
   arrange(pattern, collection, p)
+# Each comparison contrast's Π <= 0.05 proteins, per direction (the S2 heatmap blocks). The sets
+# at p <= ALPHA are grouped and picked by representative_sets(), as the fgsea results are at FDR.
+block_ora <- proteome |>
+  filter(contrast %in% COMPARISON_CONTRASTS, pi_score <= ALPHA) |>
+  mutate(direction = if_else(logFC > 0, "up", "down")) |>
+  reframe(ora_of(unique(gene)), .by = c(contrast, direction)) |>
+  mutate(universe = "full") |>
+  mark_shown(c("contrast", "direction"), called = p <= ALPHA) |>
+  select(-universe) |>
+  arrange(factor(contrast, COMPARISON_CONTRASTS), desc(direction), collection, p)
 
 tier_table <- results |>
   reframe(tier_counts(p, padj), .by = c(contrast, universe, collection)) |>
@@ -352,7 +364,8 @@ saveRDS(
   list(
     results = results, ranks = ranks, sets = sets, compartments = compartments,
     literature = literature, association_fgsea = association_fgsea,
-    signatures = signatures, pattern_ora = pattern_ora, string = string_tests, summary = tier_table
+    signatures = signatures, pattern_ora = pattern_ora, block_ora = block_ora,
+    string = string_tests, summary = tier_table
   ),
   file.path(out$data, "enrichment.rds")
 )
@@ -360,8 +373,8 @@ write_workbook(
   list(
     summary = tier_table, fgsea = results, compartments = compartments, literature = literature,
     association_summary = association_summary, association_fgsea = association_fgsea,
-    signatures = signatures, pattern_ora = pattern_ora, string = string_tests,
-    plot_index = plot_index
+    signatures = signatures, pattern_ora = pattern_ora, block_ora = block_ora,
+    string = string_tests, plot_index = plot_index
   ),
   c(
     "Per contrast and collection: sets tested, at p ≤ 0.05, FDR tiers.",
@@ -387,6 +400,11 @@ write_workbook(
     paste(
       "ORA of each response pattern of the PAS F-test proteins (p ≤ 0.05), full-proteome",
       "collections: overlap, size, p, BH FDR within pattern and collection, overlap genes."
+    ),
+    paste(
+      "ORA of each comparison contrast's Π ≤ 0.05 proteins per direction, full-proteome",
+      "collections: overlap, size, p, BH FDR within list and collection, overlap genes, overlap",
+      "group and whether S2 can show the set (one per group of overlapping sets at p ≤ 0.05)."
     ),
     "STRING v12 connectivity of each contrast's Π and FDR lists.",
     "Which PDF page shows what."

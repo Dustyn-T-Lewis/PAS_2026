@@ -481,25 +481,48 @@ centre_on_vehicle <- function(values, targets) {
   values - vehicle_mean[, targets$sex]
 }
 
+# protein_heatmap()'s fill, full magenta at -limit and full green at +limit, and its key: the fill
+# with breaks at -limit, 0 and limit, then the not-detected grey.
+heatmap_colours <- \(limit) {
+  circlize::colorRamp2(
+    c(-limit, 0, limit), c(DIRECTION_COLOURS[["Down"]], "white", DIRECTION_COLOURS[["Up"]])
+  )
+}
+heatmap_legends <- function(limit, name = "log2 vs\nown-sex VEH", direction = "vertical") {
+  small <- grid::gpar(fontsize = 5.5)
+  list(
+    ComplexHeatmap::Legend(
+      col_fun = heatmap_colours(limit), at = c(-limit, 0, limit), title = name,
+      title_gp = grid::gpar(fontsize = 5.5, fontface = "bold"), labels_gp = small,
+      grid_width = unit(2, "mm"), grid_height = unit(2, "mm"), legend_width = unit(14, "mm"),
+      direction = direction
+    ),
+    ComplexHeatmap::Legend(
+      labels = "not detected", legend_gp = grid::gpar(fill = "grey75"), labels_gp = small,
+      grid_width = unit(2, "mm"), grid_height = unit(2, "mm")
+    )
+  )
+}
+
 # Proteins by mice as a ComplexHeatmap, each protein centred on its own sex's vehicle mean,
 # columns split by group under a group-colour bar, magenta below and green above; cells where
 # detected (same shape as values) is FALSE are grey, so an imputed value never reads as no change.
 # targets lists the columns of values in order. Each row_split level is labelled with its protein
 # count after split_sep. Returns a grob patchwork can place with wrap_elements(); right is an
-# optional rowAnnotation.
+# optional rowAnnotation. Group titles take two lines, or one line upright with the block titles
+# when rotate_titles is TRUE, for a narrow heatmap.
 protein_heatmap <- function(values, targets, detected, row_split = NULL, split_sep = " ",
                             right = NULL, limit = 1, name = "log2 vs\nown-sex VEH",
-                            width_mm = 120, height_mm = 120, legend = TRUE) {
+                            width_mm = 120, height_mm = 120, legend = TRUE,
+                            rotate_titles = FALSE) {
   groups <- factor(targets$group, FIGURE_GROUPS)
+  group_titles <- GROUP_LABELS[levels(droplevels(groups))]
   if (!is.null(row_split)) {
     row_split <- droplevels(row_split)
     row_split <- factor(row_split,
       labels = sprintf("%s%s(%d)", levels(row_split), split_sep, tabulate(row_split))
     )
   }
-  colours <- circlize::colorRamp2(
-    c(-limit, 0, limit), c(DIRECTION_COLOURS[["Down"]], "white", DIRECTION_COLOURS[["Up"]])
-  )
   top <- ComplexHeatmap::HeatmapAnnotation(
     group = groups, col = list(group = GROUP_COLOURS), show_annotation_name = FALSE,
     show_legend = FALSE, simple_anno_size = unit(1.6, "mm")
@@ -510,21 +533,14 @@ protein_heatmap <- function(values, targets, detected, row_split = NULL, split_s
     grid::grid.rect(x[hide], y[hide], w[hide], h[hide], gp = grid::gpar(fill = "grey75", col = NA))
   }
   heatmap <- ComplexHeatmap::Heatmap(centre_on_vehicle(values, targets),
-    name = name, col = colours, top_annotation = top, right_annotation = right,
+    name = name, col = heatmap_colours(limit), top_annotation = top, right_annotation = right,
     column_split = groups, cluster_column_slices = FALSE, column_title_gp = small,
-    column_title = GROUP_SHORT[levels(droplevels(groups))],
-    column_labels = rep("", ncol(values)), row_split = row_split, cluster_row_slices = FALSE,
-    row_title_gp = small, row_title_rot = 0, show_row_names = FALSE, show_row_dend = FALSE,
+    column_title = if (rotate_titles) group_titles else str_replace(group_titles, " ", "\n"),
+    column_title_rot = if (rotate_titles) 90 else 0, column_labels = rep("", ncol(values)),
+    row_split = row_split, cluster_row_slices = FALSE, row_title_gp = small,
+    row_title_rot = if (rotate_titles) 90 else 0, show_row_names = FALSE, show_row_dend = FALSE,
     show_column_dend = FALSE, column_gap = unit(0.6, "mm"), row_gap = unit(0.8, "mm"),
-    layer_fun = not_detected, show_heatmap_legend = legend,
-    heatmap_legend_param = list(
-      title_gp = grid::gpar(fontsize = 5.5, fontface = "bold"), labels_gp = small,
-      grid_width = unit(2, "mm")
-    )
-  )
-  missing_key <- ComplexHeatmap::Legend(
-    labels = "not detected", legend_gp = grid::gpar(fill = "grey75"), labels_gp = small,
-    grid_width = unit(2, "mm"), grid_height = unit(2, "mm")
+    layer_fun = not_detected, show_heatmap_legend = FALSE
   )
   # grid.grabExpr returns to the device open before it, and with none open R starts Rplots.pdf.
   grDevices::pdf(NULL)
@@ -532,7 +548,7 @@ protein_heatmap <- function(values, targets, detected, row_split = NULL, split_s
   grid::grid.grabExpr(
     ComplexHeatmap::draw(heatmap,
       heatmap_legend_side = "right", annotation_legend_side = "right",
-      heatmap_legend_list = if (legend) list(missing_key),
+      heatmap_legend_list = if (legend) heatmap_legends(limit, name),
       padding = unit(c(1, 1, 4, 1), "mm")
     ),
     width = width_mm / 25.4, height = height_mm / 25.4
@@ -550,43 +566,147 @@ run_panels <- function(figure, panels) {
   })
 }
 
-# A composite's workbook: one sheet per panel, then every input the panels read.
+# A composite's workbook: one sheet per panel (a panel whose data is a list of tables gives one
+# sheet per table, named <panel>_<table>), then every input the panels read.
 write_figure_workbook <- function(panels, holds, file) {
   inputs <- unlist(unname(map(panels, "inputs")))
-  write_workbook(map(panels, "data"), holds, file, inputs[!duplicated(inputs)])
+  sheets <- list_flatten(map(panels, "data"), name_spec = "{outer}_{inner}")
+  write_workbook(sheets, holds, file, inputs[!duplicated(inputs)])
 }
 
 # One contrast's proteins at Π <= 0.05 (full proteome) across every mouse, each centred on its own
 # sex's vehicle mean, split by direction (for the interaction, by which sex's PAS effect is
-# larger), grey where not detected. fit is 01_Fit's output and quant 02_Quantification's.
-# width_mm and height_mm are the panel's size, returned for save_panel; the title and subtitle
-# take the top 10 mm.
-pi_heatmap_panel <- function(fit, quant, contrast, width_mm = 58, height_mm = 130,
-                             legend = TRUE) {
+# larger), grey where not detected, and beside each block the three sets its proteins
+# over-represent most (02_Enrichment's block_ora: by p, one per overlap group). fit is 01_Fit's
+# output and quant 02_Quantification's. width_mm and height_mm are the panel's size, returned for
+# save_panel; the title and subtitle take the top 10 mm and the bars ora_mm of the width.
+pi_heatmap_panel <- function(fit, quant, ora, contrast, width_mm = 60, height_mm = 126,
+                             ora_mm = 34) {
+  names <- if (contrast == "treatment_by_sex") c("F > M", "F < M") else c("up", "down")
   selected <- fit$protein_contrasts |>
     filter(universe == "full", contrast == !!contrast, pi_score <= ALPHA) |>
-    mutate(direction = if_else(logFC > 0, 1, 2)) |>
+    mutate(direction = factor(names[if_else(logFC > 0, 1, 2)], names)) |>
     arrange(direction)
+  top <- ora |>
+    filter(contrast == !!contrast, shown) |>
+    mutate(direction = factor(names[if_else(direction == "up", 1, 2)], names)) |>
+    slice_min(p, n = 3, by = direction, with_ties = FALSE) |>
+    arrange(direction, p)
   targets <- arrange(fit$targets, factor(group, FIGURE_GROUPS))
-  names <- if (contrast == "treatment_by_sex") c("F > M", "F < M") else c("up", "down")
-  selected <- mutate(selected, direction = factor(names[direction], names))
   detected <- quant$proteins$other$n.observations[selected$feature, targets$sample_id] > 0
+  right <- ComplexHeatmap::rowAnnotation(
+    ora = ora_bars(top, selected$direction, ora_mm), show_annotation_name = FALSE
+  )
   heatmap <- protein_heatmap(fit$E_norm$full[selected$feature, targets$sample_id], targets,
     detected,
-    row_split = selected$direction, limit = 1.5, width_mm = width_mm, height_mm = height_mm - 10,
-    legend = legend
+    row_split = selected$direction, right = right, limit = 1.5, width_mm = width_mm,
+    height_mm = height_mm - 10, legend = FALSE, rotate_titles = TRUE
   )
   plot <- wrap_elements(plot = heatmap) +
     labs(
       title = CONTRAST_LABELS[[contrast]],
-      subtitle = sprintf("Π ≤ %s: %d proteins", ALPHA, nrow(selected))
+      subtitle = sprintf("Π ≤ %s: %d proteins; bars: ORA", ALPHA, nrow(selected))
     ) +
     theme_figure()
   list(
     plot = plot,
-    data = select(selected, feature, gene, direction, logFC, P.Value, adj.P.Val, pi_score),
+    data = list(
+      heatmap = select(selected, feature, gene, direction, logFC, P.Value, adj.P.Val, pi_score),
+      ora = select(
+        top, contrast, direction, collection, term, overlap, size, p, fdr, genes_in_list,
+        overlap_genes, overlap_group, shown
+      )
+    ),
     width_mm = width_mm, height_mm = height_mm
   )
+}
+
+# The ORA bars beside each row block of a heatmap, as a ComplexHeatmap row annotation: per block,
+# up to three sets as -log10 p bars on one scale, filled by database, outlined black at FDR <=
+# ALPHA, named "Set (overlap/size)" in full on up to two lines above each bar, a dashed mark at
+# p = ALPHA across each bar (not its label) and the axis under the last block. top holds
+# direction (the block), collection, term, overlap, size, p and fdr; blocks gives each heatmap
+# row's block.
+ora_bars <- function(top, blocks, width_mm) {
+  slot_mm <- 7.5
+  reach <- max(-log10(c(top$p, ALPHA))) * 1.05
+  top <- mutate(top,
+    slot = 4 - seq_along(p), .by = direction,
+    label = sprintf(
+      "%s (%d/%d)", label_with_database(set_label(term, 200), collection), overlap, size
+    ) |>
+      str_wrap(width = 40)
+  )
+  draw <- function(index, levels) {
+    block <- blocks[index[1]]
+    last <- block == levels(blocks)[nlevels(blocks)]
+    plot <- ggplot(filter(top, direction == block), aes(-log10(p), slot)) +
+      geom_col(aes(fill = collection, colour = fdr <= ALPHA),
+        orientation = "y", width = 0.28, linewidth = 0.3
+      ) +
+      geom_segment(
+        aes(x = -log10(ALPHA), xend = -log10(ALPHA), y = slot - 0.16, yend = slot + 0.16),
+        linetype = "dashed", linewidth = 0.25
+      ) +
+      geom_text(aes(0, slot + 0.17, label = label),
+        hjust = 0, vjust = 0, size = 5 / .pt, lineheight = 0.9
+      ) +
+      scale_fill_manual(values = DATABASE_COLOURS, guide = "none") +
+      scale_colour_manual(values = c(`TRUE` = "black", `FALSE` = "transparent"), guide = "none") +
+      scale_x_continuous(
+        limits = c(0, reach), expand = c(0, 0), breaks = scales::breaks_pretty(3)
+      ) +
+      scale_y_continuous(limits = c(0.6, 3.6), expand = c(0, 0)) +
+      # A long name may run past the axis's end into the gap beside the panel.
+      coord_cartesian(clip = "off") +
+      labs(x = "-log10 p", y = NULL) +
+      theme_figure() +
+      theme(
+        axis.text.y = element_blank(), panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(size = 5), axis.title.x = element_text(size = 5.5),
+        plot.margin = margin(0, 2, 0, 1)
+      )
+    if (!last) {
+      plot <- plot + theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    }
+    axis_mm <- if (last) 5 else 0
+    grid::pushViewport(grid::viewport(
+      y = unit(0.5, "npc") - unit(axis_mm / 2, "mm"), height = unit(3 * slot_mm + axis_mm, "mm")
+    ))
+    # A name of its own per block, so grid.grabExpr() keeps every block's bars.
+    grob <- ggplotGrob(plot)
+    grid::grid.draw(grid::editGrob(grob, name = grid::grobName(grob, "ora_bars")))
+    grid::popViewport()
+  }
+  ComplexHeatmap::anno_block(which = "row", width = unit(width_mm, "mm"), panel_fun = draw)
+}
+
+# The key S2's heatmaps share: the heatmap fill and not-detected grey, the databases its ORA bars
+# use and the FDR outline, in one row, as a grob.
+pi_heatmap_key <- function(collections, limit = 1.5) {
+  small <- grid::gpar(fontsize = 5.5)
+  collections <- intersect(names(DATABASE_COLOURS), collections)
+  keys <- c(
+    heatmap_legends(limit, "log2 vs own-sex VEH", direction = "horizontal"),
+    list(
+      ComplexHeatmap::Legend(
+        labels = collections, legend_gp = grid::gpar(fill = DATABASE_COLOURS[collections]),
+        title = "ORA database", title_gp = grid::gpar(fontsize = 5.5, fontface = "bold"),
+        labels_gp = small, nrow = 1, grid_width = unit(2, "mm"), grid_height = unit(2, "mm")
+      ),
+      ComplexHeatmap::Legend(
+        labels = paste("FDR ≤", ALPHA), legend_gp = grid::gpar(fill = "white"), border = "black",
+        title = "Outlined", title_gp = grid::gpar(fontsize = 5.5, fontface = "bold"),
+        labels_gp = small, grid_width = unit(2, "mm"), grid_height = unit(2, "mm")
+      )
+    )
+  )
+  pack <- ComplexHeatmap::packLegend(
+    list = keys, direction = "horizontal", column_gap = unit(6, "mm")
+  )
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off())
+  grid::grid.grabExpr(ComplexHeatmap::draw(pack))
 }
 
 # Sets by contrast as dots without a collection column, for side lists: NES as fill, -log10 FDR
