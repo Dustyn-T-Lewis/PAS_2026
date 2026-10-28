@@ -16,7 +16,8 @@ write_figure_workbook(
   panels,
   paste(
     "Panel a: every drawn cell: block, set, collection, universe, contrast, NES, p, BH FDR,",
-    "whether that contrast shows the set, camera p and FDR."
+    "whether that contrast shows the set, whether the cell put the row in its block (outlined),",
+    "camera p and FDR."
   ),
   file.path(out$data, "F03.xlsx")
 )

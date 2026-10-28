@@ -17,8 +17,9 @@ write_figure_workbook(
   panels,
   paste(
     "Panel a: every drawn cell (within-treatment model): sex, trait block, set, collection,",
-    "universe, phenotype, NES, fgsea p and BH FDR, whether that phenotype shows the set, camera",
-    "p and FDR."
+    "universe, phenotype, NES, fgsea p and BH FDR, whether that phenotype shows the set, whether",
+    "the cell is outlined (the block's trait, shown), the sex with the smaller FDR at the block's",
+    "trait (the row's shade), camera p and FDR."
   ),
   file.path(out$data, "F04.xlsx")
 )

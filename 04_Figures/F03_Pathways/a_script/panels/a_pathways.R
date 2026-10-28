@@ -2,7 +2,9 @@
 # set per group of overlapping sets), each drawn in all three contrasts. Full-proteome sets sit
 # under the contrast that shows them, by FDR then p; MitoCarta sets (mitochondrial universe) shown
 # in any contrast form the last block, by their smallest p. A set is listed once, in the first
-# block that reaches it, and a block lists at most ROWS_PER_BLOCK sets.
+# block that reaches it, and a block lists at most ROWS_PER_BLOCK sets. The cells that put a row
+# in its block are outlined: the block's contrast, or for MitoCarta every contrast showing the set;
+# each row is shaded in its block's colour.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"))
@@ -10,6 +12,8 @@ enr <- readRDS(inputs[["enrichment"]])
 ROWS_PER_BLOCK <- 10
 # Each block and column strip named for display, keyed to its contrast_strips() tones.
 TONES <- c(set_names(names(CONTRAST_SHORT), CONTRAST_SHORT), MitoCarta = "MitoCarta")
+# Each row shaded in its block's strip fill, light enough that the dots stay readable.
+SHADES <- scales::alpha(c(contrast_tone("fill"), MitoCarta = "grey85"), 0.5)
 
 by_contrast <- enr$results |>
   filter(universe == "full", shown) |>
@@ -23,13 +27,17 @@ mitocarta <- enr$results |>
 rows <- bind_rows(by_contrast, mitocarta) |>
   mutate(block = factor(block, names(TONES))) |>
   list_once(ROWS_PER_BLOCK) |>
-  mutate(label = label_with_database(set_label(term, 60), collection))
+  mutate(
+    label = label_with_database(set_label(term, 60), collection),
+    shade = unname(SHADES[TONES[as.character(block)]])
+  )
 
 drawn <- enr$results |>
   inner_join(select(rows, term, block), by = "term") |>
-  arrange(block, match(term, rows$term), factor(contrast, COMPARISON_CONTRASTS))
+  arrange(block, match(term, rows$term), factor(contrast, COMPARISON_CONTRASTS)) |>
+  mutate(selected = shown & (block == CONTRAST_SHORT[contrast] | block == "MitoCarta"))
 plot <- pathway_grid(
-  transmute(drawn, term, column = contrast, NES, fdr = padj), rows,
+  transmute(drawn, term, column = contrast, NES, fdr = padj, selected), rows,
   tibble(column = COMPARISON_CONTRASTS, column_block = CONTRAST_SHORT, label = ""),
   title = "Pathways per contrast",
   subtitle = sprintf(
@@ -39,7 +47,7 @@ plot <- pathway_grid(
     ),
     ALPHA, SPECIFIC_WINDOW, ROWS_PER_BLOCK
   ),
-  tones = TONES, column_mm = 26
+  tones = TONES, column_mm = 26, selected_label = "Chosen in this contrast"
 ) +
   theme(axis.text.x = element_blank())
 
@@ -49,7 +57,7 @@ list(
   plot = plot,
   data = transmute(drawn,
     block = as.character(block), term, collection, universe, contrast, NES, p, padj, shown,
-    camera_p, camera_fdr
+    selected, camera_p, camera_fdr
   ),
   inputs = inputs, height_mm = height_mm
 )
