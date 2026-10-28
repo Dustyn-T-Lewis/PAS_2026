@@ -49,12 +49,12 @@ ranks <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
 # A set's tested members: its genes in the ranking, the same genes in every contrast and
 # association.
 tested_members <- imap(sets, \(by_set, u) map(by_set, intersect, names(ranks[[1]][[u]])))
-# The sets each test shows (the rows sharing `by` are one test): those `called` (by default FDR <=
-# ALPHA), grouped and picked by representative_sets(); the rest, no group and not shown.
-mark_shown <- function(tests, by, called = padj <= ALPHA) {
+# The sets each test shows (the rows sharing `by` are one test): those at FDR <= ALPHA, grouped
+# and picked by representative_sets(); the rest, no group and not shown.
+mark_shown <- function(tests, by) {
   key <- union(by, c("universe", "term"))
   called <- tests |>
-    filter({{ called }}) |>
+    filter(padj <= ALPHA) |>
     mutate(
       representative_sets(map2(universe, term, \(u, s) tested_members[[u]][[s]]), p),
       .by = all_of(by)
@@ -326,15 +326,11 @@ pattern_ora <- fit$protein_ftest |>
   reframe(ora_of(unique(gene)), .by = pattern) |>
   rename(genes_in_pattern = genes_in_list) |>
   arrange(pattern, collection, p)
-# Each comparison contrast's Π <= 0.05 proteins, per direction (the S2 heatmap blocks). The sets
-# at p <= ALPHA are grouped and picked by representative_sets(), as the fgsea results are at FDR.
+# Each comparison contrast's Π <= 0.05 proteins, per direction (the S2 heatmap blocks).
 block_ora <- proteome |>
   filter(contrast %in% COMPARISON_CONTRASTS, pi_score <= ALPHA) |>
   mutate(direction = if_else(logFC > 0, "up", "down")) |>
   reframe(ora_of(unique(gene)), .by = c(contrast, direction)) |>
-  mutate(universe = "full") |>
-  mark_shown(c("contrast", "direction"), called = p <= ALPHA) |>
-  select(-universe) |>
   arrange(factor(contrast, COMPARISON_CONTRASTS), desc(direction), collection, p)
 
 tier_table <- results |>
@@ -403,8 +399,7 @@ write_workbook(
     ),
     paste(
       "ORA of each comparison contrast's Π ≤ 0.05 proteins per direction, full-proteome",
-      "collections: overlap, size, p, BH FDR within list and collection, overlap genes, overlap",
-      "group and whether S2 can show the set (one per group of overlapping sets at p ≤ 0.05)."
+      "collections: overlap, size, p, BH FDR within list and collection, overlap genes."
     ),
     "STRING v12 connectivity of each contrast's Π and FDR lists.",
     "Which PDF page shows what."

@@ -16,8 +16,8 @@ out <- stage_paths("04_Figures", "S2_Proteins")
 save_figure(figure, out$reports, "S2_composite", width_mm = 180, height_mm = 197)
 
 ORA_HOLDS <- paste(
-  "The panel's ORA bars: per block, the three sets with the smallest p among those shown (one per",
-  "overlap group at p ≤ 0.05), from 02_Enrichment's block_ora."
+  "The panel's ORA bars: per block, the five sets with the smallest p (then FDR) among those at",
+  "p ≤ 0.05, from 02_Enrichment's block_ora."
 )
 write_figure_workbook(
   panels,

@@ -1,6 +1,7 @@
 # S6 a: the proteins PAS changes in either sex (moderated F over the two PAS contrasts, p <= 0.05)
 # across every mouse, each centred on its own sex's vehicle mean, split by response pattern
-# and clustered within each split, grey where not detected in that mouse (02_Quantification).
+# and ordered within each split by co-expression (coexpression_order()), grey where not detected
+# in that mouse (02_Quantification).
 # Beside each protein, its r with each phenotype within each sex.
 # Rows were chosen for differing, so the clustering describes them and tests nothing.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
@@ -14,9 +15,12 @@ observations <- readRDS(inputs[["proteins"]])$proteins$other$n.observations
 
 selected <- fit$protein_ftest |>
   filter(universe == "full", P.Value <= ALPHA) |>
-  mutate(pattern = factor(pattern, FTEST_PATTERNS)) |>
-  arrange(pattern)
+  mutate(pattern = factor(pattern, FTEST_PATTERNS))
 targets <- arrange(fit$targets, factor(group, FIGURE_GROUPS))
+values <- fit$E_norm$full[selected$feature, targets$sample_id]
+detected <- observations[selected$feature, targets$sample_id] > 0
+drawn <- coexpression_order(heatmap_values(values, targets, detected), selected$pattern)
+selected <- selected[drawn, ]
 
 r_by_trait <- fit$protein_associations |>
   filter(model == "pooled", universe == "full", feature %in% selected$feature) |>
@@ -43,8 +47,7 @@ right <- ComplexHeatmap::rowAnnotation(
   )
 )
 
-heatmap <- protein_heatmap(fit$E_norm$full[selected$feature, targets$sample_id], targets,
-  observations[selected$feature, targets$sample_id] > 0,
+heatmap <- protein_heatmap(values[drawn, ], targets, detected[drawn, ],
   row_split = selected$pattern, split_sep = "\n", right = right, limit = 1.5, width_mm = 116,
   height_mm = 132
 )

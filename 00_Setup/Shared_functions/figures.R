@@ -504,13 +504,41 @@ heatmap_legends <- function(limit, name = "log2 vs\nown-sex VEH", direction = "v
   )
 }
 
-# Proteins by mice as a ComplexHeatmap, each protein centred on its own sex's vehicle mean,
-# columns split by group under a group-colour bar, magenta below and green above; cells where
-# detected (same shape as values) is FALSE are grey, so an imputed value never reads as no change.
-# targets lists the columns of values in order. Each row_split level is labelled with its protein
-# count after split_sep. Returns a grob patchwork can place with wrap_elements(); right is an
-# optional rowAnnotation. Group titles take two lines, or one line upright with the block titles
-# when rotate_titles is TRUE, for a narrow heatmap.
+# What protein_heatmap() draws as colour: values centred on each sex's vehicle mean, NA where
+# detected (same shape as values) is FALSE. targets lists the columns of values in order.
+heatmap_values <- function(values, targets, detected) {
+  x <- centre_on_vehicle(values, targets)
+  x[!detected] <- NA
+  x
+}
+
+# Row order for a protein heatmap: within each block (blocks, a factor, in level order),
+# average-linkage clustering on 1 - Pearson r across mice of the drawn values x, each pair over
+# the mice where both proteins were detected. A pair sharing fewer than min_shared mice counts as
+# uncorrelated, and a protein detected in fewer than min_shared mice goes to its block's end.
+coexpression_order <- function(x, blocks, min_shared = 5) {
+  map(split(seq_len(nrow(x)), blocks), \(rows) {
+    seen <- !is.na(x[rows, , drop = FALSE])
+    enough <- rowSums(seen) >= min_shared
+    kept <- rows[enough]
+    if (length(kept) > 1) {
+      r <- stats::cor(t(x[kept, , drop = FALSE]), use = "pairwise.complete.obs")
+      r[is.na(r) | tcrossprod(seen[enough, , drop = FALSE]) < min_shared] <- 0
+      kept <- kept[stats::hclust(stats::as.dist(1 - r), method = "average")$order]
+    }
+    c(kept, rows[!enough])
+  }) |>
+    unlist(use.names = FALSE)
+}
+
+# Proteins by mice as a ComplexHeatmap, each protein centred on its own sex's vehicle mean, rows
+# drawn in the order given (see coexpression_order()), columns split by group under a group-colour
+# bar and clustered within it, magenta below and green above; cells where detected (same shape as
+# values) is FALSE are grey, so an imputed value never reads as no change. targets lists the
+# columns of values in order. Each row_split level is labelled with its protein count after
+# split_sep. Returns a grob patchwork can place with wrap_elements(); right is an optional
+# rowAnnotation. Group titles take two lines, or one line upright with the block titles when
+# rotate_titles is TRUE, for a narrow heatmap.
 protein_heatmap <- function(values, targets, detected, row_split = NULL, split_sep = " ",
                             right = NULL, limit = 1, name = "log2 vs\nown-sex VEH",
                             width_mm = 120, height_mm = 120, legend = TRUE,
@@ -537,8 +565,8 @@ protein_heatmap <- function(values, targets, detected, row_split = NULL, split_s
     column_split = groups, cluster_column_slices = FALSE, column_title_gp = small,
     column_title = if (rotate_titles) group_titles else str_replace(group_titles, " ", "\n"),
     column_title_rot = if (rotate_titles) 90 else 0, column_labels = rep("", ncol(values)),
-    row_split = row_split, cluster_row_slices = FALSE, row_title_gp = small,
-    row_title_rot = if (rotate_titles) 90 else 0, show_row_names = FALSE, show_row_dend = FALSE,
+    row_split = row_split, cluster_rows = FALSE, row_title_gp = small,
+    row_title_rot = if (rotate_titles) 90 else 0, show_row_names = FALSE,
     show_column_dend = FALSE, column_gap = unit(0.6, "mm"), row_gap = unit(0.8, "mm"),
     layer_fun = not_detected, show_heatmap_legend = FALSE
   )
@@ -576,29 +604,36 @@ write_figure_workbook <- function(panels, holds, file) {
 
 # One contrast's proteins at Π <= 0.05 (full proteome) across every mouse, each centred on its own
 # sex's vehicle mean, split by direction (for the interaction, by which sex's PAS effect is
-# larger), grey where not detected, and beside each block the three sets its proteins
-# over-represent most (02_Enrichment's block_ora: by p, one per overlap group). fit is 01_Fit's
-# output and quant 02_Quantification's. width_mm and height_mm are the panel's size, returned for
-# save_panel; the title and subtitle take the top 10 mm and the bars ora_mm of the width.
+# larger) and ordered by coexpression_order() within each block, grey where not detected, and
+# beside each block up to five sets its proteins over-represent at p <= ALPHA, smallest p (then
+# FDR) first (02_Enrichment's block_ora), on one -log10 p range for every comparison contrast.
+# fit is 01_Fit's output and quant 02_Quantification's. width_mm and height_mm are the panel's
+# size, returned for save_panel; the title and subtitle take the top 10 mm and the bars ora_mm of
+# the width.
 pi_heatmap_panel <- function(fit, quant, ora, contrast, width_mm = 60, height_mm = 126,
-                             ora_mm = 34) {
+                             ora_mm = 34, n_sets = 5) {
   names <- if (contrast == "treatment_by_sex") c("F > M", "F < M") else c("up", "down")
+  targets <- arrange(fit$targets, factor(group, FIGURE_GROUPS))
   selected <- fit$protein_contrasts |>
     filter(universe == "full", contrast == !!contrast, pi_score <= ALPHA) |>
-    mutate(direction = factor(names[if_else(logFC > 0, 1, 2)], names)) |>
-    arrange(direction)
-  top <- ora |>
-    filter(contrast == !!contrast, shown) |>
-    mutate(direction = factor(names[if_else(direction == "up", 1, 2)], names)) |>
-    slice_min(p, n = 3, by = direction, with_ties = FALSE) |>
-    arrange(direction, p)
-  targets <- arrange(fit$targets, factor(group, FIGURE_GROUPS))
+    mutate(direction = factor(names[if_else(logFC > 0, 1, 2)], names))
+  values <- fit$E_norm$full[selected$feature, targets$sample_id]
   detected <- quant$proteins$other$n.observations[selected$feature, targets$sample_id] > 0
+  drawn <- coexpression_order(heatmap_values(values, targets, detected), selected$direction)
+  selected <- selected[drawn, ]
+  top <- ora |>
+    filter(contrast %in% COMPARISON_CONTRASTS, p <= ALPHA) |>
+    arrange(p, fdr) |>
+    slice_head(n = n_sets, by = c(contrast, direction))
+  reach <- max(-log10(c(top$p, ALPHA))) * 1.05
+  top <- top |>
+    filter(contrast == !!contrast) |>
+    mutate(direction = factor(names[if_else(direction == "up", 1, 2)], names)) |>
+    arrange(direction)
   right <- ComplexHeatmap::rowAnnotation(
-    ora = ora_bars(top, selected$direction, ora_mm), show_annotation_name = FALSE
+    ora = ora_bars(top, selected$direction, ora_mm, reach, n_sets), show_annotation_name = FALSE
   )
-  heatmap <- protein_heatmap(fit$E_norm$full[selected$feature, targets$sample_id], targets,
-    detected,
+  heatmap <- protein_heatmap(values[drawn, ], targets, detected[drawn, ],
     row_split = selected$direction, right = right, limit = 1.5, width_mm = width_mm,
     height_mm = height_mm - 10, legend = FALSE, rotate_titles = TRUE
   )
@@ -614,51 +649,63 @@ pi_heatmap_panel <- function(fit, quant, ora, contrast, width_mm = 60, height_mm
       heatmap = select(selected, feature, gene, direction, logFC, P.Value, adj.P.Val, pi_score),
       ora = select(
         top, contrast, direction, collection, term, overlap, size, p, fdr, genes_in_list,
-        overlap_genes, overlap_group, shown
+        overlap_genes
       )
     ),
     width_mm = width_mm, height_mm = height_mm
   )
 }
 
-# The ORA bars beside each row block of a heatmap, as a ComplexHeatmap row annotation: per block,
-# up to three sets as -log10 p bars on one scale, filled by database, outlined black at FDR <=
-# ALPHA, named "Set (overlap/size)" in full on up to two lines above each bar, a dashed mark at
-# p = ALPHA across each bar (not its label) and the axis under the last block. top holds
-# direction (the block), collection, term, overlap, size, p and fdr; blocks gives each heatmap
+# The ORA bars beside each row block of a heatmap, as a ComplexHeatmap row annotation: per block, a
+# frame of n_slots slots centred on the block and filled from the top, each set a -log10 p bar on
+# the range 0 to reach, filled by database, outlined black at FDR <= ALPHA, named "Set
+# (overlap/size)" above the bar (on two lines only when one is too long), with a dotted mark at
+# p = ALPHA across the bar; the axis hangs under the last block's frame. top holds direction (the
+# block), collection, term, overlap, size, p and fdr, in drawing order; blocks gives each heatmap
 # row's block.
-ora_bars <- function(top, blocks, width_mm) {
-  slot_mm <- 7.5
-  reach <- max(-log10(c(top$p, ALPHA))) * 1.05
+ora_bars <- function(top, blocks, width_mm, reach, n_slots, slot_mm = 4.7, bar_mm = 0.7) {
+  # A name too long for one line beside the heatmap, split at the space that best evens the lines.
+  two_lines <- function(label, width = 42) {
+    if (nchar(label) <= width) {
+      return(label)
+    }
+    words <- str_split_1(label, " ")
+    ends <- cumsum(nchar(words) + 1) - 1
+    cut <- which.min(pmax(ends, nchar(label) - ends - 1)[-length(words)])
+    paste(str_flatten(words[seq_len(cut)], " "), str_flatten(words[-seq_len(cut)], " "), sep = "\n")
+  }
+  bar <- bar_mm / slot_mm / 2
   top <- mutate(top,
-    slot = 4 - seq_along(p), .by = direction,
+    slot = n_slots + 1 - seq_along(p), .by = direction,
+    bar_y = slot - 0.41,
     label = sprintf(
       "%s (%d/%d)", label_with_database(set_label(term, 200), collection), overlap, size
-    ) |>
-      str_wrap(width = 40)
+    ),
+    label = map_chr(label, two_lines)
   )
   draw <- function(index, levels) {
     block <- blocks[index[1]]
     last <- block == levels(blocks)[nlevels(blocks)]
-    plot <- ggplot(filter(top, direction == block), aes(-log10(p), slot)) +
+    plot <- ggplot(filter(top, direction == block), aes(-log10(p), bar_y)) +
       geom_col(aes(fill = collection, colour = fdr <= ALPHA),
-        orientation = "y", width = 0.28, linewidth = 0.3
+        orientation = "y", width = 2 * bar, linewidth = 0.25
       ) +
       geom_segment(
-        aes(x = -log10(ALPHA), xend = -log10(ALPHA), y = slot - 0.16, yend = slot + 0.16),
-        linetype = "dashed", linewidth = 0.25
+        aes(
+          x = -log10(ALPHA), xend = -log10(ALPHA), y = bar_y - 1.6 * bar, yend = bar_y + 1.6 * bar
+        ),
+        linetype = "11", linewidth = 0.3
       ) +
-      geom_text(aes(0, slot + 0.17, label = label),
-        hjust = 0, vjust = 0, size = 5 / .pt, lineheight = 0.9
+      geom_text(aes(0, bar_y + 3 * bar, label = label),
+        hjust = 0, vjust = 0, size = 5 / .pt, lineheight = 0.78
       ) +
       scale_fill_manual(values = DATABASE_COLOURS, guide = "none") +
       scale_colour_manual(values = c(`TRUE` = "black", `FALSE` = "transparent"), guide = "none") +
-      scale_x_continuous(
-        limits = c(0, reach), expand = c(0, 0), breaks = scales::breaks_pretty(3)
-      ) +
-      scale_y_continuous(limits = c(0.6, 3.6), expand = c(0, 0)) +
+      scale_x_continuous(breaks = scales::breaks_pretty(4)) +
       # A long name may run past the axis's end into the gap beside the panel.
-      coord_cartesian(clip = "off") +
+      coord_cartesian(
+        xlim = c(0, reach), ylim = c(0.5, n_slots + 0.5), expand = FALSE, clip = "off"
+      ) +
       labs(x = "-log10 p", y = NULL) +
       theme_figure() +
       theme(
@@ -671,7 +718,8 @@ ora_bars <- function(top, blocks, width_mm) {
     }
     axis_mm <- if (last) 5 else 0
     grid::pushViewport(grid::viewport(
-      y = unit(0.5, "npc") - unit(axis_mm / 2, "mm"), height = unit(3 * slot_mm + axis_mm, "mm")
+      y = unit(0.5, "npc") - unit(axis_mm / 2, "mm"),
+      height = unit(n_slots * slot_mm + axis_mm, "mm")
     ))
     # A name of its own per block, so grid.grabExpr() keeps every block's bars.
     grob <- ggplotGrob(plot)
