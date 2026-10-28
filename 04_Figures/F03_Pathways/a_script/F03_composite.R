@@ -7,9 +7,8 @@ PANELS <- "a_pathways"
 panels <- run_panels("F03_Pathways", PANELS)
 
 out <- stage_paths("04_Figures", "F03_Pathways")
-# Wrapped like the multi-panel composites, so the letter keeps the same margin from the edge.
 save_figure(
-  wrap_plots(panels$a_pathways$plot), out$reports, "F03_composite",
+  panels$a_pathways$plot, out$reports, "F03_composite",
   width_mm = 180, height_mm = panels$a_pathways$height_mm
 )
 

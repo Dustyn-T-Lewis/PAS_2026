@@ -213,14 +213,20 @@ save_figure <- function(figure, dir, name, width_mm, height_mm) {
   save(".png", dpi = 600)
 }
 
-# Dot size and ring shared by the dot matrices: area grows with -log10 FDR (or p) from a visible
-# minimum, and a thick ring marks FDR <= ALPHA.
-fdr_scales <- function(cap = LOG_CAP, name = "-log10 FDR") {
+# Dot area grows with -log10 FDR (or p), capped at cap, from a minimum big enough to show the
+# fill of a cell near FDR 1; the key reads in FDR (or p) units.
+log_size_scale <- function(name = "FDR", range = c(0.6, 3.2), cap = LOG_CAP) {
+  scale_size(
+    range = range, limits = c(0, cap), breaks = -log10(c(0.1, 0.05, 0.01, 10^-cap)),
+    labels = c("0.1", "0.05", "0.01", paste("≤", format(10^-cap, scientific = FALSE))),
+    name = name
+  )
+}
+
+# Dot size and ring shared by the dot matrices: log_size_scale(), and a thick ring at FDR <= ALPHA.
+fdr_scales <- function(cap = LOG_CAP, name = "FDR") {
   list(
-    scale_size(
-      range = c(0.5, 3.2), limits = c(0, cap), breaks = c(1, 2, cap),
-      labels = c("1", "2", paste0(cap, "+")), name = name
-    ),
+    log_size_scale(name, cap = cap),
     scale_discrete_manual(
       "stroke",
       values = c(`TRUE` = 0.7, `FALSE` = 0.15), breaks = "TRUE", labels = paste("FDR ≤", ALPHA),
@@ -284,10 +290,7 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
       palette = "PiYG", direction = 1, limits = c(-nes_limit, nes_limit), oob = scales::squish,
       breaks = c(-2, 0, 2), name = "NES"
     ) +
-    scale_size_area(
-      max_size = 2.8, limits = c(0, LOG_CAP), breaks = c(1, 2, LOG_CAP),
-      labels = c("1", "2", paste0(LOG_CAP, "+")), name = "-log10 FDR"
-    ) +
+    log_size_scale(range = c(0.6, 2.8)) +
     scale_colour_manual(
       values = DATABASE_COLOURS, limits = names(DATABASE_COLOURS), name = "Database"
     ) +
@@ -391,12 +394,12 @@ protein_heatmap <- function(values, targets, detected, row_split = NULL, split_s
 }
 
 # A figure's panel scripts, each run in its own environment, as YvO's stitchers do, and each plot
-# given its letter. A panel script returns list(plot, data, inputs).
+# given its letter when there is more than one. A panel script returns list(plot, data, inputs).
 run_panels <- function(figure, panels) {
   map(set_names(panels), \(name) {
     path <- here("04_Figures", figure, "a_script", "panels", paste0(name, ".R"))
     panel <- source(path, local = new.env())$value
-    panel$plot <- panel$plot + labs(tag = letters[match(name, panels)])
+    if (length(panels) > 1) panel$plot <- panel$plot + labs(tag = letters[match(name, panels)])
     panel
   })
 }

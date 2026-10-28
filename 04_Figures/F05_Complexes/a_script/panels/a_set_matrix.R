@@ -49,7 +49,7 @@ plot <- ggplot(cells, aes(column, row)) +
     low = R_COLOURS[["low"]], high = R_COLOURS[["high"]],
     limits = c(-1, 1), breaks = c(-1, 0, 1), name = "r-equivalent"
   ) +
-  fdr_scales(name = "-log10 p") +
+  fdr_scales(name = "p") +
   guides(
     fill = colour_bar(order = 1), size = guide_legend(order = 2),
     stroke = guide_legend(order = 3, override.aes = list(size = 2.4, fill = "white"))
