@@ -228,18 +228,6 @@ log_size_scale <- function(name = "FDR", range = c(0.6, 3.2), cap = LOG_CAP) {
   )
 }
 
-# Dot size and ring shared by the dot matrices: log_size_scale(), and a thick ring at FDR <= ALPHA.
-fdr_scales <- function(cap = LOG_CAP, name = "FDR") {
-  list(
-    log_size_scale(name, cap = cap),
-    scale_discrete_manual(
-      "stroke",
-      values = c(`TRUE` = 0.7, `FALSE` = 0.15), breaks = "TRUE", labels = paste("FDR ≤", ALPHA),
-      name = NULL, guide = guide_legend(override.aes = list(size = 2.4, fill = "white"))
-    )
-  )
-}
-
 # Pathway sets as a dot grid, after HRvLR's pathway_grid(): one row per set within its block, one
 # column per contrast or trait under boxed strips, a dot per cell (fill value, keyed as fill_name
 # on a PiYG scale to +-fill_limit, by default the largest drawn; area -log10 p, keyed as size_name)
@@ -249,11 +237,12 @@ fdr_scales <- function(cap = LOG_CAP, name = "FDR") {
 # column, value and p (an FDR or a p), and optionally selected (TRUE outlines the cell in
 # outline_shape, keyed as selected_label); columns holds column, column_block and label, in display
 # order, the column blocks side by side under one key. tones maps a strip's name to its
-# contrast_strips() key. Panels have a fixed size, column_mm wide and 3 mm a row.
+# contrast_strips() key. Panels have a fixed size, column_mm wide and 3 mm a row, a block at least
+# min_block_mm tall so a short block's strip label fits.
 pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, tones = NULL,
                          x_angle = 0, column_mm = 5, selected_label = "Selected",
                          fill_name = "NES", fill_limit = NULL, fill_breaks = c(-2, 0, 2),
-                         size_name = "FDR", outline_shape = 22) {
+                         size_name = "FDR", outline_shape = 22, min_block_mm = 0) {
   column_blocks <- unique(columns$column_block)
   blocks <- levels(droplevels(rows$block))
   # The database squares take a narrow column of their own, " " under an empty strip.
@@ -301,7 +290,7 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
       cols = unit(
         c(if (length(lead)) 3.5, column_mm * table(columns$column_block)[column_blocks]), "mm"
       ),
-      rows = unit(3 * table(rows$block)[blocks], "mm")
+      rows = unit(pmax(3 * table(rows$block)[blocks], min_block_mm), "mm")
     ) +
     # Order pinned from rows and columns, so a layer that lacks some rows (the bands, the
     # outlines) cannot reorder a facet and move an outline off its cell.
@@ -857,38 +846,6 @@ pi_heatmap_key <- function(collections, limit = 1.5) {
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off())
   grid::grid.grabExpr(ComplexHeatmap::draw(pack))
-}
-
-# Sets by contrast as dots without a collection column, for side lists: NES as fill, -log10 FDR
-# as size, rows grouped by row_group. cells holds row (display order), label, row_group, contrast,
-# NES and fdr.
-set_dot_matrix <- function(cells, title, subtitle, fdr_cap = LOG_CAP, nes_limit = 2.5) {
-  cells |>
-    mutate(
-      column = factor(CONTRAST_SHORT[contrast], CONTRAST_SHORT),
-      log_fdr = pmin(-log10(fdr), fdr_cap)
-    ) |>
-    ggplot(aes(column, row)) +
-    geom_point(
-      aes(size = log_fdr, fill = NES, stroke = fdr <= ALPHA),
-      shape = 21, colour = "grey15"
-    ) +
-    facet_grid(row_group ~ ., scales = "free_y", space = "free_y", switch = "y") +
-    scale_x_discrete(labels = scales::label_wrap(10)) +
-    scale_y_discrete(labels = deframe(distinct(cells, row, label))) +
-    scale_fill_gradient2(
-      low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
-      limits = c(-nes_limit, nes_limit), breaks = c(-2, 0, 2), name = "NES",
-      guide = colour_bar()
-    ) +
-    fdr_scales(fdr_cap) +
-    labs(x = NULL, y = NULL, title = title, subtitle = subtitle) +
-    theme_figure() +
-    theme(
-      axis.text.y = element_text(size = 5.2), strip.placement = "outside",
-      strip.text.y.left = element_text(angle = 0, hjust = 1, size = 5.2),
-      panel.spacing = unit(0.8, "mm"), legend.box = "vertical"
-    )
 }
 
 # Each score's r-equivalent against the comparison contrasts and, within each sex, against each
