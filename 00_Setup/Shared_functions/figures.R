@@ -241,13 +241,10 @@ fdr_scales <- function(cap = LOG_CAP, name = "FDR") {
 # order), term, label and collection, top to bottom, and optionally shade (a colour for a band
 # behind the row's dots, NA for none); cells holds term, column, NES and fdr, and optionally
 # selected (TRUE outlines the cell, keyed as selected_label); columns holds column, column_block
-# and label, in display order. tones
-# maps a strip's name to its contrast_strips() key. Panels have a fixed size, so grids placed
-# side by side line up; row_labels = FALSE drops the names, squares and block strips, for a grid
-# set beside another with the same rows.
+# and label, in display order, the column blocks side by side under one key. tones maps a strip's
+# name to its contrast_strips() key. Panels have a fixed size, column_mm wide and 3 mm a row.
 pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, tones = NULL,
-                         nes_limit = NULL, x_angle = 0, column_mm = 5, row_labels = TRUE,
-                         selected_label = "Selected") {
+                         x_angle = 0, column_mm = 5, selected_label = "Selected") {
   column_blocks <- unique(columns$column_block)
   blocks <- levels(droplevels(rows$block))
   place <- \(d) {
@@ -271,7 +268,7 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
   }
   outlined <- filter(dots, dots$selected %||% FALSE)
   squares <- place(mutate(rows, column = " ", column_block = ""))
-  nes_limit <- nes_limit %||% (ceiling(max(abs(dots$NES)) * 10) / 10)
+  nes_limit <- ceiling(max(abs(dots$NES)) * 10) / 10
   ggplot(dots, aes(column, term)) +
     band +
     geom_point(
@@ -279,25 +276,28 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
       size = 3.6, fill = NA, colour = "grey15", stroke = 0.35
     ) +
     geom_point(aes(size = log_fdr, fill = NES), shape = 21, stroke = 0.2) +
-    # Every database keyed even where a grid lacks it, so grids side by side share one key.
     geom_point(
-      aes(colour = collection), if (row_labels) squares else squares[0, ],
+      aes(colour = collection), squares,
       shape = 15, size = 1.8, show.legend = c(colour = TRUE, size = FALSE, fill = FALSE)
     ) +
     ggh4x::facet_grid2(block ~ column_block,
       scales = "free", space = "free", switch = "y",
-      strip = contrast_strips(
-        c(if (row_labels) "", tones[column_blocks]), if (row_labels) tones[blocks]
-      )
+      strip = contrast_strips(c("", tones[column_blocks]), tones[blocks])
     ) +
     ggh4x::force_panelsizes(
-      cols = unit(
-        c(if (row_labels) 3.5, column_mm * table(columns$column_block)[column_blocks]), "mm"
-      ),
+      cols = unit(c(3.5, column_mm * table(columns$column_block)[column_blocks]), "mm"),
       rows = unit(3 * table(rows$block)[blocks], "mm")
     ) +
-    scale_y_discrete(labels = deframe(select(rows, term, label)), expand = expansion(add = 0.6)) +
-    scale_x_discrete(labels = deframe(select(columns, column, label))) +
+    # Order pinned from rows and columns, so a layer that lacks some rows (the bands, the
+    # outlines) cannot reorder a facet and move an outline off its cell.
+    scale_y_discrete(
+      limits = \(x) intersect(rev(rows$term), x), labels = deframe(select(rows, term, label)),
+      expand = expansion(add = 0.6)
+    ) +
+    scale_x_discrete(
+      limits = \(x) intersect(c(" ", columns$column), x),
+      labels = deframe(select(columns, column, label))
+    ) +
     scale_fill_distiller(
       palette = "PiYG", direction = 1, limits = c(-nes_limit, nes_limit), oob = scales::squish,
       breaks = c(-2, 0, 2), name = "NES"
@@ -323,8 +323,35 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
       strip.text.y.left = element_text(angle = 90), panel.spacing = unit(1, "mm"),
       legend.position = "right", legend.box.just = "left", legend.key.size = unit(2.6, "mm"),
       legend.text = element_text(size = 5.5), legend.title = element_text(size = 6)
-    ) +
-    if (!row_labels) theme(axis.text.y = element_blank(), strip.text.y.left = element_blank())
+    )
+}
+
+# Column strips of the F03 and F04 grids, keyed to contrast_strips(); Contrast falls back to grey.
+SEX_TRAIT_TONES <- c(`Female traits` = "PAS_vs_VEH_female", `Male traits` = "PAS_vs_VEH_male")
+
+# The columns F03 and F04 share, for the sets in terms: the fgsea result in each contrast, then
+# the within-treatment association fgsea at each trait in females and in males, one row per cell
+# in column order. column, column_block and label are pathway_grid()'s columns; fdr is BH.
+contrast_trait_cells <- function(enr, terms) {
+  contrasts <- enr$results |>
+    filter(term %in% terms) |>
+    transmute(
+      column_block = "Contrast", column = contrast, label = CONTRAST_SHORT[contrast], contrast,
+      term, collection, universe, NES, p, fdr = padj, shown, camera_p, camera_fdr
+    )
+  traits <- enr$association_fgsea |>
+    filter(model == "treatment", term %in% terms) |>
+    transmute(
+      column_block = names(SEX_TRAIT_TONES)[match(sex, c("female", "male"))],
+      column = paste(sex, phenotype), label = TRAIT_SHORT[phenotype], sex, phenotype, term,
+      collection, universe, NES, p = fgsea_p, fdr = fgsea_fdr, shown, camera_p, camera_fdr
+    )
+  bind_rows(contrasts, traits) |>
+    arrange(
+      factor(column_block, c("Contrast", names(SEX_TRAIT_TONES))),
+      match(contrast, COMPARISON_CONTRASTS), match(phenotype, names(TRAIT_SHORT))
+    ) |>
+    relocate(sex, phenotype, .after = contrast)
 }
 
 # Each set once per figure: block by block in factor order, the first n candidates (already in
