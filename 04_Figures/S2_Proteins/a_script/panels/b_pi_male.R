@@ -1,6 +1,7 @@
 # S2 b: male PAS vs vehicle, the proteins at Π <= 0.05 in the full proteome across every mouse,
-# centred on each sex's vehicle mean and split by direction (01_Fit); grey where the protein was
-# not detected in that mouse (02_Quantification), with each block's ORA bars (02_Enrichment).
+# centred on each sex's vehicle mean, split by direction (01_Fit) and co-expression cluster
+# (02_Enrichment); grey where the protein was not detected in that mouse (02_Quantification),
+# with each cluster's ORA bars (02_Enrichment).
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(
@@ -10,7 +11,7 @@ inputs <- c(
 )
 panel <- pi_heatmap_panel(
   readRDS(inputs[["fit"]]), readRDS(inputs[["proteins"]]),
-  readRDS(inputs[["enrichment"]])$block_ora, "PAS_vs_VEH_male"
+  readRDS(inputs[["enrichment"]]), "PAS_vs_VEH_male"
 )
 
 save_panel(panel$plot, "S2_Proteins", "b_pi_male", panel$width_mm, panel$height_mm)

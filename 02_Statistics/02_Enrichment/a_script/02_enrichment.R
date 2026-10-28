@@ -1,8 +1,8 @@
 # Every pathway test the comparisons read, run once: fgsea on each comparison contrast's moderated
 # t and on each protein-phenotype association t, camera beside each across mice, side lists, fry
-# for one sex's response in the other, ORA of the F-test patterns and of each contrast's Π lists,
-# and STRING connectivity. fgsea permutes genes, so camera and the singscore tests from 01_Fit are
-# the mouse-level checks on it.
+# for one sex's response in the other, ORA of the F-test patterns and of the co-expression
+# clusters in each contrast's Π lists, and STRING connectivity. fgsea permutes genes, so camera and
+# the singscore tests from 01_Fit are the mouse-level checks on it.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -11,6 +11,7 @@ inputs <- c(
   gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds"),
   design = output_path("01_Processing", "03_Design", "design.rds"),
   fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
   STRING_FILES
 )
 gs <- readRDS(inputs[["gene_sets"]])
@@ -326,12 +327,58 @@ pattern_ora <- fit$protein_ftest |>
   reframe(ora_of(unique(gene)), .by = pattern) |>
   rename(genes_in_pattern = genes_in_list) |>
   arrange(pattern, collection, p)
-# Each comparison contrast's Π <= 0.05 proteins, per direction (the S2 heatmap blocks).
-block_ora <- proteome |>
-  filter(contrast %in% COMPARISON_CONTRASTS, pi_score <= ALPHA) |>
-  mutate(direction = if_else(logFC > 0, "up", "down")) |>
-  reframe(ora_of(unique(gene)), .by = c(contrast, direction)) |>
-  arrange(factor(contrast, COMPARISON_CONTRASTS), desc(direction), collection, p)
+
+# The S2 heatmap rows: each comparison contrast's Π <= 0.05 proteins, split by direction, and each
+# direction block cut into co-expression clusters by dynamicTreeCut's hybrid method on
+# coexpression_tree() of the drawn values (Langfelder et al. 2008). Rows are numbered in drawing
+# order: block by block, tree order within a cluster, clusters C1, C2, ... down the panel, and the
+# proteins the cut leaves unassigned (label 0) at their block's end with no cluster.
+CLUSTER_CUT <- list(deep_split = 2L, min_size = 10L)
+targets <- arrange(fit$targets, factor(group, FIGURE_GROUPS))
+observations <- readRDS(inputs[["proteins"]])$proteins$other$n.observations
+block_clusters <- function(x) {
+  tree <- coexpression_tree(x)
+  cluster <- integer(nrow(x))
+  cluster[tree$on_tree] <- dynamicTreeCut::cutreeDynamic(tree$tree,
+    distM = tree$distance, method = "hybrid", deepSplit = CLUSTER_CUT$deep_split,
+    minClusterSize = CLUSTER_CUT$min_size, verbose = 0
+  )
+  drawn <- tree$order[order(cluster[tree$order] == 0)]
+  tibble(index = drawn, cut = cluster[drawn])
+}
+heatmap_clusters <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
+  selected <- fit$protein_contrasts |>
+    filter(universe == "full", contrast == cn, pi_score <= ALPHA) |>
+    mutate(direction = if_else(logFC > 0, "up", "down"))
+  x <- heatmap_values(
+    fit$E_norm$full[selected$feature, targets$sample_id], targets,
+    observations[selected$feature, targets$sample_id] > 0
+  )
+  map(c("up", "down"), \(d) {
+    rows <- which(selected$direction == d)
+    mutate(block_clusters(x[rows, , drop = FALSE]), index = rows[index])
+  }) |>
+    list_rbind() |>
+    mutate(
+      block_cut = if_else(cut == 0, NA, paste(selected$direction[index], cut)),
+      cluster = if_else(
+        is.na(block_cut), NA, paste0("C", match(block_cut, unique(na.omit(block_cut))))
+      )
+    ) |>
+    transmute(
+      contrast = cn, row = row_number(), direction = selected$direction[index], cluster,
+      feature = selected$feature[index], gene = selected$gene[index]
+    )
+}) |>
+  list_rbind()
+# ORA of each cluster; BH within cluster and collection.
+cluster_ora <- heatmap_clusters |>
+  filter(!is.na(cluster), !is.na(gene), gene != "") |>
+  reframe(ora_of(unique(gene)), .by = c(contrast, direction, cluster)) |>
+  rename(genes_in_cluster = genes_in_list) |>
+  arrange(
+    factor(contrast, COMPARISON_CONTRASTS), as.integer(str_remove(cluster, "C")), collection, p
+  )
 
 tier_table <- results |>
   reframe(tier_counts(p, padj), .by = c(contrast, universe, collection)) |>
@@ -360,8 +407,8 @@ saveRDS(
   list(
     results = results, ranks = ranks, sets = sets, compartments = compartments,
     literature = literature, association_fgsea = association_fgsea,
-    signatures = signatures, pattern_ora = pattern_ora, block_ora = block_ora,
-    string = string_tests, summary = tier_table
+    signatures = signatures, pattern_ora = pattern_ora, heatmap_clusters = heatmap_clusters,
+    cluster_ora = cluster_ora, string = string_tests, summary = tier_table
   ),
   file.path(out$data, "enrichment.rds")
 )
@@ -369,8 +416,8 @@ write_workbook(
   list(
     summary = tier_table, fgsea = results, compartments = compartments, literature = literature,
     association_summary = association_summary, association_fgsea = association_fgsea,
-    signatures = signatures, pattern_ora = pattern_ora, block_ora = block_ora,
-    string = string_tests, plot_index = plot_index
+    signatures = signatures, pattern_ora = pattern_ora, heatmap_clusters = heatmap_clusters,
+    cluster_ora = cluster_ora, string = string_tests, plot_index = plot_index
   ),
   c(
     "Per contrast and collection: sets tested, at p ≤ 0.05, FDR tiers.",
@@ -398,8 +445,13 @@ write_workbook(
       "collections: overlap, size, p, BH FDR within pattern and collection, overlap genes."
     ),
     paste(
-      "ORA of each comparison contrast's Π ≤ 0.05 proteins per direction, full-proteome",
-      "collections: overlap, size, p, BH FDR within list and collection, overlap genes."
+      "S2's heatmap rows: each comparison contrast's Π ≤ 0.05 proteins in drawing order, their",
+      "direction block and co-expression cluster (dynamicTreeCut hybrid, deepSplit 2, minimum",
+      "10; empty where the cut left the protein unassigned)."
+    ),
+    paste(
+      "ORA of each co-expression cluster, full-proteome collections: overlap, size, p, BH FDR",
+      "within cluster and collection, overlap genes."
     ),
     "STRING v12 connectivity of each contrast's Π and FDR lists.",
     "Which PDF page shows what."

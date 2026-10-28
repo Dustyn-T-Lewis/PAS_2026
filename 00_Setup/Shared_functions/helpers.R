@@ -182,6 +182,47 @@ label_groups <- function(groups, collections, universe) {
     ), .after = label)
 }
 
+# log2 abundance minus the protein's mean over its own sex's vehicle mice. targets lists the
+# columns of values in order.
+centre_on_vehicle <- function(values, targets) {
+  vehicle_mean <- vapply(c(F = "VEH_F", M = "VEH_M"), \(g) {
+    rowMeans(values[, targets$group == g, drop = FALSE])
+  }, numeric(nrow(values)))
+  values - vehicle_mean[, targets$sex]
+}
+
+# What the protein heatmaps draw as colour and 02_Enrichment clusters: values centred on each
+# sex's vehicle mean, NA where detected (same shape as values) is FALSE.
+heatmap_values <- function(values, targets, detected) {
+  x <- centre_on_vehicle(values, targets)
+  x[!detected] <- NA
+  x
+}
+
+# Co-expression tree of the rows of x (heatmap_values()): average-linkage clustering on
+# 1 - Pearson r across mice, each pair over the mice where both proteins were detected. A pair
+# sharing fewer than min_shared mice counts as uncorrelated, and a protein detected in fewer than
+# min_shared mice stays off the tree. Returns the tree and its distance matrix (NULL for fewer
+# than two proteins on it), the rows on the tree in the distance matrix's order (on_tree), and
+# every row in drawing order: tree order, then the rows off it.
+coexpression_tree <- function(x, min_shared = 5) {
+  seen <- !is.na(x)
+  on_tree <- which(rowSums(seen) >= min_shared)
+  tree <- distance <- NULL
+  drawn <- on_tree
+  if (length(on_tree) > 1) {
+    r <- stats::cor(t(x[on_tree, , drop = FALSE]), use = "pairwise.complete.obs")
+    r[is.na(r) | tcrossprod(seen[on_tree, , drop = FALSE]) < min_shared] <- 0
+    distance <- 1 - r
+    tree <- stats::hclust(stats::as.dist(distance), method = "average")
+    drawn <- on_tree[tree$order]
+  }
+  list(
+    tree = tree, distance = distance, on_tree = on_tree,
+    order = c(drawn, setdiff(seq_len(nrow(x)), on_tree))
+  )
+}
+
 # A step's preview PDF: one landscape page per named function, each drawing with a package's own
 # plot or base graphics; cairo, so Π and ≤ render. Returns the rows of the workbook's plot_index.
 preview_pdf <- function(file, pages) {
