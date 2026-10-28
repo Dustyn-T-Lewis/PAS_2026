@@ -55,10 +55,11 @@ CONTRAST_PALETTE <- tibble::tribble(
   "sex_in_PAS", "#A6A6A6", "#F0F0F0", "#737373"
 )
 contrast_tone <- \(tone) set_names(CONTRAST_PALETTE[[tone]], CONTRAST_PALETTE$contrast)
-# Okabe-Ito tones without pink or green, so a database square never reads as up or down.
+# Paul Tol's muted and medium-contrast tones, away from the up and down magenta and green and the
+# female orange and male blue, so a database never reads as a direction or a sex.
 DATABASE_COLOURS <- c(
-  "GO:BP" = "#999999", Reactome = "#56B4E9", Hallmark = "#E69F00", KEGG = "#F0E442",
-  MitoCarta = "#000000"
+  "GO:BP" = "#44AA99", Reactome = "#332288", Hallmark = "#DDCC77", KEGG = "#88CCEE",
+  MitoCarta = "#997700"
 )
 # The response patterns of the moderated F over both PAS contrasts, in display order.
 FTEST_PATTERNS <- c("up in both", "down in both", "female up, male down", "female down, male up")
@@ -363,6 +364,95 @@ list_once <- function(candidates, n) {
       slice_head(n = n)
     bind_rows(listed, new)
   }, .init = candidates[0, ])
+}
+
+# Set counts beside a pathway_grid(), on its row bands and blocks: per group, an up bar above a
+# down bar from zero, each stacked by database inside one black outline, its total at the end, a
+# ▲ or ▼ before it and the group's label before the pair. pairs holds block, bar (the label), tone
+# (its colour), y (the pair's centre in rows from the block's top) and span (the rows it covers);
+# counts holds block, bar, direction ("up" or "down"), collection and n; rows is the grid's rows.
+count_bars <- function(counts, pairs, rows, width_mm = 30,
+                       x_title = sprintf(
+                         "Distinct significant sets\n(FDR ≤ %s, after overlap grouping)", ALPHA
+                       )) {
+  blocks <- levels(droplevels(rows$block))
+  sizes <- table(rows$block)[blocks]
+  gap <- 0.15
+  # Rows flipped onto a continuous axis, so a centre at k sits level with the grid's k-th row; a
+  # bar is up to 1.4 rows thick and a pair fills at most 90% of its rows.
+  pairs <- mutate(pairs,
+    block = factor(block, blocks), y = as.numeric(sizes[block]) + 1 - y,
+    thick = pmin(1.4, (0.9 * span - gap) / 2)
+  )
+  slots <- pairs |>
+    cross_join(tibble(direction = c("down", "up"))) |>
+    mutate(centre = y + if_else(direction == "up", 1, -1) * (thick + gap) / 2)
+  bars <- counts |>
+    filter(n > 0) |>
+    mutate(
+      block = factor(block, blocks), collection = factor(collection, names(DATABASE_COLOURS))
+    ) |>
+    inner_join(
+      select(slots, block, bar, direction, centre, thick),
+      by = c("block", "bar", "direction")
+    ) |>
+    arrange(collection) |>
+    mutate(xmax = cumsum(n), xmin = xmax - n, .by = c(block, bar, direction))
+  # Every slot gets its glyph and total, 0 where the direction has no sets.
+  ends <- slots |>
+    left_join(
+      summarise(bars, x = sum(n), .by = c(block, bar, direction)),
+      by = c("block", "bar", "direction")
+    ) |>
+    mutate(x = coalesce(x, 0L))
+  reach <- max(ends$x) * 1.2
+  mm <- reach / width_mm
+  bands <- rows |>
+    mutate(y = n() + 1 - row_number(), .by = block) |>
+    filter(!is.na(shade))
+  # The grid's 0.6-row padding above and below each block.
+  frame <- tibble(
+    block = factor(rep(blocks, 2), blocks), y = c(rep(0.4, length(blocks)), sizes + 0.6)
+  )
+  ggplot(bars) +
+    geom_blank(aes(0, y), frame) +
+    geom_tile(aes(0, y), bands, fill = bands$shade, width = Inf, height = 0.86) +
+    geom_vline(xintercept = 0, linewidth = 0.25, colour = "grey40") +
+    geom_rect(aes(
+      xmin = xmin, xmax = xmax, ymin = centre - thick / 2, ymax = centre + thick / 2,
+      fill = collection
+    )) +
+    # One outline per bar, not per slice, so a one-set slice keeps its colour.
+    geom_rect(
+      aes(xmin = 0, xmax = x, ymin = centre - thick / 2, ymax = centre + thick / 2),
+      filter(ends, x > 0),
+      fill = NA, colour = "black", linewidth = 0.33
+    ) +
+    geom_text(aes(x + mm, centre, label = x), ends, hjust = 0, size = 1.9) +
+    geom_text(
+      aes(-1.6 * mm, centre,
+        label = if_else(direction == "up", "▲", "▼"),
+        colour = DIRECTION_COLOURS[if_else(direction == "up", "Up", "Down")]
+      ), ends,
+      size = 1.5
+    ) +
+    geom_text(aes(-3.4 * mm, y, label = bar, colour = tone), pairs,
+      hjust = 1, size = 1.7, fontface = "bold"
+    ) +
+    facet_grid(block ~ ., scales = "free_y", space = "free_y") +
+    ggh4x::force_panelsizes(cols = unit(width_mm, "mm"), rows = unit(3 * sizes, "mm")) +
+    scale_x_continuous(breaks = scales::breaks_extended(5)) +
+    scale_fill_manual(values = DATABASE_COLOURS, guide = "none") +
+    scale_colour_identity() +
+    coord_cartesian(xlim = c(0, reach), expand = FALSE, clip = "off") +
+    labs(x = x_title, y = NULL) +
+    theme_figure() +
+    theme(
+      axis.text.y = element_blank(), panel.grid.major.y = element_blank(),
+      strip.text = element_blank(), panel.spacing = unit(1, "mm"),
+      axis.text.x = element_text(size = 5), axis.title.x = element_text(size = 5.5),
+      plot.margin = margin(l = 22, r = 4)
+    )
 }
 
 # Display names for pathway sets: the collection prefix dropped, title case, shortened.

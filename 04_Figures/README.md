@@ -8,8 +8,8 @@ Figures that cross the comparisons, one question each. Each figure folder holds 
 |---|---|---|
 | [`F01_Global`](F01_Global/README.md) | What the design is, what PAS did to the phenotypes, and how the proteome is structured | design; phenotype effects and PCA; proteome PCA; proteins per contrast; cross-sex signatures |
 | [`F02_Proteins`](F02_Proteins/README.md) | Which proteins are worth following up in each sex | candidate STRING networks per sex; every mouse for proteins passing three or more routes |
-| [`F03_Pathways`](F03_Pathways/README.md) | Which pathways each comparison moves | one grid: shown sets per contrast (female, male, Treatment × sex) and MitoCarta, drawn in all three contrasts |
-| [`F04_Phenotype_pathways`](F04_Phenotype_pathways/README.md) | Which pathways track each phenotype within each sex | one grid: female and male trait blocks, within-treatment model |
+| [`F03_Pathways`](F03_Pathways/README.md) | Which pathways each comparison moves | one grid: shown sets per contrast (female, male, Treatment × sex) and MitoCarta, drawn in all three contrasts, with distinct-set counts per contrast |
+| [`F04_Phenotype_pathways`](F04_Phenotype_pathways/README.md) | Which pathways track each phenotype within each sex | one grid: female and male trait blocks, within-treatment model, with distinct-set counts per trait and sex |
 | [`F05_Modules`](F05_Modules/README.md) | How the protein modules relate to PAS and to the phenotypes (WGCNA version) | module × trait heatmap with stability; ROC curves; eigengene scatters |
 | [`F05_Complexes`](F05_Complexes/README.md) | Which complexes and mitochondrial pathways PAS shifts (alternative Figure 5) | CORUM and MitoCarta dot matrix against contrasts and traits |
 | [`S1_Processing`](S1_Processing/README.md) | What processing kept and chose, and what else is in the pellet | filtering; run depth; normalisation; surrogate variable; MitoCarta share; composition markers |
@@ -21,4 +21,4 @@ Figures that cross the comparisons, one question each. Each figure folder holds 
 | [`S7_Candidates`](S7_Candidates/README.md) | Which candidate routes each protein passed | route matrix per sex; full ranked table in the workbook |
 | [`S8_Sensitivity`](S8_Sensitivity/README.md) | Whether the protein results survive other processing and model choices | counts per variant; baseline proteins across variants |
 
-Shared drawing code (theme, palettes, PCA panel, pathway grid, heatmaps, candidate network, candidate dots, route matrix) lives in `00_Setup/Shared_functions/figures.R`; the barcode is drawn in F01's own panel script.
+Shared drawing code (theme, palettes, PCA panel, pathway grid and its set-count bars, heatmaps, candidate network, candidate dots, route matrix) lives in `00_Setup/Shared_functions/figures.R`; the barcode is drawn in F01's own panel script.

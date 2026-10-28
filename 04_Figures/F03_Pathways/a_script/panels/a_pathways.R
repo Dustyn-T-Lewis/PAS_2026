@@ -5,7 +5,9 @@
 # their smallest p. A set is listed once, in the first block that reaches it, and a block lists at
 # most ROWS_PER_BLOCK sets. The contrast cells that put a row in its block are outlined: the
 # block's contrast, or for MitoCarta every contrast showing the set; each row is shaded in its
-# block's colour.
+# block's colour. Bars to the right count each contrast's distinct significant sets (FDR <= 0.05
+# and shown) by direction and database: one pair per contrast block, and one pair per contrast in
+# the MitoCarta block.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"))
@@ -16,6 +18,8 @@ BLOCKS <- c(CONTRAST_SHORT, MitoCarta = "MitoCarta")
 TONES <- c(set_names(names(BLOCKS), BLOCKS), SEX_TRAIT_TONES)
 # Each row shaded in its block's strip fill, light enough that the dots stay readable.
 SHADES <- scales::alpha(c(contrast_tone("fill"), MitoCarta = "grey85"), 0.5)
+BAR_LABELS <- c(PAS_vs_VEH_female = "F", PAS_vs_VEH_male = "M", treatment_by_sex = "T×S")
+WIDTH_MM <- 212
 
 by_contrast <- enr$results |>
   filter(universe == "full", shown) |>
@@ -41,7 +45,7 @@ drawn <- contrast_trait_cells(enr, rows$term) |>
     selected = shown & !is.na(contrast) &
       (block == CONTRAST_SHORT[contrast] | block == "MitoCarta")
   )
-plot <- pathway_grid(
+grid <- pathway_grid(
   select(drawn, term, column, NES, fdr, selected), rows,
   distinct(drawn, column, column_block, label),
   title = "Pathways per contrast",
@@ -55,13 +59,39 @@ plot <- pathway_grid(
   tones = TONES, x_angle = 90, selected_label = "Chosen in this contrast"
 )
 
-height_mm <- 3 * nrow(rows) + nlevels(rows$block) + 30
-save_panel(plot, "F03_Pathways", "a_pathways", 180, height_mm)
+# Significant sets per contrast, direction and database: all of them, and the distinct ones the
+# bars draw. Full-proteome sets count in their contrast's block, MitoCarta sets in the last.
+counts <- enr$results |>
+  filter(contrast %in% COMPARISON_CONTRASTS, padj <= ALPHA) |>
+  mutate(block = if_else(universe == "mito", "MitoCarta", CONTRAST_SHORT[contrast])) |>
+  summarise(
+    n_distinct = sum(shown), n_all = n(), .by = c(block, contrast, direction, collection)
+  ) |>
+  arrange(factor(block, BLOCKS), match(contrast, COMPARISON_CONTRASTS), direction, collection)
+sizes <- table(rows$block)
+pairs <- tibble(
+  contrast = rep(COMPARISON_CONTRASTS, 2),
+  block = c(unname(CONTRAST_SHORT[COMPARISON_CONTRASTS]), rep("MitoCarta", 3))
+) |>
+  mutate(
+    bar = BAR_LABELS[contrast], tone = contrast_tone("ink")[contrast],
+    slot = if_else(block == "MitoCarta", match(contrast, COMPARISON_CONTRASTS), 1L),
+    span = as.numeric(sizes[block]) / if_else(block == "MitoCarta", 3, 1),
+    y = (slot - 0.5) * span + 0.5
+  )
+bars <- count_bars(
+  transmute(counts, block, bar = BAR_LABELS[contrast], direction, collection, n = n_distinct),
+  pairs, rows
+)
+
+plot <- (grid + free(bars, type = "space", side = "b")) + plot_layout(guides = "collect")
+height_mm <- 3 * nrow(rows) + nlevels(rows$block) + 32
+save_panel(plot, "F03_Pathways", "a_pathways", WIDTH_MM, height_mm)
 list(
   plot = plot,
   data = transmute(drawn,
     block = as.character(block), term, collection, universe, column_block, contrast, sex,
     phenotype, NES, p, fdr, shown, selected, camera_p, camera_fdr
   ),
-  inputs = inputs, height_mm = height_mm
+  counts = counts, inputs = inputs, width_mm = WIDTH_MM, height_mm = height_mm
 )
