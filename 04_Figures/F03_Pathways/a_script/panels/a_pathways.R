@@ -46,7 +46,7 @@ drawn <- contrast_trait_cells(enr, rows$term) |>
       (block == CONTRAST_SHORT[contrast] | block == "MitoCarta")
   )
 grid <- pathway_grid(
-  select(drawn, term, column, NES, fdr, selected), rows,
+  select(drawn, term, column, value = NES, p = fdr, selected), rows,
   distinct(drawn, column, column_block, label),
   title = "Pathways per contrast",
   subtitle = sprintf(

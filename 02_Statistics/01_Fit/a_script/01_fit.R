@@ -13,12 +13,14 @@ inputs <- c(
   design = output_path("01_Processing", "03_Design", "design.rds"),
   scores = output_path("01_Processing", "05_Scores", "scores.rds"),
   modules = output_path("01_Processing", "06_Modules", "modules.rds"),
+  gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds"),
   phenotypes = input_path("phenotypes.xlsx")
 )
 quant <- readRDS(inputs[["proteins"]])
 d <- readRDS(inputs[["design"]])
 sc <- readRDS(inputs[["scores"]])
 mods <- readRDS(inputs[["modules"]])
+gs <- readRDS(inputs[["gene_sets"]])
 targets <- quant$proteins$targets
 ph <- readxl::read_excel(inputs[["phenotypes"]], "phenotypes")
 ph <- ph[match(targets$sample_id, ph$mouse), ]
@@ -277,6 +279,32 @@ join_r <- \(x, y, by, relationship = "one-to-one") {
 protein_contrasts <- protein_contrasts |>
   join_r(protein_r(r_groups), c("universe", "contrast", "feature"))
 score_contrasts <- join_r(score_contrasts, score_r(r_groups), c("contrast", "feature"))
+
+# Each scored set's measured members: its genes among the universe's proteins, the genes singscore
+# ranks in 05_Scores.
+score_members <- imap(quant$E_norm, \(E, universe) {
+  measured <- genes$gene[match(rownames(E), genes$feature)]
+  sets <- if (universe == "full") c(gs$tested$full, gs$complexes, gs$clusters) else gs$tested$mito
+  map(unlist(unname(sets), recursive = FALSE), intersect, measured)
+})
+# The sets each contrast shows (rows sharing contrast and universe are one test): those at
+# singscore p <= ALPHA, grouped by measured members and picked by representative_sets(), as
+# 02_Enrichment picks among fgsea sets at FDR. Modules share no members and are not grouped.
+called <- score_contrasts |>
+  filter(level != "module", P.Value <= ALPHA) |>
+  mutate(
+    representative_sets(score_members[[universe[1]]][feature], P.Value),
+    .by = c(contrast, universe)
+  )
+score_contrasts <- score_contrasts |>
+  mutate(members = if_else(level == "module", NA,
+    lengths(map2(universe, feature, \(u, f) score_members[[u]][[f]]))
+  )) |>
+  left_join(
+    select(called, contrast, universe, feature, overlap_group, shown),
+    by = c("contrast", "universe", "feature")
+  ) |>
+  mutate(shown = if_else(level == "module", NA, coalesce(shown, FALSE)))
 protein_associations <- protein_associations |>
   join_r(protein_r(r_associations), c("universe", "phenotype", "sex", "feature"), "many-to-one")
 score_associations <- score_associations |>
@@ -394,7 +422,8 @@ write_workbook(
     ),
     paste(
       "Every pathway (GO:BP, Reactome, Hallmark, KEGG, MitoCarta), complex, cluster and module",
-      "score: the five contrasts, r with group."
+      "score: the five contrasts, r with group, measured members, and the overlap group and",
+      "shown flag (one set per group of overlapping sets at p ≤ 0.05, modules not grouped)."
     ),
     paste(
       "Every score's association with each phenotype per sex and model: slope, t, p, FDR,",

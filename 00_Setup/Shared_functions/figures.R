@@ -13,11 +13,10 @@ GROUP_LABELS <- c(
   VEH_F = "Female VEH", PAS_F = "Female PAS", VEH_M = "Male VEH", PAS_M = "Male PAS"
 )
 GROUP_SHORT <- c(VEH_F = "F VEH", PAS_F = "F PAS", VEH_M = "M VEH", PAS_M = "M PAS")
-# Up and down in green and magenta (PiYG), so direction never borrows a group's orange or blue.
+# Up and down in green and magenta (PiYG), so direction never borrows a group's orange or blue;
+# fold changes, NES, correlations and r-equivalents all use it.
 DIRECTION_COLOURS <- c(Down = "#C51B7D", Up = "#4D9221")
 DIRECTION_LIGHT <- c(Down = "#F1B6DA", Up = "#B8E186")
-# Correlations and r-equivalents in brown and teal (BrBG), so an r never reads as a fold change.
-R_COLOURS <- c(low = "#8C510A", high = "#01665E")
 PHENOTYPE_LABELS <- c(
   csa_mean = "CSA", capillary_density = "Capillary density",
   satellite_cells_per_fiber = "Satellite cells / fibre",
@@ -60,6 +59,11 @@ contrast_tone <- \(tone) set_names(CONTRAST_PALETTE[[tone]], CONTRAST_PALETTE$co
 DATABASE_COLOURS <- c(
   "GO:BP" = "#44AA99", Reactome = "#332288", Hallmark = "#DDCC77", KEGG = "#88CCEE",
   MitoCarta = "#997700"
+)
+# WGCNA's module names, each drawn in a muted tone of its colour.
+MODULE_COLOURS <- c(
+  turquoise = "#8CCFC9", blue = "#8FA8D8", brown = "#BC9A7C", yellow = "#E6D58C",
+  green = "#9DCB92", red = "#E39B94", black = "#8A8A8A", pink = "#E9B7CF"
 )
 # The response patterns of the moderated F over both PAS contrasts, in display order.
 FTEST_PATTERNS <- c("up in both", "down in both", "female up, male down", "female down, male up")
@@ -237,28 +241,34 @@ fdr_scales <- function(cap = LOG_CAP, name = "FDR") {
 }
 
 # Pathway sets as a dot grid, after HRvLR's pathway_grid(): one row per set within its block, one
-# column per contrast or trait under boxed strips, a dot per cell (fill NES, area -log10 FDR) and
-# the set's database as a square before the first column. rows holds block (a factor in display
-# order), term, label and collection, top to bottom, and optionally shade (a colour for a band
-# behind the row's dots, NA for none); cells holds term, column, NES and fdr, and optionally
-# selected (TRUE outlines the cell, keyed as selected_label); columns holds column, column_block
-# and label, in display order, the column blocks side by side under one key. tones maps a strip's
-# name to its contrast_strips() key. Panels have a fixed size, column_mm wide and 3 mm a row.
+# column per contrast or trait under boxed strips, a dot per cell (fill value, keyed as fill_name
+# on a PiYG scale to +-fill_limit, by default the largest drawn; area -log10 p, keyed as size_name)
+# and, when rows has a collection, the set's database as a square before the first column. rows
+# holds block (a factor in display order), term and label, top to bottom, and optionally
+# collection and shade (a colour for a band behind the row's dots, NA for none); cells holds term,
+# column, value and p (an FDR or a p), and optionally selected (TRUE outlines the cell in
+# outline_shape, keyed as selected_label); columns holds column, column_block and label, in display
+# order, the column blocks side by side under one key. tones maps a strip's name to its
+# contrast_strips() key. Panels have a fixed size, column_mm wide and 3 mm a row.
 pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, tones = NULL,
-                         x_angle = 0, column_mm = 5, selected_label = "Selected") {
+                         x_angle = 0, column_mm = 5, selected_label = "Selected",
+                         fill_name = "NES", fill_limit = NULL, fill_breaks = c(-2, 0, 2),
+                         size_name = "FDR", outline_shape = 22) {
   column_blocks <- unique(columns$column_block)
   blocks <- levels(droplevels(rows$block))
+  # The database squares take a narrow column of their own, " " under an empty strip.
+  lead <- if (has_name(rows, "collection")) " " else character()
   place <- \(d) {
     mutate(d,
       term = factor(term, rev(rows$term)),
-      column = factor(column, c(" ", columns$column)),
-      column_block = factor(column_block, c("", column_blocks))
+      column = factor(column, c(lead, columns$column)),
+      column_block = factor(column_block, c(if (length(lead)) "", column_blocks))
     )
   }
   dots <- cells |>
     inner_join(select(rows, term, block, any_of("shade")), by = "term") |>
     inner_join(select(columns, column, column_block), by = "column") |>
-    mutate(log_fdr = pmin(-log10(fdr), LOG_CAP)) |>
+    mutate(log_p = pmin(-log10(p), LOG_CAP)) |>
     place()
   # One full-width tile per row and panel, so the alpha does not stack across columns.
   shaded <- dots |>
@@ -268,25 +278,29 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
     geom_tile(data = shaded, fill = shaded$shade, width = Inf, height = 0.86)
   }
   outlined <- filter(dots, dots$selected %||% FALSE)
-  squares <- place(mutate(rows, column = " ", column_block = ""))
-  nes_limit <- ceiling(max(abs(dots$NES)) * 10) / 10
+  squares <- if (length(lead)) {
+    geom_point(
+      aes(colour = collection), place(mutate(rows, column = lead, column_block = "")),
+      shape = 15, size = 1.8, show.legend = c(colour = TRUE, size = FALSE, fill = FALSE)
+    )
+  }
+  fill_limit <- fill_limit %||% (ceiling(max(abs(dots$value)) * 10) / 10)
   ggplot(dots, aes(column, term)) +
     band +
     geom_point(
       aes(shape = selected_label), outlined,
       size = 3.6, fill = NA, colour = "grey15", stroke = 0.35
     ) +
-    geom_point(aes(size = log_fdr, fill = NES), shape = 21, stroke = 0.2) +
-    geom_point(
-      aes(colour = collection), squares,
-      shape = 15, size = 1.8, show.legend = c(colour = TRUE, size = FALSE, fill = FALSE)
-    ) +
+    geom_point(aes(size = log_p, fill = value), shape = 21, stroke = 0.2) +
+    squares +
     ggh4x::facet_grid2(block ~ column_block,
       scales = "free", space = "free", switch = "y",
-      strip = contrast_strips(c("", tones[column_blocks]), tones[blocks])
+      strip = contrast_strips(c(if (length(lead)) "", tones[column_blocks]), tones[blocks])
     ) +
     ggh4x::force_panelsizes(
-      cols = unit(c(3.5, column_mm * table(columns$column_block)[column_blocks]), "mm"),
+      cols = unit(
+        c(if (length(lead)) 3.5, column_mm * table(columns$column_block)[column_blocks]), "mm"
+      ),
       rows = unit(3 * table(rows$block)[blocks], "mm")
     ) +
     # Order pinned from rows and columns, so a layer that lacks some rows (the bands, the
@@ -296,18 +310,18 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
       expand = expansion(add = 0.6)
     ) +
     scale_x_discrete(
-      limits = \(x) intersect(c(" ", columns$column), x),
+      limits = \(x) intersect(c(lead, columns$column), x),
       labels = deframe(select(columns, column, label))
     ) +
     scale_fill_distiller(
-      palette = "PiYG", direction = 1, limits = c(-nes_limit, nes_limit), oob = scales::squish,
-      breaks = c(-2, 0, 2), name = "NES"
+      palette = "PiYG", direction = 1, limits = c(-fill_limit, fill_limit), oob = scales::squish,
+      breaks = fill_breaks, name = fill_name
     ) +
-    log_size_scale(range = c(0.6, 2.8)) +
+    log_size_scale(size_name, range = c(0.6, 2.8)) +
     scale_colour_manual(
       values = DATABASE_COLOURS, limits = names(DATABASE_COLOURS), name = "Database"
     ) +
-    scale_shape_manual(values = 22, name = NULL) +
+    scale_shape_manual(values = outline_shape, name = NULL) +
     guides(
       fill = guide_colourbar(order = 1, barheight = unit(12, "mm"), barwidth = unit(2.2, "mm")),
       size = guide_legend(order = 2), colour = guide_legend(order = 3),
@@ -616,7 +630,7 @@ score_cells <- function(contrasts, associations) {
     filter(contrast %in% COMPARISON_CONTRASTS) |>
     transmute(
       level, feature,
-      section = "Contrasts", column = CONTRAST_SHORT[contrast], r_equiv, P.Value, adj.P.Val
+      section = "Contrast", column = CONTRAST_SHORT[contrast], r_equiv, P.Value, adj.P.Val
     )
   trait_cells <- associations |>
     filter(model == "pooled") |>
@@ -627,7 +641,7 @@ score_cells <- function(contrasts, associations) {
     )
   bind_rows(contrast_cells, trait_cells) |>
     mutate(
-      section = factor(section, c("Contrasts", "Female traits", "Male traits")),
+      section = factor(section, c("Contrast", "Female traits", "Male traits")),
       column = factor(column, c(CONTRAST_SHORT, TRAIT_SHORT))
     )
 }

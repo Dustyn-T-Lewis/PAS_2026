@@ -28,7 +28,9 @@ r_by_trait <- fit$protein_associations |>
 r_matrix <- as.matrix(column_to_rownames(r_by_trait, "feature"))[
   selected$feature, paste(rep(TRAIT_SHORT, each = 2), c("F", "M"))
 ]
-r_colours <- circlize::colorRamp2(c(-1, 0, 1), c(R_COLOURS[["low"]], "white", R_COLOURS[["high"]]))
+r_colours <- circlize::colorRamp2(
+  c(-1, 0, 1), c(DIRECTION_COLOURS[["Down"]], "white", DIRECTION_COLOURS[["Up"]])
+)
 right <- ComplexHeatmap::rowAnnotation(
   r = r_matrix, col = list(r = r_colours), na_col = "grey90",
   annotation_name_gp = grid::gpar(fontsize = 5), annotation_name_rot = 90,

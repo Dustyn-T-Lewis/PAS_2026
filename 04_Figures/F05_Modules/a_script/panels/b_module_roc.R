@@ -40,7 +40,7 @@ plot <- ggplot(curves, aes(fpr, tpr)) +
     aes(0.97, 0.05, label = text), shown,
     hjust = 1, vjust = 0, size = 1.7, lineheight = 0.9, inherit.aes = FALSE
   ) +
-  facet_wrap(~cell, ncol = 3) +
+  facet_wrap(~cell) +
   coord_equal() +
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1")) +
   scale_y_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1")) +
@@ -51,5 +51,5 @@ plot <- ggplot(curves, aes(fpr, tpr)) +
   theme_figure() +
   theme(strip.text = element_text(size = 5.5), panel.spacing.x = unit(2, "mm"))
 
-save_panel(plot, "F05_Modules", "b_module_roc", 110, 78)
+save_panel(plot, "F05_Modules", "b_module_roc", 70, 68)
 list(plot = plot, data = select(shown, -cell, -text), inputs = inputs)

@@ -34,7 +34,7 @@ drawn <- contrast_trait_cells(enr, rows$term) |>
   arrange(block, match(term, rows$term)) |>
   mutate(selected = shown & !is.na(phenotype) & block == TRAIT_SHORT[phenotype])
 grid <- pathway_grid(
-  select(drawn, term, column, NES, fdr, selected), rows,
+  select(drawn, term, column, value = NES, p = fdr, selected), rows,
   distinct(drawn, column, column_block, label),
   title = "Pathways per phenotype",
   subtitle = sprintf(
