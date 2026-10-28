@@ -10,11 +10,15 @@ PANELS <- c(
 )
 panels <- run_panels("S1_Processing", PANELS)
 
-# Each row lines up its own panels; the rows are stacked whole.
-top <- wrap_plots(map(panels[1:3], "plot"), widths = c(60, 45, 50))
-bottom <- wrap_plots(map(panels[4:5], "plot"), widths = c(80, 70))
+# Panels b, d, e and f share one group key: only f's, at the foot of the figure, is kept. Each row
+# lines up its own panels; the rows are stacked whole.
+plots <- map(panels, "plot")
+keyless <- c("b_run_depth", "d_surrogate", "e_mito_share")
+plots[keyless] <- map(plots[keyless], \(p) p + theme(legend.position = "none"))
+top <- wrap_plots(plots[1:3], widths = c(60, 45, 50))
+bottom <- wrap_plots(plots[4:5], widths = c(80, 70))
 figure <- wrap_elements(full = top) / wrap_elements(full = bottom) /
-  wrap_elements(full = panels$f_composition$plot) +
+  wrap_elements(full = plots$f_composition) +
   plot_layout(heights = c(55, 62, 60))
 out <- stage_paths("04_Figures", "S1_Processing")
 save_figure(figure, out$reports, "S1_composite", width_mm = 180, height_mm = 177)
@@ -22,7 +26,7 @@ save_figure(figure, out$reports, "S1_composite", width_mm = 180, height_mm = 177
 write_figure_workbook(
   panels,
   c(
-    "Panel a: precursors and protein groups remaining after each filter.",
+    "Panel a: precursors and protein groups entering filtering and remaining after each filter.",
     "Panel b: precursors and proteins identified per run.",
     "Panel c: PCV, PMAD and PEV per normalisation method and universe; eligibility; choice.",
     "Panel d: surrogate variable 1 and log2 run depth per mouse.",

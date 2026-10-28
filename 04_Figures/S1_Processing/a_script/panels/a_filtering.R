@@ -1,5 +1,15 @@
-# S1 a: precursors and protein groups left after each filter, from 01_Filtering.
+# S1 a: precursors and protein groups entering filtering (past the three q-value filters) and left
+# after each filter, from 01_Filtering.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
+
+# 01_Filtering's step names, as the panel prints them.
+STEP_LABELS <- c(
+  "q-value filters passed" = "passed q-value filters",
+  "cRAP groups removed" = "cRAP-only groups removed",
+  "shared peptides removed" = "shared peptides removed",
+  "compound groups removed" = "compound groups removed",
+  "contaminants removed" = "keratin, Ig, haemoglobin removed"
+)
 
 inputs <- c(filtering = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds"))
 steps <- readRDS(inputs[["filtering"]])$filter_log |>
@@ -18,7 +28,10 @@ plot <- ggplot(steps, aes(n, step)) +
     labels = scales::label_comma(), breaks = scales::breaks_pretty(2),
     expand = expansion(mult = c(0, 0.04))
   ) +
-  labs(x = "remaining", y = NULL, title = "Filtering", subtitle = "Counts after each step") +
+  scale_y_discrete(labels = STEP_LABELS) +
+  labs(
+    x = "count", y = NULL, title = "Filtering", subtitle = "Counts entering, then after each filter"
+  ) +
   theme_figure() +
   theme(panel.grid.major.y = element_blank(), panel.spacing.x = unit(4, "mm"))
 

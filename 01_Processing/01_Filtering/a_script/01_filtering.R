@@ -84,6 +84,7 @@ all_na <- sum(!detected)
 y <- y[detected, ]
 
 signal_start <- total_signal(y$E)
+summary_entering <- step_summary(y, "q-value filters passed", signal_start)
 
 raw_totals <- raw_quantity |>
   summarise(raw_total = sum(Precursor.Quantity), .by = Run) |>
@@ -167,7 +168,7 @@ summary_contaminants <- step_summary(y, "contaminants removed", signal_start)
 must_keep_missing <- setdiff(MUST_KEEP, unlist(str_split(y$genes$Genes, ";")))
 
 filter_log <- bind_rows(
-  summary_start, summary_proteotypic, summary_compound, summary_contaminants
+  summary_entering, summary_start, summary_proteotypic, summary_compound, summary_contaminants
 )
 
 saveRDS(
@@ -204,7 +205,7 @@ write_workbook(
     plot_index = plot_index
   ),
   c(
-    "Precursors, protein groups and share of signal after each filter.",
+    "Precursors, protein groups and share of signal entering filtering and after each filter.",
     "Contaminant symbols removed, with precursors and share of signal.",
     "cRAP entries the search appended, with precursors and share of signal.",
     "Median contaminant and plasma share of signal per group.",

@@ -10,14 +10,13 @@ runs <- readRDS(inputs[["filtering"]])$run_qc |>
     unit = factor(str_to_sentence(unit), c("Precursors", "Proteins"))
   )
 
-plot <- ggplot(runs, aes(group, n, colour = group)) +
-  geom_point(position = position_jitter(width = 0.15, seed = SEED), size = 1.2) +
-  facet_wrap(~unit, scales = "free_y") +
-  scale_colour_manual(
-    values = GROUP_COLOURS, labels = GROUP_SHORT, name = NULL,
-    guide = guide_legend(nrow = 2, byrow = TRUE)
+plot <- ggplot(runs, aes(group, n)) +
+  geom_point(aes(fill = group, shape = str_sub(group, 1, 3)),
+    position = position_jitter(width = 0.15, seed = SEED), size = 1.5, colour = "grey15",
+    stroke = 0.25
   ) +
-  scale_x_discrete(labels = GROUP_SHORT) +
+  facet_wrap(~unit, scales = "free_y") +
+  group_point_scales() +
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     x = NULL, y = "identified per run", title = "Depth per run",

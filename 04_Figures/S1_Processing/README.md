@@ -10,7 +10,7 @@ Supplementary Figure 1: what processing kept and chose, and what else is in the 
 | Writes | `b_reports/panels/<panel>.pdf/.png`, `b_reports/S1_composite.pdf/.png` (180 × 177 mm), `c_data/S1.xlsx` |
 | Run | `Rscript 04_Figures/S1_Processing/a_script/S1_composite.R` (each panel script also runs alone) |
 
-Each panel is its own script in `a_script/panels/`; the composite runs them, adds the letters, stitches them and writes one workbook. Panels read saved outputs and compute nothing beyond counts, filtering and scaling.
+Each panel is its own script in `a_script/panels/`; the composite runs them, adds the letters, stitches them and writes one workbook. Panels b, d, e and f use F01's points (fill for group, circle for vehicle, triangle for PAS) and share one group key, printed once under panel f. Panels read saved outputs and compute nothing beyond counts, filtering and scaling.
 
 ## Panels
 
@@ -18,13 +18,13 @@ Each panel is its own script in `a_script/panels/`; the composite runs them, add
 
 ![Panel a](b_reports/panels/a_filtering.png)
 
-Each bar is the number of precursors (left) and protein groups (right) still in the data after one filter, applied top to bottom; the precursors entering this panel have already passed the three q-value filters at 0.01. Read the drop between consecutive bars as the cost of that filter. Removing shared peptides costs the most, 3,119 precursors and 131 groups, and takes the retained signal from 98.3% to 75.0%, because muscle's most abundant proteins (myosins, actins, tropomyosins, troponins) come in isoform families that share peptides. Removing compound groups costs another 1,388 precursors and 64 groups, and removing mouse keratin, immunoglobulin and haemoglobin costs 26 precursors and 8 groups. The data end at 21,600 precursors in 2,094 groups.
+The top bar is what enters filtering: 26,310 precursors in 2,309 protein groups that passed the three q-value filters at 0.01. Each bar below it is the count left after one more filter, applied top to bottom, so the drop between consecutive bars is the cost of that filter. Removing the cRAP-only groups (lab contaminants the search appends, such as pig trypsin and human keratins) costs 177 precursors and 12 groups. Removing shared peptides costs the most, 3,119 precursors and 131 groups, and takes the retained signal from 98.3% to 75.0%, because muscle's most abundant proteins (myosins, actins, tropomyosins, troponins) come in isoform families that share peptides. Removing compound groups costs another 1,388 precursors and 64 groups, and removing the groups whose mouse gene symbols are all keratin, immunoglobulin or haemoglobin costs 26 precursors and 8 groups. The data end at 21,600 precursors in 2,094 groups.
 
 ### b. Depth per run
 
 ![Panel b](b_reports/panels/b_run_depth.png)
 
-One point per mouse, coloured by group: the precursors (left) and protein groups (right) DIA-NN identified in that run. Higher points are deeper runs. Female runs identified 13,190 to 19,409 precursors and male runs 9,422 to 16,514, and the six shallowest runs are all male. The depth difference is technical. It is why the model in panel d carries a surrogate variable, and why the baseline male against female contrasts are reported as context only.
+One point per mouse: the precursors (left) and protein groups (right) DIA-NN identified in that run. Higher points are deeper runs. Female runs identified 13,190 to 19,409 precursors and male runs 9,422 to 16,514, and the six shallowest runs are all male. The depth difference is technical. It is why the model in panel d carries a surrogate variable, and why the baseline male against female contrasts are reported as context only.
 
 ### c. Normalisation
 
@@ -36,7 +36,7 @@ The benchmark that chose the normalisation, run separately for the full proteome
 
 ![Panel d](b_reports/panels/d_surrogate.png)
 
-One point per mouse: its surrogate variable sv1 against run depth (log2 of the precursors identified), filled by group with shape for treatment (circle vehicle, triangle PAS), as in F01. sv1 is the strongest pattern sva finds in the full proteome once the four group means are removed, and it enters every model as a covariate. It rises with run depth, r = 0.85 across all mice, 0.86 within females and 0.92 within males, and PAS and vehicle mice are interleaved along it (Welch p 0.46 in females, 0.71 in males). So sv1 absorbs run-depth noise and not the PAS effect.
+One point per mouse: its surrogate variable sv1 against run depth (log2 of the precursors identified). sv1 is the strongest pattern sva finds in the full proteome once the four group means are removed, and it enters every model as a covariate. It rises with run depth, r = 0.85 across all mice, 0.86 within females and 0.92 within males, and PAS and vehicle mice are interleaved along it (Welch p 0.46 in females, 0.71 in males). So sv1 absorbs run-depth noise and not the PAS effect.
 
 ### e. Pellet mitochondrial share
 
@@ -48,7 +48,7 @@ One point per mouse: the percentage of its protein signal that comes from MitoCa
 
 ![Panel f](b_reports/panels/f_composition.png)
 
-One point per mouse for each marker group, with the group mean as a dash. A marker score is the mean of the z-scored log2 abundances of the group's marker proteins seen in at least 15 of 20 mice, so 0 is the cohort average; the last column is haemoglobin as a percentage of precursor signal. The p-values above each column test PAS against vehicle within females (F) and within males (M). Female PAS pellets carry more sarcoplasmic reticulum (p 0.0015) and nothing else differs in females. Male PAS pellets carry less vessel (p 0.00028), nerve (0.0077), red cell (0.021) and myofibril (0.025) material, while haemoglobin's share of precursor signal does not differ (p 0.86). Read these as differences in what went into the tube: male PAS protein results can partly reflect pellet composition, and 02_Statistics/05_Composition analyses composition further.
+One point per mouse for each marker group, with the group mean as a dash. The strip above each column gives its unit. A marker score is the mean of the z-scored log2 abundances of the group's marker proteins seen in at least 15 of 20 mice, so 0 is the cohort average; the last column is haemoglobin as a percentage of precursor signal. The p-values above each column test PAS against vehicle within females (F) and within males (M). Female PAS pellets carry more sarcoplasmic reticulum (p 0.0015) and nothing else differs in females. Male PAS pellets carry less vessel (p 0.00028), nerve (0.0077), red cell (0.021) and myofibril (0.025) material, while haemoglobin's share of precursor signal does not differ (p 0.86). Read these as differences in what went into the tube: male PAS protein results can partly reflect pellet composition, and 02_Statistics/05_Composition analyses composition further.
 
 ## Workbook
 

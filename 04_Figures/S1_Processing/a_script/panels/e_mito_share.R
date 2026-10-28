@@ -25,20 +25,23 @@ label <- paste(
   collapse = "\n"
 )
 
-plot <- ggplot(share, aes(group, pct_mito_signal, colour = group)) +
-  geom_point(position = position_jitter(width = 0.15, seed = SEED), size = 1.3) +
+plot <- ggplot(share, aes(group, pct_mito_signal)) +
+  geom_point(aes(fill = group, shape = str_sub(group, 1, 3)),
+    position = position_jitter(width = 0.15, seed = SEED), size = 1.5, colour = "grey15",
+    stroke = 0.25
+  ) +
   annotate("label",
     x = -Inf, y = Inf, label = label, hjust = 0, vjust = 1, size = 1.7, lineheight = 0.95,
     fill = NA, linewidth = 0, label.padding = unit(1, "mm")
   ) +
-  scale_colour_manual(values = GROUP_COLOURS, guide = "none") +
-  scale_x_discrete(labels = GROUP_SHORT) +
+  group_point_scales() +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.3))) +
   labs(
     x = NULL, y = "% signal from MitoCarta", title = "Pellet mitochondrial share",
     subtitle = "One point per mouse"
   ) +
-  theme_figure()
+  theme_figure() +
+  theme(axis.text.x = element_blank())
 
 save_panel(plot, "S1_Processing", "e_mito_share", 60, 62)
 list(plot = plot, data = share, inputs = inputs)
