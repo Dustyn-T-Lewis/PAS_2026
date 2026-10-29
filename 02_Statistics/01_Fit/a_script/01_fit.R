@@ -436,7 +436,7 @@ write_workbook(
     ),
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 filter(contrast_summary, level == "protein", universe == "full")

@@ -118,17 +118,17 @@ One point per mouse for each marker group, with the group mean as a dash. The st
 
 ## Supplementary Figure 2: structure
 
-What the proteome components track, how the protein modules relate to PAS and to the phenotypes, and whether perfect separation exceeds the relabelling null.
+What the proteome components track, whether perfect separation exceeds the relabelling null, and how the protein modules relate to PAS and to the phenotypes.
 
 ![Supplementary Figure 2](b_reports/supp/S2.png)
 
 | | |
 |---|---|
 | Reads | `02_Statistics/04_PCA/c_data/pca.rds`, `02_Statistics/01_Fit/c_data/fit.rds`, `01_Processing/06_Modules/c_data/modules.rds`, `02_Statistics/03_Classification/c_data/classification.rds` |
-| Writes | `b_reports/supp/S2<letter>_<name>.pdf/.png` (a and c 90 × 55 mm, b 180 × 92 mm), `b_reports/supp/S2.pdf/.png` (180 × 152 mm), `c_data/S2.xlsx` |
+| Writes | `b_reports/supp/S2<letter>_<name>.pdf/.png` (a and b 90 × 55 mm, c 180 × 92 mm), `b_reports/supp/S2.pdf/.png` (180 × 152 mm), `c_data/S2.xlsx` |
 | Run | `Rscript 04_Figures/F01_Global/a_script/supp/S2.R` (each panel script also runs alone) |
 
-Panels a and c share the top row; panel b takes the full width below.
+Panels a and b share the top row; panel c takes the full width below.
 
 ### a. What the proteome components track
 
@@ -138,24 +138,24 @@ Each tile is the R² between one of the first four principal components of the n
 
 The PCA is descriptive and does not carry the surrogate variable; `02_Statistics/04_PCA` tests the same factors by PERMANOVA (sex R² 0.39, p 0.001; treatment 0.04, p 0.29).
 
-### b. Modules against contrasts and phenotypes
+### b. Perfect separators against relabelling
 
-The modules come from the rebuilt network in `01_Processing/06_Modules`: 827 proteins detected in every mouse, with sex and measured run depth removed before building (the earlier build's two largest modules tracked run depth). The result is eight modules plus 402 unassigned proteins. Eigengenes are tested with ordinary least-squares t on the residual df (15 for the contrasts, 14 for the trait slopes) rather than eBayes, because eight features cannot estimate a prior.
-
-![Panel b](b_reports/supp/S2b_module_traits.png)
-
-One row per module, after YvO's module–trait heatmap. The bar on the left is the module's size in proteins, in a muted tone of the module's colour (`MODULE_COLOURS`, `figures.R`), with its MitoCarta share as a percentage; the label gives its stability J (median best-match Jaccard over 100 subsamples of four mice per group) and its top annotated set, if any (`modules.rds`: `sizes`). Each cell holds the r-equivalent of one limma t, t / √(t² + df), for the three contrasts and for each trait's slope within each sex (pooled model, adjusted for the surrogate variable; `fit.rds`: `score_contrasts`, `score_associations`), so value and outline come from one test. Fill runs from magenta (lower in PAS, or falling with the trait) to green, the scale F03 and F04 use; a solid outline would mark FDR ≤ 0.05 over the eight modules, a dashed one p ≤ 0.05, and bold text |r| ≥ 0.4. The last two columns give each eigengene's AUC for calling a mouse PAS rather than vehicle within a sex (`classification.rds`: `roc`), filled on 2·AUC − 1 so chance (0.5) is white and green still means higher in PAS; the outline there is the exact Wilcoxon p and its FDR over the modules.
-
-No cell reaches FDR ≤ 0.05 (lowest 0.064, blue's female AUC of 1.00). Brown is higher in male PAS mice (r 0.50, p 0.042), turquoise (OXPHOS, 84% MitoCarta) differs between the sexes' PAS effects (r −0.48, p 0.049), and blue is higher in female PAS mice (r 0.48, p 0.052). Four of the 96 trait cells reach p ≤ 0.05. Pink is the least stable module (J 0.29) and red the most (J 0.67).
-
-### c. Perfect separators against relabelling
-
-![Panel c](b_reports/supp/S2c_perfect_separators.png)
+![Panel b](b_reports/supp/S2b_perfect_separators.png)
 
 Each facet is one feature level, on its own x scale shared by both sexes, with one row per sex: 1,005 pathway scores, 8 module eigengenes, 98 complex scores and 7 cluster scores (`classification.rds`: `perfect`). The coloured dot counts the features that put all five PAS mice above, or all five below, all five vehicle mice. The grey bar runs from 0 to the 95th centile of the same count over all 252 ways of relabelling that sex's ten mice, a tick marks the null median, and the text gives the exact p, the share of relabellings with a count at least as large.
 
 No level exceeds the relabelling null at p ≤ 0.05. Female pathways give the largest count, 16 against a null median of 4 (95th centile 30, p 0.13), and one female module separates perfectly against a null median of 0 (p 0.063). One female complex separates perfectly (p 0.35); male pathways give 5 against 2 (p 0.33), and no male module, complex or cluster separates. With five mice a side, some features will separate perfectly by chance alone, as the null shows.
 
+### c. Modules against contrasts and phenotypes
+
+The modules come from the rebuilt network in `01_Processing/06_Modules`: 827 proteins detected in every mouse, with sex and measured run depth removed before building (the earlier build's two largest modules tracked run depth). The result is eight modules plus 402 unassigned proteins. Eigengenes are tested with ordinary least-squares t on the residual df (15 for the contrasts, 14 for the trait slopes) rather than eBayes, because eight features cannot estimate a prior.
+
+![Panel c](b_reports/supp/S2c_module_traits.png)
+
+One row per module, after YvO's module–trait heatmap. The bar on the left is the module's size in proteins, in a muted tone of the module's colour (`MODULE_COLOURS`, `figures.R`), with its MitoCarta share as a percentage; the label gives its stability J (median best-match Jaccard over 100 subsamples of four mice per group) and its top annotated set, if any (`modules.rds`: `sizes`). Each cell holds the r-equivalent of one limma t, t / √(t² + df), for the three contrasts and for each trait's slope within each sex (pooled model, adjusted for the surrogate variable; `fit.rds`: `score_contrasts`, `score_associations`), so value and outline come from one test. Fill runs from magenta (lower in PAS, or falling with the trait) to green, the scale F03 and F04 use; a solid outline would mark FDR ≤ 0.05 over the eight modules, a dashed one p ≤ 0.05, and bold text |r| ≥ 0.4. The last two columns give each eigengene's AUC for calling a mouse PAS rather than vehicle within a sex (`classification.rds`: `roc`), filled on 2·AUC − 1 so chance (0.5) is white and green still means higher in PAS; the outline there is the exact Wilcoxon p and its FDR over the modules.
+
+No cell reaches FDR ≤ 0.05 (lowest 0.064, blue's female AUC of 1.00). Brown is higher in male PAS mice (r 0.50, p 0.042), turquoise (OXPHOS, 84% MitoCarta) differs between the sexes' PAS effects (r −0.48, p 0.049), and blue is higher in female PAS mice (r 0.48, p 0.052). Four of the 96 trait cells reach p ≤ 0.05. Pink is the least stable module (J 0.29) and red the most (J 0.67).
+
 ## Workbooks
 
-`c_data/F01.xlsx`, `c_data/S1.xlsx` and `c_data/S2.xlsx` hold one sheet per panel, named after the panel script (`a_design`, `S1a_filtering`, `S2b_module_traits`, …), each with the table that panel draws. The PERMANOVA, betadisper, envfit and per-component R² values quoted for F01 b and c and S2 a are in `02_Statistics/04_PCA/c_data/04_pca.xlsx`; the phenotype variance shares are in `pca.rds` and on the panel's axes.
+`c_data/F01.xlsx`, `c_data/S1.xlsx` and `c_data/S2.xlsx` hold one sheet per panel, named after the panel script (`a_design`, `S1a_filtering`, `S2c_module_traits`, …), each with the table that panel draws. The PERMANOVA, betadisper, envfit and per-component R² values quoted for F01 b and c and S2 a are in `02_Statistics/04_PCA/c_data/04_pca.xlsx`; the phenotype variance shares are in `pca.rds` and on the panel's axes.

@@ -213,7 +213,7 @@ write_workbook(
     "Per run: raw signal, precursors and protein groups identified.",
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 tibble(

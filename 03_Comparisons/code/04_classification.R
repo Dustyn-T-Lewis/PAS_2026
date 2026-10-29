@@ -61,7 +61,7 @@ report_classification <- function(comparison) {
       ),
       "Which PDF page shows what."
     ),
-    out$workbook, inputs
+    out$workbook
   )
   tier_table
 }

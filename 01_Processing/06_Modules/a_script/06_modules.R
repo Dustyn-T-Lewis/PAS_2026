@@ -169,7 +169,7 @@ write_workbook(
     str_glue("Best-match Jaccard of each module in each of the {N_RESAMPLES} subsample rebuilds."),
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 tibble(power = power, proteins = length(complete))

@@ -16,9 +16,8 @@ inputs <- c(
   precursors = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds"),
   mitocarta = input_path("Mouse.MitoCarta3.0.xls")
 )
-inputs[["dpcquant_cache"]] <- dpcquant_cache(out$data, DPC_SLOPE)
 y <- readRDS(inputs[["precursors"]])$y
-quantified <- dpcquant_cached(y, DPC_SLOPE, inputs[["dpcquant_cache"]])
+quantified <- dpcquant_cached(y, DPC_SLOPE, dpcquant_cache(out$data, DPC_SLOPE))
 
 dpc_cn <- dpcCN(y$E)
 dpc_on <- dpcON(y$E, robust = TRUE)
@@ -164,7 +163,7 @@ write_workbook(
     ),
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 tibble(

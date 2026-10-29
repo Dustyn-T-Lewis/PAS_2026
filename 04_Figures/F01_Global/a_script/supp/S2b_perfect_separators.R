@@ -1,4 +1,4 @@
-# S2 c: features that put every PAS mouse above or below every vehicle mouse, per level and sex,
+# S2 b: features that put every PAS mouse above or below every vehicle mouse, per level and sex,
 # against the same count under every relabelling of the sex's mice: median and 95th centile of the
 # null, and the exact p (03_Classification).
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
@@ -48,5 +48,5 @@ plot <- ggplot(labelled, aes(y = sex)) +
   theme_figure() +
   theme(panel.grid.major.y = element_blank(), panel.spacing.x = unit(4, "mm"))
 
-save_figure(plot, "F01_Global", "S2c_perfect_separators", 90, 55)
+save_figure(plot, "F01_Global", "S2b_perfect_separators", 90, 55)
 list(plot = plot, data = perfect)

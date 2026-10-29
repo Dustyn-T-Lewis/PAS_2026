@@ -22,8 +22,7 @@ inputs <- c(
   precursors = output_path("01_Processing", "01_Filtering", "precursors_filtered.rds"),
   proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
   design = output_path("01_Processing", "03_Design", "design.rds"),
-  fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
-  set_names(dpcquant_cache(out$data, ALT_SLOPES), paste0("dpcquant_cache_", ALT_SLOPES))
+  fit = output_path("02_Statistics", "01_Fit", "fit.rds")
 )
 filtered <- readRDS(inputs[["precursors"]])
 quant <- readRDS(inputs[["proteins"]])
@@ -135,7 +134,7 @@ write_workbook(
     "Every protein at FDR <= 0.10 in the baseline: log2 FC, p and FDR under each variant.",
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 baseline_vs_fit

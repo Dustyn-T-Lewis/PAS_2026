@@ -11,8 +11,7 @@ inputs <- c(
   gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds"),
   design = output_path("01_Processing", "03_Design", "design.rds"),
   fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
-  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
-  STRING_FILES
+  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds")
 )
 gs <- readRDS(inputs[["gene_sets"]])
 fit <- readRDS(inputs[["fit"]])
@@ -456,7 +455,7 @@ write_workbook(
     "STRING v12 connectivity of each contrast's Π and FDR lists.",
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 tier_table

@@ -74,7 +74,7 @@ write_workbook(
     "Scores by mouse: MitoCarta pathways in the mitochondrial universe.",
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 count(catalog, universe, collection)

@@ -10,7 +10,6 @@ MIN_GROUP_SIZE <- 5
 inputs <- c(
   mitocarta = input_path("Mouse.MitoCarta3.0.xls"),
   corum = input_path("corum_complete.txt"),
-  STRING_FILES,
   proteins = output_path("01_Processing", "02_Quantification", "proteins.rds")
 )
 
@@ -229,7 +228,7 @@ membership_wide <- membership |>
   arrange(gene, protein)
 versions <- c(
   map_chr(attr(full, "versions"), as.character),
-  CORUM = "5.3, released 2026-04-14, all mammalian complexes (md5 in input_manifest)",
+  CORUM = "5.3, released 2026-04-14, all mammalian complexes",
   STRING = "12.0, score >= 400, walktrap"
 )
 
@@ -265,7 +264,7 @@ write_workbook(
     ),
     "Gene-set sources and versions."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 count(catalog, collection, tested)

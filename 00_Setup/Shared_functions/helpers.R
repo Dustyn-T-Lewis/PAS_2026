@@ -118,11 +118,6 @@ first_symbol <- \(genes) str_split_i(genes, ";", 1)
 set_id <- \(x) str_to_upper(str_replace_all(x, "[^A-Za-z0-9]+", "_"))
 
 # STRING v12, mouse, medium confidence, read from the copies in 00_Setup/Input/STRING_v12.
-STRING_FILES <- map_chr(c(
-  string_aliases = "10090.protein.aliases.v12.0.txt.gz",
-  string_info = "10090.protein.info.v12.0.txt.gz",
-  string_links = "10090.protein.links.v12.0.min400.txt.gz"
-), \(f) input_path("STRING_v12", f))
 string_db <- function() {
   STRINGdb::STRINGdb$new(
     version = "12.0", species = 10090, score_threshold = 400, network_type = "full",
@@ -250,21 +245,14 @@ gsea_table_page <- function(results, sets, ranks, n = 5) {
   ))
 }
 
-# Every workbook opens on read_me and ends with the inputs' md5 and the packages attached.
-write_workbook <- function(sheets, holds, file, inputs) {
+# Every workbook opens on read_me and ends with the packages attached.
+write_workbook <- function(sheets, holds, file) {
   stopifnot(length(sheets) == length(holds))
   sheets <- c(sheets, list(
-    input_manifest = tibble(
-      input = names(inputs), path = str_remove(unname(inputs), fixed(paste0(here(), "/"))),
-      md5 = unname(tools::md5sum(inputs))
-    ),
     package_versions = sessioninfo::package_info("attached", dependencies = FALSE) |>
       as_tibble() |>
       dplyr::select(package, version = loadedversion, source)
   ))
-  read_me <- tibble(
-    sheet = names(sheets),
-    holds = c(holds, "Files read, with md5.", "Packages attached at run time.")
-  )
+  read_me <- tibble(sheet = names(sheets), holds = c(holds, "Packages attached at run time."))
   writexl::write_xlsx(c(list(read_me = read_me), sheets), file)
 }

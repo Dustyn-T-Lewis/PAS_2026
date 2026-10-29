@@ -126,7 +126,7 @@ write_workbook(
     str_glue("Proteins scored per marker group (detected in at least {MIN_MICE_DETECTED} mice)."),
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 count(marker_members, group, name = "proteins")

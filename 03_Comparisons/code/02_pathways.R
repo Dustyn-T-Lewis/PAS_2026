@@ -63,7 +63,7 @@ report_pathways <- function(comparison) {
       "Literature-informed and ROS sets, fgsea in the full proteome, BH across the list.",
       "Which PDF page shows what."
     ),
-    out$workbook, inputs
+    out$workbook
   )
   tier_table
 }

@@ -48,7 +48,7 @@ Data flows one way: processing feeds statistics, each comparison slices the stat
     └── README.md  the comparison's results
 ```
 
-Every step workbook opens on `read_me`, which says what each sheet holds, and ends with `input_manifest` (files read, with md5) and `package_versions`; a figure workbook holds only the panel sheets. Every step PDF is a short preview drawn with the package's own plots (limma, limpa, WGCNA, fgsea, pROC, vegan) or base graphics; the styled figures are in `04_Figures`. Which protein belongs to which pathway, complex or cluster is in `01_Processing/04_Gene_Sets/c_data/04_gene_sets.xlsx`, sheet `membership`.
+Every step workbook opens on `read_me`, which says what each sheet holds, and ends with `package_versions`, the packages attached at run time; a figure workbook holds only the panel sheets. Every step PDF is a short preview drawn with the package's own plots (limma, limpa, WGCNA, fgsea, pROC, vegan) or base graphics; the styled figures are in `04_Figures`. Which protein belongs to which pathway, complex or cluster is in `01_Processing/04_Gene_Sets/c_data/04_gene_sets.xlsx`, sheet `membership`.
 
 ## Conventions
 

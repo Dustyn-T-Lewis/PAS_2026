@@ -151,7 +151,7 @@ report_phenotypes <- function(comparison) {
       "The robust example protein per phenotype.",
       "Which PDF page shows what."
     ),
-    out$workbook, inputs
+    out$workbook
   )
   association_summary
 }

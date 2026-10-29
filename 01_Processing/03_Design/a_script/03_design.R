@@ -85,7 +85,7 @@ write_workbook(
     "Surrogate variable's r with run depth, overall and within sex; Welch p for PAS v vehicle.",
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 contrasts

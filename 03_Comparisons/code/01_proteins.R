@@ -82,7 +82,7 @@ report_proteins <- function(comparison) {
       "STRING v12 connectivity of each list against the detected proteome (descriptive).",
       "Which PDF page shows what."
     ),
-    out$workbook, inputs
+    out$workbook
   )
   tier_table
 }

@@ -24,8 +24,7 @@ inputs <- c(
   design = output_path("01_Processing", "03_Design", "design.rds"),
   enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"),
   modules = output_path("01_Processing", "06_Modules", "modules.rds"),
-  gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds"),
-  STRING_FILES
+  gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds")
 )
 fit <- readRDS(inputs[["fit"]])
 quant <- readRDS(inputs[["proteins"]])
@@ -178,7 +177,7 @@ write_workbook(
     ),
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 summary

@@ -1,4 +1,4 @@
-# S2 b: each WGCNA module eigengene against the three contrasts and the six phenotypes, after YvO's
+# S2 c: each WGCNA module eigengene against the three contrasts and the six phenotypes, after YvO's
 # module-trait heatmap. Every cell holds the r-equivalent of its limma t, t / sqrt(t^2 + df), so a
 # cell's value and its outline come from the same test: the contrast, or the eigengene's slope on
 # the trait within one sex (pooled model, adjusted for the surrogate variable). Solid outline: BH
@@ -119,7 +119,7 @@ plot <- wrap_elements(plot = (size_bar | heatmap) + plot_layout(widths = c(1, 4.
   ) +
   theme_figure()
 
-save_figure(plot, "F01_Global", "S2b_module_traits", 180, 92)
+save_figure(plot, "F01_Global", "S2c_module_traits", 180, 92)
 list(
   plot = plot,
   data = left_join(select(cells, -row, -text), select(sizes, -row), by = "module")

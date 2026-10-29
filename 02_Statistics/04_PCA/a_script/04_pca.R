@@ -141,7 +141,7 @@ write_workbook(
     "Phenotype PERMANOVA on scaled traits; betadisper p on row 1.",
     "Which PDF page shows what."
   ),
-  out$workbook, inputs
+  out$workbook
 )
 
 proteome$permanova
