@@ -33,9 +33,13 @@ TRAIT_SHORT <- c(
 PHENOTYPE_COLOURS <- set_names(
   c("#1B9E77", "#7570B3", "#E6AB02", "#A6761D", "#666666", "#111111"), PHENOTYPE_LABELS
 )
-MODEL_LABELS <- c(pooled = "Pooled", treatment = "Within treatment")
-# Within treatment gets a hue of its own, away from the interaction contrast's purple.
-MODEL_COLOURS <- c(pooled = "grey40", pooled_mito = "grey70", treatment = "#B2182B")
+MODEL_LABELS <- c(
+  pooled = "Pooled", pooled_mito = "Pooled + pellet MitoCarta share",
+  treatment = "Within treatment"
+)
+# The association models in greys, darkest for within treatment, so a model never reads as a
+# direction, a sex or a contrast.
+MODEL_COLOURS <- c(pooled = "grey60", pooled_mito = "grey80", treatment = "grey15")
 CONTRAST_LABELS <- c(
   PAS_vs_VEH_female = "PAS vs VEH, female", PAS_vs_VEH_male = "PAS vs VEH, male",
   treatment_by_sex = "Treatment × sex", sex_in_VEH = "Sex in VEH", sex_in_PAS = "Sex in PAS"
