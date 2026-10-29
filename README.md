@@ -33,11 +33,11 @@ Data flows one way: processing feeds statistics, each comparison slices the stat
 ├── c_data/     one workbook, plus any .rds a later step reads
 └── README.md   what the step reads, writes and finds
 
-04_Figures/F0N_Name/, 04_Figures/S0N_Name/
-├── a_script/   panels/ (one script per panel) and the composite script that stitches them
-├── b_reports/  panels/ and the composite, as PDF and PNG
-├── c_data/     one workbook, a sheet per panel
-└── README.md   the figure's question and a panel table
+04_Figures/F0N_Name/
+├── a_script/   F0N.R (the composite) and one script per panel; supp/ holds S#.R and S#a_….R
+├── b_reports/  the composite and each panel as PDF and PNG; supp/ the same for the supplements
+├── c_data/     F0N.xlsx and S#.xlsx, one sheet per panel with the table it draws
+└── README.md   the main figure and its supplements, with panel tables
 
 03_Comparisons/
 ├── code/       01_proteins.R … 04_classification.R, each step written once
@@ -48,7 +48,7 @@ Data flows one way: processing feeds statistics, each comparison slices the stat
     └── README.md  the comparison's results
 ```
 
-Every workbook opens on `read_me`, which says what each sheet holds, and ends with `input_manifest` (files read, with md5) and `package_versions`. Every step PDF is a short preview drawn with the package's own plots (limma, limpa, WGCNA, fgsea, pROC, vegan) or base graphics; the styled figures are in `04_Figures`. Which protein belongs to which pathway, complex or cluster is in `01_Processing/04_Gene_Sets/c_data/04_gene_sets.xlsx`, sheet `membership`.
+Every step workbook opens on `read_me`, which says what each sheet holds, and ends with `input_manifest` (files read, with md5) and `package_versions`; a figure workbook holds only the panel sheets. Every step PDF is a short preview drawn with the package's own plots (limma, limpa, WGCNA, fgsea, pROC, vegan) or base graphics; the styled figures are in `04_Figures`. Which protein belongs to which pathway, complex or cluster is in `01_Processing/04_Gene_Sets/c_data/04_gene_sets.xlsx`, sheet `membership`.
 
 ## Conventions
 

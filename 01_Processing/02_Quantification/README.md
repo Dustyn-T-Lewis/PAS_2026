@@ -5,7 +5,7 @@ Rolls precursors up to proteins with limpa's detection probability curve, so eve
 | | |
 |---|---|
 | Reads | `01_Processing/01_Filtering/c_data/precursors_filtered.rds`, `00_Setup/Input/Mouse.MitoCarta3.0.xls` |
-| Writes | `c_data/02_quantification.xlsx`, `c_data/proteins.rds` (read by 03_Design to 06_Modules, 02_Statistics/01_Fit, 05_Composition, 06_Candidates and 07_Sensitivity, and `04_Figures/F02_Proteins` and `S1_Processing`), `c_data/dpcquant_slope_0.7.rds` (checkpoint), `b_reports/02_quantification.pdf` |
+| Writes | `c_data/02_quantification.xlsx`, `c_data/proteins.rds` (read by 03_Design to 06_Modules, 02_Statistics/01_Fit, 05_Composition, 06_Candidates and 07_Sensitivity, and `04_Figures/F01_Global` (S1) and `F02_Proteins` (F02, S3)), `c_data/dpcquant_slope_0.7.rds` (checkpoint), `b_reports/02_quantification.pdf` |
 | Run | `Rscript 01_Processing/02_Quantification/a_script/02_quantification.R` |
 
 - **Method:** `limpa::dpcQuant(dpc.slope = 0.7)`, then `filterByDetection(n.samples = 5)`. `dpcCN()` fits slope 0.476 and robust `dpcON()` 0.349. Both sit below the 0.7 to 1 that limpa calls representative of real MS data, so the script uses the preset 0.7. MitoCarta 3.0 matched on symbol or UniProt accession (symbol alone misses renamed genes such as `Atp5f1a`).

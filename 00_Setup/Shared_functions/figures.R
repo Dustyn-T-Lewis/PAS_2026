@@ -69,8 +69,6 @@ MODULE_COLOURS <- c(
   turquoise = "#8CCFC9", blue = "#8FA8D8", brown = "#BC9A7C", yellow = "#E6D58C",
   green = "#9DCB92", red = "#E39B94", black = "#8A8A8A", pink = "#E9B7CF"
 )
-# The response patterns of the moderated F over both PAS contrasts, in display order.
-FTEST_PATTERNS <- c("up in both", "down in both", "female up, male down", "female down, male up")
 # Dot area stops growing at this -log10 FDR or p.
 LOG_CAP <- 4
 # The every-mouse panels show the candidates passing at least this many routes; the other
@@ -146,14 +144,6 @@ contrast_strips <- function(x = NULL, y = NULL) {
   )
 }
 
-# A figure panel at the size it takes in its composite, as PDF (cairo) and PNG, into the figure's
-# b_reports/panels/; the composite then stitches panels that already look final.
-save_panel <- function(plot, figure, name, width_mm, height_mm) {
-  dir <- here("04_Figures", figure, "b_reports", "panels")
-  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  save_figure(plot, dir, name, width_mm, height_mm)
-}
-
 # Mice as points, fill by group and shape by treatment (circle vehicle, triangle PAS), with one
 # key that shows both; the points need shape = treatment, "VEH" or "PAS".
 group_point_scales <- function() {
@@ -211,10 +201,21 @@ pca_panel <- function(scores, variance, title, subtitle, permanova, arrows, arro
     theme(legend.box = "vertical", legend.key.width = unit(4, "mm"))
 }
 
-# A finished figure as PDF (cairo, which carries Π and ≤) and as a 600 dpi PNG.
-save_figure <- function(figure, dir, name, width_mm, height_mm) {
+# A main figure's folder part (a_script, b_reports); a supplementary figure's files, named S and
+# its number, sit in that part's supp/.
+figure_dir <- function(figure, part, name) {
+  dir <- here("04_Figures", figure, part)
+  if (str_detect(name, "^S[0-9]")) file.path(dir, "supp") else dir
+}
+
+# A panel or composite at its printed size into b_reports/ (supp/ for a supplement), as PDF
+# (cairo, which carries Π and ≤) and as a 600 dpi PNG; panels are saved at the size they take in
+# the composite, so it stitches panels that already look final.
+save_figure <- function(plot, figure, name, width_mm, height_mm) {
+  dir <- figure_dir(figure, "b_reports", name)
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   save <- \(ext, ...) {
-    ggsave(file.path(dir, paste0(name, ext)), figure,
+    ggsave(file.path(dir, paste0(name, ext)), plot,
       width = width_mm, height = height_mm, units = "mm", ...
     )
   }
@@ -488,38 +489,18 @@ heatmap_legends <- function(limit, name = "log2 vs\nown-sex VEH", direction = "v
   )
 }
 
-# Row order for a protein heatmap: coexpression_tree() (helpers.R) within each block (blocks, a
-# factor, in level order) of the drawn values x.
-coexpression_order <- function(x, blocks, min_shared = 5) {
-  map(split(seq_len(nrow(x)), blocks), \(rows) {
-    rows[coexpression_tree(x[rows, , drop = FALSE], min_shared)$order]
-  }) |>
-    unlist(use.names = FALSE)
-}
-
 # Proteins by mice as a ComplexHeatmap, each protein centred on its own sex's vehicle mean, rows
-# drawn in the order given (see coexpression_order()), columns split by group under a group-colour
-# bar and clustered within it, magenta below and green above; cells where detected (same shape as
-# values) is FALSE are grey, so an imputed value never reads as no change. targets lists the
-# columns of values in order. Each row_split level is labelled with its protein count after
-# split_sep, unless row_titles is FALSE; row_gap (mm, one per gap or one for all) separates the
-# levels. Returns a grob patchwork can place with wrap_elements(); left and right are optional
-# rowAnnotations; padding (mm: bottom, left, top, right) surrounds the heatmap. Group titles take
-# two lines, or one line upright with the block titles when rotate_titles is TRUE, for a narrow
-# heatmap.
-protein_heatmap <- function(values, targets, detected, row_split = NULL, split_sep = " ",
-                            row_titles = TRUE, row_gap = 0.8, left = NULL, right = NULL,
-                            limit = 1, name = "log2 vs\nown-sex VEH", width_mm = 120,
-                            height_mm = 120, legend = TRUE, rotate_titles = FALSE,
-                            padding = c(1, 1, 4, 1)) {
+# drawn in the order given, columns split by group under a group-colour bar and clustered within
+# it, magenta below and green above; cells where detected (same shape as values) is FALSE are
+# grey, so an imputed value never reads as no change. targets lists the columns of values in
+# order. row_gap (mm, one per gap or one for all) separates the row_split levels, which carry no
+# titles. Returns a grob patchwork can place with wrap_elements(); left and right are optional
+# rowAnnotations; padding (mm: bottom, left, top, right) surrounds the heatmap. Group titles run
+# upright on one line, for a narrow heatmap.
+protein_heatmap <- function(values, targets, detected, row_split = NULL, row_gap = 0.8,
+                            left = NULL, right = NULL, limit = 1, width_mm = 120,
+                            height_mm = 120, padding = c(1, 1, 4, 1)) {
   groups <- factor(targets$group, FIGURE_GROUPS)
-  group_titles <- GROUP_LABELS[levels(droplevels(groups))]
-  if (!is.null(row_split) && row_titles) {
-    row_split <- droplevels(row_split)
-    row_split <- factor(row_split,
-      labels = sprintf("%s%s(%d)", levels(row_split), split_sep, tabulate(row_split))
-    )
-  }
   top <- ComplexHeatmap::HeatmapAnnotation(
     group = groups, col = list(group = GROUP_COLOURS), show_annotation_name = FALSE,
     show_legend = FALSE, simple_anno_size = unit(1.6, "mm")
@@ -534,14 +515,12 @@ protein_heatmap <- function(values, targets, detected, row_split = NULL, split_s
     }
   }
   heatmap <- ComplexHeatmap::Heatmap(centre_on_vehicle(values, targets),
-    name = name, col = heatmap_colours(limit), top_annotation = top, left_annotation = left,
-    right_annotation = right, column_split = groups, cluster_column_slices = FALSE,
-    column_title_gp = small,
-    column_title = if (rotate_titles) group_titles else str_replace(group_titles, " ", "\n"),
-    column_title_rot = if (rotate_titles) 90 else 0, column_labels = rep("", ncol(values)),
-    row_split = row_split, cluster_rows = FALSE, row_title_gp = small,
-    row_title = if (row_titles) character(0),
-    row_title_rot = if (rotate_titles) 90 else 0, show_row_names = FALSE,
+    name = "log2 vs\nown-sex VEH", col = heatmap_colours(limit), top_annotation = top,
+    left_annotation = left, right_annotation = right, column_split = groups,
+    cluster_column_slices = FALSE, column_title_gp = small,
+    column_title = GROUP_LABELS[levels(droplevels(groups))], column_title_rot = 90,
+    column_labels = rep("", ncol(values)), row_split = row_split, cluster_rows = FALSE,
+    row_title_gp = small, row_title = NULL, row_title_rot = 90, show_row_names = FALSE,
     show_column_dend = FALSE, column_gap = unit(0.6, "mm"), row_gap = unit(row_gap, "mm"),
     layer_fun = not_detected, show_heatmap_legend = FALSE
   )
@@ -551,7 +530,6 @@ protein_heatmap <- function(values, targets, detected, row_split = NULL, split_s
   grid::grid.grabExpr(
     ComplexHeatmap::draw(heatmap,
       heatmap_legend_side = "right", annotation_legend_side = "right",
-      heatmap_legend_list = if (legend) heatmap_legends(limit, name),
       padding = unit(padding, "mm")
     ),
     width = width_mm / 25.4, height = height_mm / 25.4
@@ -559,25 +537,24 @@ protein_heatmap <- function(values, targets, detected, row_split = NULL, split_s
 }
 
 # A figure's panel scripts, each run in its own environment, as YvO's stitchers do, and each plot
-# given its letter when there is more than one. A panel script returns list(plot, data, inputs).
+# given its letter when there is more than one. A panel script returns list(plot, data).
 run_panels <- function(figure, panels) {
   map(set_names(panels), \(name) {
-    path <- here("04_Figures", figure, "a_script", "panels", paste0(name, ".R"))
+    path <- file.path(figure_dir(figure, "a_script", name), paste0(name, ".R"))
     panel <- source(path, local = new.env())$value
     if (length(panels) > 1) panel$plot <- panel$plot + labs(tag = letters[match(name, panels)])
     panel
   })
 }
 
-# A composite's workbook: one sheet per panel (a panel whose data is a list of tables gives one
-# sheet per table, named <panel>_<table>), then every input the panels read.
-write_figure_workbook <- function(panels, holds, file) {
-  inputs <- unlist(unname(map(panels, "inputs")))
+# A figure's workbook, c_data/<name>.xlsx: the table each panel draws, one sheet per panel (a
+# panel whose data is a list of tables gives one sheet per table, named <panel>_<table>).
+write_figure_workbook <- function(panels, figure, name) {
   sheets <- list_flatten(map(panels, "data"), name_spec = "{outer}_{inner}")
-  write_workbook(sheets, holds, file, inputs[!duplicated(inputs)])
+  writexl::write_xlsx(sheets, here("04_Figures", figure, "c_data", paste0(name, ".xlsx")))
 }
 
-# One contrast's S2 heatmap: its proteins at Π <= 0.05 (full proteome) across every mouse, each
+# One contrast's S3 heatmap: its proteins at Π <= 0.05 (full proteome) across every mouse, each
 # centred on its own sex's vehicle mean, grey where not detected, in 02_Enrichment's drawing order
 # (heatmap_clusters): split by direction (for the interaction, by which sex's PAS effect is
 # larger) and within each direction by co-expression cluster, the proteins the cut left
@@ -585,7 +562,7 @@ write_figure_workbook <- function(panels, holds, file) {
 # proteins over-represent at p <= ALPHA, smallest p (then FDR) first (cluster_ora), on one -log10 p
 # range for every comparison contrast. fit is 01_Fit's output, quant 02_Quantification's and
 # enrichment 02_Enrichment's. width_mm and height_mm are the panel's size, returned for
-# save_panel; the title and subtitle take the top 10 mm and the bars ora_mm of the width.
+# save_figure; the title and subtitle take the top 10 mm and the bars ora_mm of the width.
 pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 60, height_mm = 178,
                              ora_mm = 22, n_sets = 3) {
   names <- if (contrast == "treatment_by_sex") c("F > M", "F < M") else c("up", "down")
@@ -651,9 +628,8 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 60, he
     ora = ora_bars(top, slices, block_of, gaps, ora_mm, reach), show_annotation_name = FALSE
   )
   heatmap <- protein_heatmap(values, targets, detected,
-    row_split = slices, left = left, right = right, row_titles = FALSE, row_gap = gaps,
-    limit = 1.5, width_mm = width_mm, height_mm = height_mm - 10, legend = FALSE,
-    rotate_titles = TRUE, padding = c(7, 1, 4, 1)
+    row_split = slices, left = left, right = right, row_gap = gaps, limit = 1.5,
+    width_mm = width_mm, height_mm = height_mm - 10, padding = c(7, 1, 4, 1)
   )
   plot <- wrap_elements(plot = heatmap) +
     labs(
@@ -824,7 +800,7 @@ ora_bars <- function(top, slices, blocks, gaps, width_mm, reach, bar_mm = 1.9, w
   ComplexHeatmap::anno_block(which = "row", width = unit(width_mm, "mm"), panel_fun = draw)
 }
 
-# The key S2's heatmaps share: the heatmap fill and not-detected grey, the databases its ORA bars
+# The key S3's heatmaps share: the heatmap fill and not-detected grey, the databases its ORA bars
 # use and the FDR outline, in one row, as a grob.
 pi_heatmap_key <- function(collections, limit = 1.5) {
   small <- grid::gpar(fontsize = 5.5)

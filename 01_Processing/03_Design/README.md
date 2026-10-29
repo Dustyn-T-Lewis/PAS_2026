@@ -5,7 +5,7 @@ Fixes the model and the five contrasts every later step uses. The model has the 
 | | |
 |---|---|
 | Reads | `01_Processing/02_Quantification/c_data/proteins.rds`, `01_Processing/01_Filtering/c_data/precursors_filtered.rds` (run depth) |
-| Writes | `c_data/03_design.xlsx`, `c_data/design.rds` (read by 02_Statistics/01_Fit, 02_Enrichment, 06_Candidates and 07_Sensitivity, and `04_Figures/S1_Processing`), `b_reports/03_design.pdf` |
+| Writes | `c_data/03_design.xlsx`, `c_data/design.rds` (read by 02_Statistics/01_Fit, 02_Enrichment, 06_Candidates and 07_Sensitivity, and `04_Figures/F01_Global` for S1), `b_reports/03_design.pdf` |
 | Run | `Rscript 01_Processing/03_Design/a_script/03_design.R` |
 
 - **Method:** `model.matrix(~ 0 + group)`, four cell means, plus `sv1` from `sva::sva(n.sv = 1)` on the normalised full proteome (full model the four groups, null model an intercept); 15 residual df; `limma::makeContrasts()`. One sample per mouse, so nothing is blocked.

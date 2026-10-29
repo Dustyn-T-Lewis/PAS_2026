@@ -5,7 +5,7 @@ What went into each pellet, scored per mouse and tested for PAS within each sex.
 | | |
 |---|---|
 | Reads | `01_Processing/02_Quantification/c_data/proteins.rds`, `00_Setup/Input/report.parquet` (haemoglobin) |
-| Writes | `c_data/05_composition.xlsx`, `c_data/composition.rds` (read by `04_Figures/S1_Processing`), `b_reports/05_composition.pdf` |
+| Writes | `c_data/05_composition.xlsx`, `c_data/composition.rds` (read by `04_Figures/F01_Global` for S1), `b_reports/05_composition.pdf` |
 | Run | `Rscript 02_Statistics/05_Composition/a_script/05_composition.R` |
 
 - **Why:** a mitochondria-enriched pellet also carries sarcoplasmic reticulum, myofibril, nerve, blood and vessel material, and a PAS effect on that mix could pass for a change in the tissue.

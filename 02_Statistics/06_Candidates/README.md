@@ -5,7 +5,7 @@ Candidate proteins for follow-up, chosen by six routes and scored by how many ea
 | | |
 |---|---|
 | Reads | `02_Statistics/01_Fit/c_data/fit.rds`, `02_Statistics/02_Enrichment/c_data/enrichment.rds`, `01_Processing/06_Modules/c_data/modules.rds`, `01_Processing/02_Quantification/c_data/proteins.rds`, `01_Processing/03_Design/c_data/design.rds`, `01_Processing/04_Gene_Sets/c_data/gene_sets.rds`, STRING v12 |
-| Writes | `c_data/06_candidates.xlsx`, `c_data/candidates.rds` (read by `04_Figures/F02_Proteins` and `S7_Candidates`), `b_reports/06_candidates.pdf` |
+| Writes | `c_data/06_candidates.xlsx`, `c_data/candidates.rds` (read by `04_Figures/F02_Proteins` for F02 and S4), `b_reports/06_candidates.pdf` |
 | Run | `Rscript 02_Statistics/06_Candidates/a_script/06_candidates.R` |
 
 A protein is considered in a sex only if it is detected in at least 4 of 5 mice in each group of that sex.

@@ -5,7 +5,7 @@ Co-abundance modules by WGCNA's standard workflow, on the proteins detected in e
 | | |
 |---|---|
 | Reads | `01_Processing/02_Quantification/c_data/proteins.rds`, `01_Processing/01_Filtering/c_data/precursors_filtered.rds` (run depth), `01_Processing/04_Gene_Sets/c_data/gene_sets.rds` |
-| Writes | `c_data/06_modules.xlsx`, `c_data/modules.rds` (read by 02_Statistics/01_Fit, 02_Statistics/06_Candidates and `04_Figures/F05_Modules`), `b_reports/06_modules.pdf` |
+| Writes | `c_data/06_modules.xlsx`, `c_data/modules.rds` (read by 02_Statistics/01_Fit, 02_Statistics/06_Candidates and `04_Figures/F01_Global` for S2), `b_reports/06_modules.pdf` |
 | Run | `Rscript 01_Processing/06_Modules/a_script/06_modules.R` |
 
 - **Features:** the 827 proteins detected in all 20 mice. limpa gives every undetected mouse the same value for a protein, and those ties would group proteins by when they go missing.

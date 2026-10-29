@@ -26,20 +26,18 @@ comparisons <- file.path(
   "03_Comparisons", c("Female", "Male", "Sex_Difference"), "a_script", "run_comparison.R"
 )
 figures <- file.path("04_Figures", c(
-  "F01_Global/a_script/F01_composite.R",
-  "F02_Proteins/a_script/F02_composite.R",
-  "F03_Pathways/a_script/F03_composite.R",
-  "F04_Phenotype_pathways/a_script/F04_composite.R",
-  "F05_Modules/a_script/F05_modules_composite.R",
-  "F05_Complexes/a_script/F05_complexes_composite.R",
-  "S1_Processing/a_script/S1_composite.R",
-  "S2_Proteins/a_script/S2_composite.R",
-  "S3_Pathway_sets/a_script/S3_composite.R",
-  "S4_Protein_associations/a_script/S4_composite.R",
-  "S5_Structure/a_script/S5_composite.R",
-  "S6_Protein_patterns/a_script/S6_composite.R",
-  "S7_Candidates/a_script/S7_composite.R",
-  "S8_Sensitivity/a_script/S8_composite.R"
+  "F01_Global/a_script/F01.R",
+  "F01_Global/a_script/supp/S1.R",
+  "F01_Global/a_script/supp/S2.R",
+  "F02_Proteins/a_script/F02.R",
+  "F02_Proteins/a_script/supp/S3.R",
+  "F02_Proteins/a_script/supp/S4.R",
+  "F02_Proteins/a_script/supp/S5.R",
+  "F03_Pathways/a_script/F03.R",
+  "F03_Pathways/a_script/supp/S6.R",
+  "F04_Phenotype_pathways/a_script/F04.R",
+  "F04_Phenotype_pathways/a_script/supp/S7.R",
+  "F05_Complexes/a_script/F05.R"
 ))
 
 root <- here::here()

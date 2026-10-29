@@ -5,7 +5,7 @@ Turns DIA-NN precursors into a filtered, contaminant-free precursor matrix. No m
 | | |
 |---|---|
 | Reads | `00_Setup/Input/report.parquet`, `00_Setup/Input/metadata.csv`, `00_Setup/Input/report_stats.xlsx` |
-| Writes | `c_data/01_filtering.xlsx`, `c_data/precursors_filtered.rds` (read by 02_Quantification, 03_Design, 06_Modules, 02_Statistics/04_PCA, 02_Statistics/07_Sensitivity and `04_Figures/S1_Processing`), `b_reports/01_filtering.pdf` |
+| Writes | `c_data/01_filtering.xlsx`, `c_data/precursors_filtered.rds` (read by 02_Quantification, 03_Design, 06_Modules, 02_Statistics/04_PCA, 02_Statistics/07_Sensitivity and `04_Figures/F01_Global` for S1), `b_reports/01_filtering.pdf` |
 | Run | `Rscript 01_Processing/01_Filtering/a_script/01_filtering.R` |
 
 - **Method:** `limpa::readDIANN()` with the q-value columns for a match-between-runs (MBR) search (`Q.Value`, `Lib.Q.Value`, `Lib.PG.Q.Value`) at 0.01; all-missing precursors removed; cRAP-only groups removed; `filterNonProteotypicPeptides()`, then `filterCompoundProteins()`; groups whose symbols all match keratin, immunoglobulin or haemoglobin removed. Singleton peptides are kept.

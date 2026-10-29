@@ -328,7 +328,7 @@ pattern_ora <- fit$protein_ftest |>
   rename(genes_in_pattern = genes_in_list) |>
   arrange(pattern, collection, p)
 
-# The S2 heatmap rows: each comparison contrast's Π <= 0.05 proteins, split by direction, and each
+# The S3 heatmap rows: each comparison contrast's Π <= 0.05 proteins, split by direction, and each
 # direction block cut into co-expression clusters by dynamicTreeCut's hybrid method on
 # coexpression_tree() of the drawn values (Langfelder et al. 2008). Rows are numbered in drawing
 # order: block by block, tree order within a cluster, clusters C1, C2, ... down the panel, and the
@@ -445,7 +445,7 @@ write_workbook(
       "collections: overlap, size, p, BH FDR within pattern and collection, overlap genes."
     ),
     paste(
-      "S2's heatmap rows: each comparison contrast's Π ≤ 0.05 proteins in drawing order, their",
+      "S3's heatmap rows: each comparison contrast's Π ≤ 0.05 proteins in drawing order, their",
       "direction block and co-expression cluster (dynamicTreeCut hybrid, deepSplit 2, minimum",
       "10; empty where the cut left the protein unassigned)."
     ),
