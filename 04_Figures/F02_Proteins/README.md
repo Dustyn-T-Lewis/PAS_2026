@@ -1,6 +1,6 @@
 # F02_Proteins
 
-Figure 2: within each sex, which proteins are the strongest candidates for follow-up, how they group by known interactions, and how every mouse looks for the strongest of them. Its supplements are S3, each comparison's protein list; S4, the candidate routes; and S5, sensitivity.
+Figure 2: within each sex, which proteins are the strongest candidates for follow-up, how they group by known interactions, and how every mouse looks for the strongest of them. Its supplements are S3, each comparison's protein list, and S4, sensitivity.
 
 ![Figure 2](b_reports/F02.png)
 
@@ -102,57 +102,23 @@ At p ≤ 0.05 the contrasts give 177 (female), 193 (male) and 162 (interaction) 
 
 Π is p^|log2 FC| (Xiao et al. 2014); it ranks on p and fold change together and controls no error rate. The heatmaps' rows are chosen on the contrast they show, so the selected sex's PAS columns will always look separated; the other sex's columns and the volcano's FDR rings are the fairer read.
 
-## Supplementary Figure 4: candidate routes
+## Supplementary Figure 4: sensitivity
 
-Which of the six candidate routes each protein passed.
+How the protein results move when one processing or model choice changes.
 
 ![Supplementary Figure 4](b_reports/supp/S4.png)
 
 | | |
 |---|---|
-| Reads | `02_Statistics/06_Candidates/c_data/candidates.rds` |
-| Writes | `b_reports/supp/S4<letter>_<name>.pdf/.png`, `b_reports/supp/S4.pdf/.png` (180 × 165 mm), `c_data/S4.xlsx` |
-| Run | `Rscript 04_Figures/F02_Proteins/a_script/supp/S4.R` (each panel script also runs alone) |
-
-The routes are defined in `02_Statistics/06_Candidates/README.md`: p ≤ 0.01; every mouse separated (AUC ≥ 0.92 or ≤ 0.08); same direction in both sexes at p ≤ 0.10; within-treatment phenotype association at p ≤ 0.01; hub (kME ≥ 0.8) of a module that responds at p ≤ 0.05; leading edge of a kept FDR set at p ≤ 0.05. A protein must be detected in at least 4 of 5 mice per group of its sex to enter.
-
-Both panels call the shared `candidate_routes()` and sit side by side. The full ranked table of every candidate, one route or more, is the `candidates` sheet of `02_Statistics/06_Candidates/c_data/06_candidates.xlsx`.
-
-### a. Female candidates by route
-
-![Panel a](b_reports/supp/S4a_female_routes.png)
-
-Each row is one of the 58 female proteins passing two or more routes, sorted by the number of routes and then by PAS against vehicle p within females. A dark tile marks a route passed and a pale one a route missed. The square in the log2 FC column is the female PAS fold change, magenta for lower and green for higher, on a scale symmetric about zero up to the largest female |log2 FC| (2.08). Text on the right names the protein's STRING neighbourhood: candidates linked at combined score ≥ 700, split into walktrap communities and each named by its smallest-p Hallmark, Reactome or GO:BP term; 19 rows carry a name.
-
-Three proteins pass four routes (Cul5, Fkbp1a, Atp2a1), 11 pass three and 44 pass two. The every-mouse route is passed by 55 rows and p ≤ 0.01 by 39, with 38 passing both, so these two routes largely count the same strength twice. The leading edge is passed by 22 rows, both sexes by 12 and the phenotype route by 5. No female protein passes the hub route, because no rebuilt module responds to PAS in females. The largest neighbourhoods are TGF-beta response regulation (6, including Cops3 and Cops8) and skeletal muscle contraction (Atp2a1, Srl, Cacna1s, Casq1, all higher with PAS). Those four are sarcoplasmic reticulum markers, the one class whose score rises in female PAS pellets (S1 panel f), so they should be read with the composition result beside them.
-
-### b. Male candidates by route
-
-![Panel b](b_reports/supp/S4b_male_routes.png)
-
-The same layout for the 47 male proteins passing two or more routes, with the log2 FC scale running to the largest male |log2 FC| (2.38), so the colours of the two panels are close but not identical.
-
-No male protein passes four routes; 11 pass three and 36 pass two. The every-mouse route is passed by 39 rows, p ≤ 0.01 by 31 (26 both), the leading edge by 20, both sexes by 7, the hub by 6 (Mdh1, Ryr1, Camk2a, Hhatl, Rtn4, Hacd1) and the phenotype route by 2 (Comtd1, Gmpr). Thirty-six of the 47 are lower with PAS. Two Cav1 protein groups both pass, labelled `Cav1 D3Z0J2` and `Cav1 P49817`. Fifteen rows are marker proteins of the classes whose score falls in male PAS pellets (S1 panel f): red cell (Spta1, Slc4a1, Epb41), nerve (Nefl, Nefm, Mbp, Mpz, Prx), vessel (both Cav1 protein groups, D3Z0J2 and P49817, and Aoc3) and myofibril (Tnnt3, Tpm1, Tnni2, Tpm2). All 15 are lower with PAS. Because the class scores are built from these same proteins, the two observations are not independent, and these 15 candidates may report what went into the tube rather than a change within the muscle.
-
-Across both sexes, 255 female and 208 male proteins pass at least one route. The route thresholds are deliberately loose and the routes are not independent, and the phenotype route crosses tissues (respiration comes from soleus and plantaris). The 463 candidates are discovery-stage leads for a western blot or targeted assay in new mice, not validated biomarkers.
-
-## Supplementary Figure 5: sensitivity
-
-How the protein results move when one processing or model choice changes.
-
-![Supplementary Figure 5](b_reports/supp/S5.png)
-
-| | |
-|---|---|
 | Reads | `02_Statistics/07_Sensitivity/c_data/sensitivity.rds` |
-| Writes | `b_reports/supp/S5<letter>_<name>.pdf/.png`, `b_reports/supp/S5.pdf/.png` (180 × 162 mm), `c_data/S5.xlsx` |
-| Run | `Rscript 04_Figures/F02_Proteins/a_script/supp/S5.R` (each panel script also runs alone) |
+| Writes | `b_reports/supp/S4<letter>_<name>.pdf/.png`, `b_reports/supp/S4.pdf/.png` (180 × 162 mm), `c_data/S4.xlsx` |
+| Run | `Rscript 04_Figures/F02_Proteins/a_script/supp/S4.R` (each panel script also runs alone) |
 
 Each variant changes one choice and refits the three comparison contrasts in the full proteome (see `02_Statistics/07_Sensitivity/README.md`).
 
 ### a. Protein results under each variant
 
-![Panel a](b_reports/supp/S5a_counts.png)
+![Panel a](b_reports/supp/S4a_counts.png)
 
 Each cell is one variant (row) in one contrast (facet: female PAS against vehicle, male PAS against vehicle, treatment × sex) and one measure (column). The measures are the number of the 1,962 proteins at p ≤ 0.05, at FDR ≤ 0.10 and at FDR ≤ 0.05, and how many of the baseline's 50 smallest p-values stay among the variant's 50 smallest. The number in each cell is the count; the fill is the count's log2 ratio to the baseline with one added to both, red for fewer and grey for more, capped at ±2.5, so the baseline row is white.
 
@@ -160,7 +126,7 @@ Every variant finds 132 to 212 proteins at p ≤ 0.05. Males drop most without a
 
 ### b. Baseline proteins under each variant
 
-![Panel b](b_reports/supp/S5b_named.png)
+![Panel b](b_reports/supp/S4b_named.png)
 
 Each row is one of the 22 proteins at FDR ≤ 0.10 in the baseline (18 female, 4 male, none for the interaction), sorted by baseline FDR within each sex, and each column a variant. Tile shade bins the protein's FDR under that variant, from dark grey (≤ 0.05) through mid grey (≤ 0.10) and light grey (≤ 0.25) to near white (> 0.25); the text is the log2 FC, white on the darkest tiles.
 
@@ -170,4 +136,4 @@ The variants are: limpa detection-curve slope 0.5 or 1.0 instead of 0.7 (dpcQuan
 
 ## Workbooks
 
-`c_data/F02.xlsx`, `c_data/S3.xlsx`, `c_data/S4.xlsx` and `c_data/S5.xlsx` hold one sheet per panel, named after the panel script, each with the table that panel draws. In `S3.xlsx` each heatmap panel gives two sheets: its proteins in drawn order with direction and cluster (`<panel>_heatmap`, cluster empty where unassigned) and its ORA bars (`<panel>_ora`, the drawn `cluster_ora` rows as stored). The cross-sex p-values in F02 c and d come from `protein_contrasts` in `02_Statistics/01_Fit/c_data/01_fit.xlsx`.
+`c_data/F02.xlsx`, `c_data/S3.xlsx` and `c_data/S4.xlsx` hold one sheet per panel, named after the panel script, each with the table that panel draws. In `S3.xlsx` each heatmap panel gives two sheets: its proteins in drawn order with direction and cluster (`<panel>_heatmap`, cluster empty where unassigned) and its ORA bars (`<panel>_ora`, the drawn `cluster_ora` rows as stored). The cross-sex p-values in F02 c and d come from `protein_contrasts` in `02_Statistics/01_Fit/c_data/01_fit.xlsx`.

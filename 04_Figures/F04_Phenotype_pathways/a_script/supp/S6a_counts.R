@@ -1,4 +1,4 @@
-# S7 a: proteins associated with each phenotype at p <= 0.05 within each sex, under each
+# S6 a: proteins associated with each phenotype at p <= 0.05 within each sex, under each
 # association model (01_Fit, full proteome), split by the sign of the limma t: positive to the
 # right, negative to the left.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
@@ -44,7 +44,7 @@ plot <- ggplot(counts, aes(x, trait, fill = direction)) +
   theme_figure() +
   theme(panel.grid.major.y = element_blank(), panel.spacing.x = unit(3, "mm"))
 
-save_figure(plot, "F04_Phenotype_pathways", "S7a_counts", 180, 62)
+save_figure(plot, "F04_Phenotype_pathways", "S6a_counts", 180, 62)
 list(
   plot = plot,
   data = select(counts, phenotype, sex, model, direction, p_le_0.05, fdr_le_0.05)

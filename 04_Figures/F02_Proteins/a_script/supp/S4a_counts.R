@@ -1,6 +1,6 @@
-# S5 a: how many proteins each sensitivity variant finds per contrast, against the baseline. Each
-# cell holds the count; its colour is the log2 ratio to the baseline (one added to both), red where
-# a variant loses results and grey where it gains them, away from the up and down colours.
+# S4 a: how many proteins each sensitivity variant finds per contrast, against the baseline. Each
+# cell holds the count; its grey is the absolute log2 ratio to the baseline (one added to both), so
+# a cell darkens the further the variant moves from the baseline in either direction.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(sensitivity = output_path("02_Statistics", "07_Sensitivity", "sensitivity.rds"))
@@ -12,11 +12,12 @@ METRICS <- c(
   p_le_0.05 = paste("p ≤", ALPHA), fdr_le_0.10 = "FDR ≤ 0.10", fdr_le_0.05 = paste("FDR ≤", ALPHA),
   top_shared = paste("Top", top_n, "kept")
 )
+RATIO_CAP <- 2.5
 
 cells <- counts |>
   pivot_longer(all_of(names(METRICS)), names_to = "metric", values_to = "n") |>
   mutate(
-    ratio = log2((n + 1) / (n[variant == "baseline"] + 1)),
+    ratio = abs(log2((n + 1) / (n[variant == "baseline"] + 1))),
     .by = c(contrast, metric)
   ) |>
   mutate(
@@ -27,15 +28,15 @@ cells <- counts |>
 
 plot <- ggplot(cells, aes(metric, variant, fill = ratio)) +
   geom_tile(colour = "white", linewidth = 0.5) +
-  geom_text(aes(label = n), size = 1.9) +
+  geom_text(aes(label = n, colour = ratio > RATIO_CAP / 2), size = 1.9) +
+  scale_colour_manual(values = c(`TRUE` = "white", `FALSE` = "black"), guide = "none") +
   ggh4x::facet_wrap2(~contrast,
     nrow = 1, labeller = as_labeller(CONTRAST_LABELS),
     strip = contrast_strips(COMPARISON_CONTRASTS)
   ) +
-  scale_fill_gradient2(
-    low = "#D6604D", high = "#878787",
-    limits = c(-2.5, 2.5), oob = scales::squish, name = "log2 ratio to baseline",
-    guide = colour_bar()
+  scale_fill_gradient(
+    low = "grey97", high = "grey25", limits = c(0, RATIO_CAP), breaks = 0:2, oob = scales::squish,
+    name = "|log2 ratio to baseline|", guide = colour_bar()
   ) +
   labs(
     x = NULL, y = NULL, title = "Protein results under each variant",
@@ -47,5 +48,5 @@ plot <- ggplot(cells, aes(metric, variant, fill = ratio)) +
   theme_figure() +
   theme(panel.grid.major = element_blank())
 
-save_figure(plot, "F02_Proteins", "S5a_counts", 180, 62)
+save_figure(plot, "F02_Proteins", "S4a_counts", 180, 62)
 list(plot = plot, data = counts)

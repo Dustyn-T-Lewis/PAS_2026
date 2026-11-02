@@ -1,4 +1,4 @@
-# S7 b: for each phenotype and sex, the three proteins with the smallest within-treatment p, and
+# S6 b: for each phenotype and sex, the three proteins with the smallest within-treatment p, and
 # their r-equivalents under the pooled and within-treatment models (01_Fit, full proteome). A
 # protein that keeps its association within treatment tracks the trait among mice given the same
 # treatment.
@@ -58,7 +58,7 @@ plot <- ggplot(shown, aes(r_equiv, row)) +
     panel.border = element_rect(fill = NA, colour = "grey85", linewidth = 0.25)
   )
 
-save_figure(plot, "F04_Phenotype_pathways", "S7b_top_proteins", 180, 100)
+save_figure(plot, "F04_Phenotype_pathways", "S6b_top_proteins", 180, 100)
 list(
   plot = plot,
   data = shown |>

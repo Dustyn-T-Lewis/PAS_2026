@@ -5,7 +5,7 @@ Runs every pathway test once, so the comparisons only slice the results.
 | | |
 |---|---|
 | Reads | `01_Processing/04_Gene_Sets/c_data/gene_sets.rds`, `01_Processing/03_Design/c_data/design.rds`, `02_Statistics/01_Fit/c_data/fit.rds`, `01_Processing/02_Quantification/c_data/proteins.rds`, `00_Setup/Input/STRING_v12/` |
-| Writes | `c_data/02_enrichment.xlsx`, `c_data/enrichment.rds` (read by 06_Candidates, `03_Comparisons` steps 01 to 03, and `04_Figures/` F01, F03, F04, S3 and S6), `b_reports/02_enrichment.pdf` |
+| Writes | `c_data/02_enrichment.xlsx`, `c_data/enrichment.rds` (read by 06_Candidates, `03_Comparisons` steps 01 to 03, and `04_Figures/` F01, F03, F04, S3 and S5), `b_reports/02_enrichment.pdf` |
 | Run | `Rscript 02_Statistics/02_Enrichment/a_script/02_enrichment.R` |
 
 - **Contrasts:** `enrichVolcano::run_enrichment(tests = "fgsea")` on the moderated t of each comparison's contrast, one contrast at a time, seed 20260910. GO:BP, Reactome, Hallmark and KEGG LEGACY in the full proteome, MitoCarta in the mitochondrial universe; BH within contrast and collection. Each row carries the same set's singscore contrast from `02_Statistics/01_Fit` (log2 FC, p, FDR, r with group), which is tested across mice, and its camera p and FDR: `limma::camera` on the same design and contrast, unweighted, with the set's inter-protein correlation estimated. camera is reported in workbooks only; no figure draws it.

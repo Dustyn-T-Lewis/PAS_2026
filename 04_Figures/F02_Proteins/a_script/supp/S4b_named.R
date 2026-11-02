@@ -1,4 +1,4 @@
-# S5 b: every protein at FDR ≤ 0.10 in the baseline, its FDR under each variant. Tile colour bins
+# S4 b: every protein at FDR ≤ 0.10 in the baseline, its FDR under each variant. Tile colour bins
 # the FDR; the text is the log2 FC, so a sign change would show.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -44,5 +44,5 @@ plot <- ggplot(cells, aes(variant, row, fill = fdr)) +
   ) +
   guides(fill = guide_legend(nrow = 1))
 
-save_figure(plot, "F02_Proteins", "S5b_named", 180, 100)
+save_figure(plot, "F02_Proteins", "S4b_named", 180, 100)
 list(plot = plot, data = named)

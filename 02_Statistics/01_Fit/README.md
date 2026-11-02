@@ -5,7 +5,7 @@ Every model the comparisons read, fitted once on all 20 mice.
 | | |
 |---|---|
 | Reads | `01_Processing/02_Quantification/c_data/proteins.rds`, `01_Processing/03_Design/c_data/design.rds`, `01_Processing/05_Scores/c_data/scores.rds`, `01_Processing/06_Modules/c_data/modules.rds`, `01_Processing/04_Gene_Sets/c_data/gene_sets.rds`, `00_Setup/Input/phenotypes.xlsx` |
-| Writes | `c_data/01_fit.xlsx`, `c_data/fit.rds` (read by 02_Enrichment, 03_Classification, 04_PCA, 06_Candidates, 07_Sensitivity, `03_Comparisons` steps 01, 03 and 04, and `04_Figures/` F01, F02, F05, S2, S3 and S7), `b_reports/01_fit.pdf` |
+| Writes | `c_data/01_fit.xlsx`, `c_data/fit.rds` (read by 02_Enrichment, 03_Classification, 04_PCA, 06_Candidates, 07_Sensitivity, `03_Comparisons` steps 01, 03 and 04, and `04_Figures/` F01, F02, F05, S2, S3 and S6), `b_reports/01_fit.pdf` |
 | Run | `Rscript 02_Statistics/01_Fit/a_script/01_fit.R` |
 
 - **Proteins:** `limpa::dpcDE(sample.weights = TRUE)` per universe on the design's four group means and surrogate variable. Each contrast is refitted as the first coefficient of an equivalent design (`limma::contrastAsCoef()`) and moderated with `eBayes()`; BH within universe and contrast; Π = p^|log2 FC| beside p and FDR; r with group (first group = 1) beside each two-group contrast.

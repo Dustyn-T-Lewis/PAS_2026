@@ -1,6 +1,6 @@
 # F03_Pathways
 
-Figure 3: which pathways each comparison moves. Its supplement is S6, the GO Slim compartments and the literature-informed and ROS sets.
+Figure 3: which pathways each comparison moves. Its supplement is S5, the GO Slim compartments and the literature-informed and ROS sets.
 
 ![Figure 3](b_reports/F03.png)
 
@@ -34,23 +34,23 @@ A shift in the pellet's MitoCarta share between PAS and vehicle was not detected
 
 fgsea permutes genes, so its FDR runs optimistic when genes are correlated (Wu & Smyth 2012). Two checks sit beside every set in the 02_Enrichment workbook: camera (`camera_p`, `camera_fdr`), which estimates the set's own inter-protein correlation, and the set's singscore contrast tested across mice. Of the 24 rows, camera gives p ≤ 0.05 in the contrast that shows the set for 3 and FDR ≤ 0.05 for none. The 3 are proteasome-mediated catabolism, lower in female PAS (camera p 0.003), and nervous system process (p 0.043) and MitoCarta ROS and glutathione metabolism (p 0.013) in the interaction. Read the rest as rankings, not confirmed set shifts.
 
-## Supplementary Figure 6: pathway sets
+## Supplementary Figure 5: pathway sets
 
 The GO Slim compartments and the literature-informed and ROS sets.
 
-![Supplementary Figure 6](b_reports/supp/S6.png)
+![Supplementary Figure 5](b_reports/supp/S5.png)
 
 | | |
 |---|---|
 | Reads | `02_Statistics/02_Enrichment/c_data/enrichment.rds` |
-| Writes | `b_reports/supp/S6<letter>_<name>.pdf/.png`, `b_reports/supp/S6.pdf/.png` (180 × 102 mm; panels a 70 × 102 mm and b 116 × 95.5 mm on their own), `c_data/S6.xlsx` |
-| Run | `Rscript 04_Figures/F03_Pathways/a_script/supp/S6.R` (each panel script also runs alone) |
+| Writes | `b_reports/supp/S5<letter>_<name>.pdf/.png`, `b_reports/supp/S5.pdf/.png` (180 × 102 mm; panels a 70 × 102 mm and b 116 × 95.5 mm on their own), `c_data/S5.xlsx` |
+| Run | `Rscript 04_Figures/F03_Pathways/a_script/supp/S5.R` (each panel script also runs alone) |
 
 Both panels sit under one shared key. The grids have fixed row heights, so the shorter panel b sits vertically centred beside a. Both panels use F03's `pathway_grid()`: a boxed Contrast block of three columns (Female, Male, Treatment × sex), row blocks in boxed strips on the left, a light band behind each row, dot fill NES and dot area −log10 FDR.
 
 ### a. Cellular compartments
 
-![Panel a](b_reports/supp/S6a_compartments.png)
+![Panel a](b_reports/supp/S5a_compartments.png)
 
 Each dot is one of 24 GO Slim cellular compartments (27 to 1,703 proteins) in one contrast: female PAS against vehicle, male PAS against vehicle, and the female minus male difference. Fill is the fgsea normalised enrichment score on the full-proteome moderated t, green when the compartment's proteins sit towards the up end of the ranking and magenta towards the down end. Dot area grows with −log10 FDR (BH across the 24 within each contrast) from a small minimum and stops growing at FDR 0.0001, with the key in FDR (0.1, 0.05, 0.01, ≤ 0.0001), and a ring around the dot marks FDR ≤ 0.05. All 24 rows sit in one GO Slim block, ordered by the female NES, highest at the top. There is one database, so no database squares.
 
@@ -58,7 +58,7 @@ In females, 11 compartments pass: endoplasmic reticulum (NES 1.75), extracellula
 
 ### b. Literature and ROS sets
 
-![Panel b](b_reports/supp/S6b_literature.png)
+![Panel b](b_reports/supp/S5b_literature.png)
 
 Each dot is one of 19 sets (12 to 145 proteins) in one contrast, drawn as in panel a, with the rows in one block per hypothesis that named them and each label ending in the direction that hypothesis expected under PAS, in brackets. The one-set Pipecolate handling block is drawn 5.5 mm tall rather than 3 mm, so its two-line strip fits. A square before the first column gives the set's database, read from the prefix of its name (GOBP, HALLMARK, MITOCARTA, REACTOME). FDR here is BH across the 19 sets within each contrast. Only the 7 ROS sets were named before the results; the 12 literature-informed sets were named on 2026-10-05, after the first contrast results had been seen (`01_Processing/04_Gene_Sets`).
 
@@ -70,4 +70,4 @@ There are no trait columns, unlike F03. `association_fgsea` has no GO Slim compa
 
 ## Workbooks
 
-`c_data/F03.xlsx` holds `a_pathways`, with every drawn cell, 360 in all (row block, set, collection, universe, column block, contrast or sex and phenotype, NES, fgsea p, FDR, whether that column shows the set, whether the cell is outlined (`selected`), camera p and FDR), and `counts`, the sets at FDR ≤ 0.05 per block, contrast, direction and collection, distinct (`n_distinct`, what the bars draw) and all (`n_all`). `c_data/S6.xlsx` holds `S6a_compartments` and `S6b_literature` (per set and contrast: label, NES, fgsea p, BH FDR and size; panel b adds hypothesis, expected direction and database).
+`c_data/F03.xlsx` holds `a_pathways`, with every drawn cell, 360 in all (row block, set, collection, universe, column block, contrast or sex and phenotype, NES, fgsea p, FDR, whether that column shows the set, whether the cell is outlined (`selected`), camera p and FDR), and `counts`, the sets at FDR ≤ 0.05 per block, contrast, direction and collection, distinct (`n_distinct`, what the bars draw) and all (`n_all`). `c_data/S5.xlsx` holds `S5a_compartments` and `S5b_literature` (per set and contrast: label, NES, fgsea p, BH FDR and size; panel b adds hypothesis, expected direction and database).

@@ -32,11 +32,10 @@ figures <- file.path("04_Figures", c(
   "F02_Proteins/a_script/F02.R",
   "F02_Proteins/a_script/supp/S3.R",
   "F02_Proteins/a_script/supp/S4.R",
-  "F02_Proteins/a_script/supp/S5.R",
   "F03_Pathways/a_script/F03.R",
-  "F03_Pathways/a_script/supp/S6.R",
+  "F03_Pathways/a_script/supp/S5.R",
   "F04_Phenotype_pathways/a_script/F04.R",
-  "F04_Phenotype_pathways/a_script/supp/S7.R",
+  "F04_Phenotype_pathways/a_script/supp/S6.R",
   "F05_Complexes/a_script/F05.R"
 ))
 

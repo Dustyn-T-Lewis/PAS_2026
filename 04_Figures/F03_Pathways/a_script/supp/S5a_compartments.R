@@ -1,4 +1,4 @@
-# S6 a: the GO Slim cellular compartments, fgsea per contrast in the full proteome, BH across the
+# S5 a: the GO Slim cellular compartments, fgsea per contrast in the full proteome, BH across the
 # compartments (02_Enrichment), in F03's grid; rows ordered by the female NES, FDR <= 0.05 ringed.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -27,7 +27,7 @@ grid <- pathway_grid(
 )
 
 height_mm <- 3 * nrow(rows) + 30
-save_figure(grid, "F03_Pathways", "S6a_compartments", 70, height_mm)
+save_figure(grid, "F03_Pathways", "S5a_compartments", 70, height_mm)
 list(
   plot = grid,
   data = compartments |>

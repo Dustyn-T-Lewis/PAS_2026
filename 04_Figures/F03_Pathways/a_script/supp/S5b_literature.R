@@ -1,4 +1,4 @@
-# S6 b: the literature-informed and ROS sets, grouped by the hypothesis that named them, with the
+# S5 b: the literature-informed and ROS sets, grouped by the hypothesis that named them, with the
 # direction each hypothesis expected; fgsea per contrast, BH across the list (02_Enrichment), in
 # F03's grid with each set's database as a square, read from its MSigDB or MitoCarta prefix.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
@@ -44,7 +44,7 @@ grid <- pathway_grid(
   ))
 
 height_mm <- sum(pmax(3 * table(rows$block), MIN_BLOCK_MM)) + nlevels(rows$block) + 30
-save_figure(grid, "F03_Pathways", "S6b_literature", 116, height_mm)
+save_figure(grid, "F03_Pathways", "S5b_literature", 116, height_mm)
 list(
   plot = grid,
   data = literature |>
