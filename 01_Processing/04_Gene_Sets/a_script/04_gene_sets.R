@@ -59,19 +59,16 @@ tested <- list(
 )
 
 # GO Slim from the obo file enrichVolcano pins, so both use one definition of the slim.
-obo <- readLines(system.file("extdata", "goslim_generic.obo.gz", package = "enrichVolcano"))
-terms <- split(obo, cumsum(obo == "[Term]"))
-slim_ids <- \(namespace) {
-  terms |>
-    keep(\(x) any(x == paste("namespace:", namespace))) |>
-    map_chr(\(x) str_remove(x[str_starts(x, "id: ")][1], "^id: "))
-}
-slim_bp <- slim_ids("biological_process")
+slim <- GSEABase::ids(GSEABase::getOBOCollection(
+  system.file("extdata", "goslim_generic.obo.gz", package = "enrichVolcano")
+))
+slim_ontology <- AnnotationDbi::Ontology(slim)
+slim_bp <- slim[slim_ontology %in% "BP"]
 slim_name <- AnnotationDbi::Term(slim_bp)
 
 # Each compartment holds the genes annotated to it or any descendant.
 cc <- suppressMessages(AnnotationDbi::select(org.Mm.eg.db::org.Mm.eg.db,
-  keys = slim_ids("cellular_component"), columns = "SYMBOL", keytype = "GOALL"
+  keys = slim[slim_ontology %in% "CC"], columns = "SYMBOL", keytype = "GOALL"
 )) |>
   distinct(go_id = GOALL, gene = SYMBOL) |>
   filter(!is.na(gene)) |>
