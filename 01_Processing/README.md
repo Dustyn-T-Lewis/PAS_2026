@@ -1,16 +1,14 @@
 # 01_Processing
 
-Turns the DIA-NN report into protein values per mouse, and builds every protein grouping later steps test. Nothing here compares groups.
+From the DIA-NN report to protein values per mouse, plus every protein grouping later steps test. Nothing here compares groups. Steps run in number order.
 
 ![The six processing steps, their methods and the files they write](schematic.png)
 
-| Step | Does | Method |
-|---|---|---|
-| [`01_Filtering`](01_Filtering/README.md) | keeps trustworthy precursors | limpa `readDIANN`, q ≤ 0.01, contaminant and shared-peptide filters |
-| [`02_Quantification`](02_Quantification/README.md) | protein abundance per mouse | limpa `dpcQuant`, MitoCarta, normalisation chosen per universe (none for the full proteome, median for MitoCarta) |
-| [`03_Design`](03_Design/README.md) | fixes the model and contrasts | four group means, one sva surrogate variable, five contrasts |
-| [`04_Gene_Sets`](04_Gene_Sets/README.md) | the protein groups to test | GO:BP, Reactome, Hallmark, KEGG LEGACY, MitoCarta, compartments, CORUM, STRING; membership table |
-| [`05_Scores`](05_Scores/README.md) | set activity per mouse | singscore |
-| [`06_Modules`](06_Modules/README.md) | co-abundance modules | WGCNA (signed, bicor) on the 827 proteins seen in every mouse, after removing sex and run depth; subsample stability |
-
-Steps run in number order. Each holds `a_script/` (one script), `b_reports/` (one preview PDF from package plots; 04_Gene_Sets has none), `c_data/` (one workbook plus the `.rds` later steps read) and a README naming what it reads and writes.
+| Step | Holds |
+|---|---|
+| [`01_Filtering`](01_Filtering/README.md) | the filtered precursor matrix |
+| [`02_Quantification`](02_Quantification/README.md) | protein values and standard errors per mouse, MitoCarta annotation, normalisation |
+| [`03_Design`](03_Design/README.md) | the design matrix, surrogate variable and five contrasts |
+| [`04_Gene_Sets`](04_Gene_Sets/README.md) | pathways, compartments, complexes, STRING clusters and the protein membership table |
+| [`05_Scores`](05_Scores/README.md) | one singscore per mouse per set |
+| [`06_Modules`](06_Modules/README.md) | WGCNA co-abundance modules and their eigengenes |
