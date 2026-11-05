@@ -91,7 +91,7 @@ roc <- map(results, \(r) list_rbind(map(r, "roc"))) |>
 perfect <- list_rbind(map(results, \(r) list_rbind(map(r, "perfect"))))
 tier_table <- roc |>
   reframe(tier_counts(p, fdr), perfect = sum(auc %in% c(0, 1)), .by = c(comparison, level)) |>
-  select(comparison, level, features = tests, everything(), -pi_le_0.05)
+  select(comparison, level, features = tests, everything())
 
 # pROC's own curves for the four pathway scores with the smallest p in one sex.
 roc_curves <- \(comparison) {

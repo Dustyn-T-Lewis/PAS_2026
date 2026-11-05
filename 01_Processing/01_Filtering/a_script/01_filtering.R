@@ -148,7 +148,6 @@ contaminant_per_run <- tibble(
 )
 contaminant_share <- contaminant_per_run |>
   summarise(
-    n = n(),
     median_pct_contaminant = round(median(pct_contaminant), 2),
     median_pct_plasma = round(median(pct_plasma), 2),
     .by = group
@@ -208,7 +207,10 @@ write_workbook(
     "Precursors, protein groups and share of signal entering filtering and after each filter.",
     "Contaminant symbols removed, with precursors and share of signal.",
     "cRAP entries the search appended, with precursors and share of signal.",
-    "Median contaminant and plasma share of signal per group.",
+    str_glue(
+      "Median contaminant and plasma share of signal per group of ",
+      "{min(table(contaminant_per_run$group))} mice."
+    ),
     "Contaminant and plasma share of signal per mouse, before removal.",
     "Per run: raw signal, precursors and protein groups identified.",
     "Which PDF page shows what."

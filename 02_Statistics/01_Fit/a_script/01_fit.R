@@ -22,8 +22,9 @@ sc <- readRDS(inputs[["scores"]])
 mods <- readRDS(inputs[["modules"]])
 gs <- readRDS(inputs[["gene_sets"]])
 targets <- quant$proteins$targets
-ph <- readxl::read_excel(inputs[["phenotypes"]], "phenotypes")
-ph <- ph[match(targets$sample_id, ph$mouse), ]
+ph <- readxl::read_excel(inputs[["phenotypes"]], "phenotypes") |>
+  select(mouse, sample_label, treatment, sex, group, all_of(PHENOTYPES))
+ph <- ph[match(targets$mouse, ph$mouse), ]
 female <- as.numeric(targets$sex == "F")
 pellet_mito <- quant$pct_mito - ave(quant$pct_mito, targets$group)
 sex_design <- model.matrix(~ 0 + sex, targets)
@@ -34,8 +35,15 @@ ASSOCIATION_MODELS <- c("pooled", "treatment", "pooled_mito")
 # propTrueNull reads the share of true nulls off the p-value distribution, which a few dozen tests
 # cannot shape.
 PI0_MIN_TESTS <- 100
+# Mice per group with an observed precursor for the protein; the rest of its values are limpa's
+# inference. Every protein table carries these counts.
+observed <- quant$proteins$other$n.observations[, targets$sample_id] > 0
+detected <- map(set_names(FIGURE_GROUPS, paste0("detected_", FIGURE_GROUPS)), \(g) {
+  unname(rowSums(observed[, targets$group == g, drop = FALSE]))
+})
 genes <- as_tibble(quant$proteins$genes, rownames = "feature") |>
-  transmute(feature, gene = first_symbol(Genes), genes = Genes, is_mito)
+  transmute(feature, gene = first_symbol(Genes), genes = Genes, is_mito) |>
+  bind_cols(as_tibble(detected))
 
 # The phenotype design: a mean per sex (pooled) or per group (treatment) and the z-scored
 # phenotype's slope within each sex; the check adds the pellet's mitochondrial share around its
@@ -120,34 +128,6 @@ protein_contrasts <- tidy_proteins(protein_fits) |>
   group_modify(\(x, key) shrink(x)) |>
   ungroup() |>
   relocate(universe, feature, contrast)
-
-# Does PAS change a protein in either sex? The moderated F over the two PAS contrasts, both made
-# the first coefficients of an equivalent design so the test stays exact under limpa's weights.
-# It covers the interaction too, which is their difference. The response pattern reads the signs.
-pas_contrasts <- d$contrasts[, c("PAS_vs_VEH_female", "PAS_vs_VEH_male")]
-protein_ftest <- map(set_names(names(quant$universes)), \(universe) {
-  reparametrised <- contrastAsCoef(d$design, pas_contrasts)$design
-  f <- eBayes(dpcDE(protein_elist(universe), reparametrised, sample.weights = TRUE, plot = FALSE))
-  topTable(f, coef = 1:2, number = Inf, sort.by = "none") |>
-    as_tibble(rownames = "feature") |>
-    select(feature, F_stat = "F", P.Value, adj.P.Val) |>
-    mutate(universe = universe, .before = 1)
-}) |>
-  list_rbind() |>
-  left_join(
-    protein_contrasts |>
-      filter(contrast %in% colnames(pas_contrasts)) |>
-      select(universe, feature, contrast, logFC) |>
-      pivot_wider(names_from = contrast, values_from = logFC, names_prefix = "logFC_"),
-    by = c("universe", "feature")
-  ) |>
-  mutate(pattern = case_when(
-    logFC_PAS_vs_VEH_female > 0 & logFC_PAS_vs_VEH_male > 0 ~ "up in both",
-    logFC_PAS_vs_VEH_female < 0 & logFC_PAS_vs_VEH_male < 0 ~ "down in both",
-    logFC_PAS_vs_VEH_female > 0 ~ "female up, male down",
-    .default = "female down, male up"
-  )) |>
-  left_join(genes, by = "feature")
 
 association_fits <- expand_grid(phenotype = PHENOTYPES, model = ASSOCIATION_MODELS) |>
   mutate(
@@ -239,7 +219,7 @@ group_r <- function(m, contrast) {
   tibble(feature = rownames(m), r_group = cor(t(m[, keep]), first)[, 1])
 }
 association_r <- function(m, x) {
-  map(c(female = "F", male = "M"), \(code) {
+  map(set_names(names(SEX_NAMES), SEX_NAMES), \(code) {
     r <- \(keep) cor(t(m[, keep]), x[keep])[, 1]
     in_sex <- targets$sex == code
     tibble(
@@ -381,9 +361,8 @@ plot_index <- preview_pdf(file.path(out$reports, "01_fit.pdf"), c(
 
 saveRDS(
   list(
-    protein_contrasts = protein_contrasts, protein_ftest = protein_ftest,
-    protein_associations = protein_associations, score_contrasts = score_contrasts,
-    score_associations = score_associations, association_summary = association_summary,
+    protein_contrasts = protein_contrasts, protein_associations = protein_associations,
+    score_contrasts = score_contrasts, score_associations = score_associations,
     phenotype_effects = phenotype_effects, phenotype_interaction = phenotype_interaction,
     E_norm = quant$E_norm, scores = score_sets, targets = targets, phenotypes = ph,
     pct_mito = quant$pct_mito,
@@ -394,11 +373,19 @@ saveRDS(
 write_workbook(
   list(
     contrast_summary = contrast_summary, association_summary = association_summary,
-    protein_contrasts = protein_contrasts, protein_ftest = protein_ftest,
-    protein_associations = filter(protein_associations, model != "pooled_mito"),
-    score_contrasts = score_contrasts,
-    score_associations = filter(score_associations, model != "pooled_mito"),
-    phenotype_effects = phenotype_effects, phenotype_interaction = phenotype_interaction,
+    protein_contrasts = p_fdr(select(protein_contrasts, -genes)),
+    protein_associations = protein_associations |>
+      filter(model != "pooled_mito") |>
+      select(-genes) |>
+      p_fdr(),
+    score_contrasts = p_fdr(rename(score_contrasts, size = members)),
+    score_associations = p_fdr(filter(score_associations, model != "pooled_mito")),
+    phenotype_effects = phenotype_effects |>
+      transmute(phenotype,
+        sex = SEX_NAMES[as.character(sex)], pct_change, ci_low, ci_high,
+        p = P.Value
+      ),
+    phenotype_interaction = rename(phenotype_interaction, p = P.Value),
     plot_index = plot_index
   ),
   c(
@@ -408,28 +395,28 @@ write_workbook(
       "pooled_mito is the pellet mito-share check."
     ),
     paste(
-      "Every protein, universe and contrast: log2 FC with 95% CI, moderated t, df, p, BH FDR, Π,",
-      "TREAT p and FDR for a change above 20%, ashr shrunken log2 FC and local false sign rate,",
-      "r with group."
-    ),
-    paste(
-      "Every protein: moderated F over PAS vs VEH in females and in males (PAS in either sex),",
-      "p, BH FDR, both log2 FC and the response pattern from their signs."
+      "Every protein, universe and contrast: log2 FC with 95% CI, moderated t, df, p, BH FDR,",
+      "mice detected per group, Π, TREAT p and FDR for a change above 20%, ashr shrunken log2 FC",
+      "and local false sign rate, r with group."
     ),
     paste(
       "Every protein's association with each phenotype per sex and model (pooled, treatment):",
-      "slope (log2 per SD across all 20 mice), t, p, FDR, r (pooled, VEH, PAS)."
+      "slope (log2 per SD across all 20 mice), t, p, FDR, mice detected per group, r (pooled,",
+      "VEH, PAS)."
     ),
     paste(
       "Every pathway (GO:BP, Reactome, Hallmark, KEGG, MitoCarta), complex, cluster and module",
-      "score: the five contrasts, r with group, measured members, and the overlap group and",
-      "shown flag (one set per group of overlapping sets at p ≤ 0.05, modules not grouped)."
+      "score: the five contrasts, r with group, measured members (size), and the overlap group",
+      "and shown flag (one set per group of overlapping sets at p ≤ 0.05, modules not grouped)."
     ),
     paste(
       "Every score's association with each phenotype per sex and model: slope, t, p, FDR,",
       "r (pooled, VEH, PAS)."
     ),
-    "Phenotype effects: PAS vs vehicle within sex, % change with 95% CI and Welch p.",
+    str_glue(
+      "Phenotype effects: PAS ({phenotype_effects$n_pas[1]} mice) vs vehicle ",
+      "({phenotype_effects$n_veh[1]}) within sex, % change with 95% CI and Welch p."
+    ),
     paste(
       "Interaction (treatment_by_sex) on the log scale: female response relative to male,",
       "% with 95% CI."

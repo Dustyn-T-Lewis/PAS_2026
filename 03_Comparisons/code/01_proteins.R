@@ -38,9 +38,15 @@ report_proteins <- function(comparison) {
     reframe(tier_counts(P.Value, adj.P.Val, pi_score), .by = c(universe, direction))
   pi_lists <- results |>
     filter(universe == "full", pi_score <= ALPHA, !is.na(gene), gene != "") |>
-    select(direction, feature, gene, logFC, P.Value, adj.P.Val, pi_score, r_group) |>
+    select(
+      direction, feature, gene, logFC, P.Value, adj.P.Val, pi_score, r_group,
+      starts_with("detected_")
+    ) |>
     arrange(direction, pi_score)
-  string <- filter(readRDS(inputs[["enrichment"]])$string, contrast == !!contrast)
+  string <- filter(readRDS(inputs[["enrichment"]])$string, contrast == !!contrast) |>
+    select(-contrast)
+  # The interaction has no pair of groups to correlate with, so its r_group is empty.
+  empty_r <- if (all(is.na(results$r_group))) "r_group"
 
   volcano <- \(u) {
     \() {
@@ -69,16 +75,19 @@ report_proteins <- function(comparison) {
 
   write_workbook(
     list(
-      summary = tier_table, results = select(results, -genes), pi_lists = pi_lists, string = string,
-      plot_index = plot_index
+      summary = tier_table,
+      results = p_fdr(select(results, -contrast, -genes, -all_of(empty_r))),
+      pi_lists = p_fdr(select(pi_lists, -all_of(empty_r))),
+      string = rename(string, size = n_proteins), plot_index = plot_index
     ),
     c(
       "Per universe and direction: p ≤ 0.05, Π ≤ 0.05, FDR tiers.",
       paste(
-        "Every protein in both universes, by p:",
-        "log2 FC with 95% CI, t, p, BH FDR, Π, r with PAS (empty for the interaction), tier."
+        "Every protein in both universes, by p: log2 FC with 95% CI, t, p, BH FDR, mice detected",
+        "per group, Π, TREAT, shrunken log2 FC and lfsr, r with PAS (not for the interaction),",
+        "tier."
       ),
-      "Full-universe proteins at Π ≤ 0.05, by direction.",
+      "Full-universe proteins at Π ≤ 0.05, by direction, with mice detected per group.",
       "STRING v12 connectivity of each list against the detected proteome (descriptive).",
       "Which PDF page shows what."
     ),

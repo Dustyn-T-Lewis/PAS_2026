@@ -40,12 +40,12 @@ surrogate <- tibble(
   sv1 = sv1, run_depth_log2 = run_depth
 )
 surrogate_r <- tibble(
-  mice = c("all", "female", "male"),
+  mice = c("all", unname(SEX_NAMES)),
   r_with_run_depth = c(
     cor(sv1, run_depth),
-    map_dbl(c("F", "M"), \(s) cor(sv1[surrogate$sex == s], run_depth[surrogate$sex == s]))
+    map_dbl(names(SEX_NAMES), \(s) cor(sv1[surrogate$sex == s], run_depth[surrogate$sex == s]))
   ),
-  treatment_p = c(NA, map_dbl(c("F", "M"), \(s) {
+  treatment_p = c(NA, map_dbl(names(SEX_NAMES), \(s) {
     keep <- surrogate$sex == s
     t.test(sv1[keep] ~ proteins$targets$treatment[keep])$p.value
   }))
@@ -73,14 +73,13 @@ write_workbook(
     design = as_tibble(design, rownames = "sample_id"),
     contrasts = as_tibble(contrasts, rownames = "group"),
     comparisons = tibble(contrast = CONTRASTS, comparison = COMPARISON_OF_CONTRAST[CONTRASTS]),
-    groups = count(proteins$targets, group, name = "n"),
-    surrogate = surrogate, surrogate_r = surrogate_r, plot_index = plot_index
+    surrogate = mutate(surrogate, sex = SEX_NAMES[sex]), surrogate_r = surrogate_r,
+    plot_index = plot_index
   ),
   c(
     "Design matrix, one row per mouse: four group means and the surrogate variable sv1.",
     "Contrast matrix: the five questions as group weights.",
     "Which comparison reads each contrast; the baseline sex contrasts are context only.",
-    "Mice per group.",
     "Surrogate variable and run depth per mouse.",
     "Surrogate variable's r with run depth, overall and within sex; Welch p for PAS v vehicle.",
     "Which PDF page shows what."

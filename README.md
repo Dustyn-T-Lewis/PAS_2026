@@ -31,7 +31,7 @@ Rscript -e 'renv::restore()'
 Rscript run_all.R
 ```
 
-About 7 minutes on a laptop, 12 from a fresh clone (limpa refits its three cached quantifications). R 4.6.0; `renv.lock` pins every package, and enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. The run needs internet because STRINGdb contacts string-db.org.
+About 7 minutes on a laptop, 12 from a fresh clone (limpa refits its three cached quantifications). R 4.6.0; `renv.lock` pins every package, and enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. The run needs internet: msigdbr downloads MSigDB 2026.1 from Zenodo on its first run (then cached), and STRINGdb contacts string-db.org.
 
 ## Version 1
 

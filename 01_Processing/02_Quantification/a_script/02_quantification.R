@@ -36,21 +36,11 @@ proteins <- quantified[
 
 # MitoCarta matched on symbol or UniProt accession: symbol alone misses renamed genes.
 mitocarta <- readxl::read_excel(inputs[["mitocarta"]], sheet = 2) |>
-  transmute(
-    symbol = Symbol, accession = UniProt, sub_localization = MitoCarta3.0_SubMitoLocalization
-  )
+  transmute(symbol = Symbol, accession = UniProt)
 group_symbols <- str_split(proteins$genes$Genes, ";")
 group_accessions <- str_split(rownames(proteins), ";")
 proteins$genes$is_mito <- map_lgl(group_symbols, \(g) any(g %in% mitocarta$symbol)) |
   map_lgl(group_accessions, \(a) any(a %in% mitocarta$accession))
-first_hit <- function(keys, table) {
-  hit <- mitocarta$sub_localization[match(keys, table)]
-  hit <- hit[!is.na(hit)]
-  if (length(hit)) hit[1] else NA_character_
-}
-proteins$genes$sub_localization <- map2_chr(group_symbols, group_accessions, \(g, a) {
-  coalesce(first_hit(g, mitocarta$symbol), first_hit(a, mitocarta$accession))
-})
 
 pct_mito <- 100 * colSums(2^proteins$E[proteins$genes$is_mito, ]) / colSums(2^proteins$E)
 mito_share <- tibble(
@@ -148,8 +138,9 @@ saveRDS(
 )
 write_workbook(
   list(
-    dpc_parameters = dpc_parameters, mito_share = mito_share,
-    mito_share_tests = mito_share_tests, normalization_evidence = normalization_evidence,
+    dpc_parameters = dpc_parameters, mito_share = mutate(mito_share, sex = SEX_NAMES[sex]),
+    mito_share_tests = rename(mito_share_tests, p = p_value),
+    normalization_evidence = normalization_evidence,
     normalization = normalization, plot_index = plot_index
   ),
   c(

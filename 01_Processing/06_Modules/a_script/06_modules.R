@@ -17,7 +17,6 @@ inputs <- c(
 RSQ_CUT <- 0.85
 # WGCNA's FAQ power for a signed network of 20 to 30 samples when no power reaches the cut.
 FALLBACK_POWER <- 16
-N_HUBS <- 10
 N_RESAMPLES <- 100
 RESAMPLE_PER_GROUP <- 4
 
@@ -115,9 +114,6 @@ sizes <- count(modules, module, name = "proteins") |>
     by = "module"
   ) |>
   arrange(desc(proteins))
-hubs <- modules |>
-  filter(module != "grey") |>
-  slice_max(kME, n = N_HUBS, by = module, with_ties = FALSE)
 scale_free <- tibble(
   power = sft$fitIndices$Power, r2 = with(sft$fitIndices, -sign(slope) * SFT.R.sq),
   mean_connectivity = sft$fitIndices$mean.k.
@@ -153,17 +149,16 @@ saveRDS(
 )
 write_workbook(
   list(
-    sizes = sizes, modules = modules, hubs = hubs, scale_free = scale_free,
+    sizes = rename(sizes, size = proteins), modules = modules, scale_free = scale_free,
     eigengenes = as_tibble(eigengenes, rownames = "sample_id"), stability = stability,
     plot_index = plot_index
   ),
   c(
     paste(
-      "Per module: proteins, MitoCarta share, FDR-gated label, resampling stability (median",
+      "Per module: proteins (size), MitoCarta share, FDR-gated label, resampling stability (median",
       "and quartiles of best-match Jaccard), r with pellet mitochondrial share."
     ),
     "Every fully detected protein: module and signed membership (kME, bicor, adjusted data).",
-    str_glue("The {N_HUBS} highest-kME proteins of each module."),
     "Scale-free fit and mean connectivity by soft-threshold power.",
     "Module eigengenes by mouse, from the sex- and run-depth-adjusted matrix.",
     str_glue("Best-match Jaccard of each module in each of the {N_RESAMPLES} subsample rebuilds."),

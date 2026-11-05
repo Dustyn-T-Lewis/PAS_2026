@@ -45,9 +45,9 @@ mito <- list(MitoCarta = set_names(
 
 # The tested lists: a set enters when its detected genes in the universe fall inside TEST_WINDOW,
 # the window enrichVolcano applies to the ranked genes, so fgsea and singscore test the same sets.
-in_window <- function(sets, universe) {
+in_window <- function(sets, universe, window = TEST_WINDOW[[universe]]) {
   n <- map_int(sets, \(s) length(intersect(s, detected_in[[universe]])))
-  sets[n >= TEST_WINDOW[[universe]][1] & n <= TEST_WINDOW[[universe]][2]]
+  sets[n >= window[1] & n <= window[2]]
 }
 reactome <- full$Reactome[!str_detect(names(full$Reactome), REACTOME_DISEASE)]
 tested <- list(
@@ -176,14 +176,19 @@ all_sets <- unlist(unname(c(full, mito)), recursive = FALSE)
 literature_sets <- all_sets[intersect(LITERATURE_SETS$set, names(all_sets))]
 
 collections <- c(full, list(KEGG = kegg), mito, compartments, complexes, clusters)
-tested_names <- unlist(map(tested, \(u) map(u, names)))
+# Compartments are tested as a side list in 02_Enrichment, on its window; every kept complex and
+# cluster is scored and tested in 01_Fit.
+side_window <- side_list_size(length(detected_in$full))$compartments
+tested_names <- c(
+  unlist(map(tested, \(u) map(u, names))), names(literature_sets),
+  names(in_window(compartments$Compartments, "full", side_window))
+)
 catalog <- collections |>
   imap(\(sets, db) {
     tibble(
-      collection = db, set = names(sets), members = lengths(sets),
+      collection = db, set = names(sets), size = lengths(sets),
       detected = map_int(sets, \(s) sum(s %in% detected)),
-      tested = set %in% c(tested_names, names(literature_sets)) |
-        db %in% c("Compartments", "CORUM", "STRING")
+      tested = set %in% tested_names | db %in% c("CORUM", "STRING")
     )
   }) |>
   list_rbind() |>
@@ -212,15 +217,15 @@ membership <- groups |>
   arrange(gene, protein, collection, term)
 membership_wide <- membership |>
   summarise(
-    n = n(), terms = paste(term, collapse = "; "),
+    n = n(), sets = paste(term, collapse = "; "),
     .by = c(protein, gene, is_mito, collection)
   ) |>
-  pivot_wider(names_from = collection, values_from = c(n, terms), values_fill = list(n = 0L)) |>
+  pivot_wider(names_from = collection, values_from = c(n, sets), values_fill = list(n = 0L)) |>
   right_join(protein_genes, by = c("protein", "gene", "is_mito")) |>
   mutate(across(starts_with("n_"), \(x) coalesce(x, 0L))) |>
   select(
     protein, gene, is_mito,
-    map(names(groups), \(db) paste0(c("n_", "terms_"), db)) |> unlist()
+    map(names(groups), \(db) paste0(c("n_", "sets_"), db)) |> unlist()
   ) |>
   arrange(gene, protein)
 versions <- c(
@@ -232,7 +237,7 @@ versions <- c(
 saveRDS(
   list(
     full = full, tested = tested, compartments = compartments, complexes = complexes,
-    clusters = clusters, membership = membership, goslim = goslim,
+    clusters = clusters, goslim = goslim,
     literature = LITERATURE_SETS, literature_sets = literature_sets
   ),
   file.path(out$data, "gene_sets.rds")
@@ -241,18 +246,19 @@ write_workbook(
   list(
     catalog = catalog,
     membership = membership_wide,
-    membership_long = membership,
     corum = transmute(complex_members, set, complex_name, organism,
       detected = lengths(members), members = map_chr(members, \(g) paste(g, collapse = ";"))
     ),
     string_clusters = mutate(cluster_labels, set = names(clusters$STRING), .before = 1),
-    literature_sets = mutate(LITERATURE_SETS, present = set %in% names(literature_sets)),
+    literature_sets = LITERATURE_SETS,
     versions = enframe(versions, "source", "version")
   ),
   c(
-    "Every set: collection, members, detected, whether tested, GO ID and GO Slim ancestors.",
+    paste(
+      "Every set: collection, size (genes listed), detected, whether tested, GO ID and GO Slim",
+      "ancestors."
+    ),
     "Every detected protein: count and names of the tested groups it belongs to, per collection.",
-    "The same, one row per protein and group.",
     "CORUM complexes with at least five detected subunits, and those subunits.",
     "STRING clusters: size, best over-represented term (FDR <= 0.05) and members.",
     paste(

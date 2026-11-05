@@ -14,7 +14,7 @@ Candidates and their six routes are defined in [`02_Statistics/06_Candidates`](.
 
 ![Panel a](b_reports/a_female_network.png)
 
-The 58 female candidates passing two or more routes; edges are STRING v12 links at combined score ≥ 700, colour is log2 fold change and size the number of routes. 35 have no STRING partner; the other 23 form eight communities, the largest named for TGF-β response regulation (Hsp90ab1, Cdc37, Cops3, Cops8, Sugt1, Fkbp1a) and skeletal muscle contraction (Atp2a1, Cacna1s, Srl, Casq1). A community's name may describe only some of its members.
+The 56 female candidates passing two or more routes; edges are STRING v12 links at combined score ≥ 700, colour is log2 fold change and size the number of routes. 33 have no STRING partner; the other 23 form eight communities, the largest named for TGF-β response regulation (Hsp90ab1, Cdc37, Cops3, Cops8, Sugt1, Fkbp1a) and skeletal muscle contraction (Atp2a1, Cacna1s, Srl, Casq1). A community's name may describe only some of its members.
 
 ### b. Male candidate network
 
@@ -32,7 +32,7 @@ The 14 female proteins passing three or more routes, each mouse's log2 abundance
 
 ![Panel d](b_reports/d_male_candidates.png)
 
-The same for the 11 male protein groups passing three or more routes (Cav1 twice, labelled by accession). Nine fall and two rise (Mdh1, Comtd1); none reaches FDR ≤ 0.05 (smallest Cd36, 0.094). The list mixes myofibril, extracellular matrix and red-cell proteins, so the composition caveat from panel b applies.
+The same for the 12 male protein groups passing three or more routes (Cav1 twice, labelled by accession). Ten fall and two rise (Mdh1, Comtd1); none reaches FDR ≤ 0.05 (smallest Cd36, 0.094). The list mixes myofibril, extracellular matrix and red-cell proteins, so the composition caveat from panel b applies.
 
 ## Supplementary Figure 3
 

@@ -11,7 +11,7 @@ Fits every model the comparisons read, once on all 20 mice: protein, score and e
 ## Method
 
 - Proteins: `limpa::dpcDE(sample.weights = TRUE)` per universe on the design. Each contrast is refitted as the first coefficient of an equivalent design (`limma::contrastAsCoef()`) and moderated with `eBayes()`, because `contrasts.fit()` is not exact under limpa's per-protein weights. BH within universe and contrast; Π, TREAT (fold change > 1.2) and ashr lfsr beside each row.
-- PAS in either sex: a moderated F over the two PAS contrasts, with a response pattern from the signs of the two fold changes.
+- Every protein row carries `detected_VEH_F`, `detected_PAS_F`, `detected_VEH_M` and `detected_PAS_M`: the mice in each group with an observed precursor. The other values are limpa's inference, so a protein never detected in a group still has a fold change there.
 - Set scores: limma with `eBayes()` on the same design. Module eigengenes: ordinary least-squares t, since eight features cannot inform an eBayes prior.
 - Shown score sets: within each contrast and universe, sets at p ≤ 0.05 are grouped by `representative_sets()` (Jaccard tree cut at 0.70) and each group is shown by one set (`overlap_group`, `shown`).
 - Phenotype effects: % change of PAS against the same sex's vehicle, Welch t on log values. Interaction: `lm(log(value) ~ treatment * sex)`.
@@ -21,6 +21,5 @@ Fits every model the comparisons read, once on all 20 mice: protein, score and e
 ## Results
 
 - Full proteome (1,962 tests), at p ≤ 0.05 / Π ≤ 0.05 / FDR ≤ 0.05: female 177 / 107 / 3 (Cops3, Cops8, Dusp3, all down); male 193 / 106 / 0; interaction 162 / 142 / 0.
-- F-test: 215 proteins at p ≤ 0.05, none at FDR ≤ 0.05; 83 down in both sexes, 56 up in both, 56 up in females and down in males, 20 the reverse.
 - Phenotype effects in females: capillary density +138% (p 0.005), CSA +22% (p 0.002), satellite cells +47% (p 0.009). None in males. Interaction only for capillary density (p 0.014).
 - Shown score sets at p ≤ 0.05: 42 of 98 in females, 26 of 55 in males, 41 of 70 for the interaction.

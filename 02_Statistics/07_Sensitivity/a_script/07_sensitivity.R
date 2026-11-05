@@ -90,7 +90,6 @@ top_baseline <- baseline |>
   select(contrast, feature)
 counts <- results |>
   reframe(tier_counts(P.Value, adj.P.Val), .by = c(variant, contrast)) |>
-  select(-pi_le_0.05) |>
   left_join(
     results |>
       slice_min(P.Value, n = TOP_N, by = c(variant, contrast), with_ties = FALSE) |>
@@ -125,11 +124,12 @@ saveRDS(
   file.path(out$data, "sensitivity.rds")
 )
 write_workbook(
-  list(counts = counts, named = named, plot_index = plot_index),
+  list(counts = select(counts, -tests), named = p_fdr(named), plot_index = plot_index),
   c(
     str_glue(
-      "Per variant and contrast: proteins at p <= 0.05, FDR <= 0.10, FDR <= 0.05, and how many of ",
-      "the baseline's {TOP_N} smallest p-values stay in the variant's {TOP_N} smallest."
+      "Per variant and contrast, of the {nrow(baseline_y)} full-proteome proteins: proteins at ",
+      "p <= 0.05, FDR <= 0.10, FDR <= 0.05, and how many of the baseline's {TOP_N} smallest ",
+      "p-values stay in the variant's {TOP_N} smallest."
     ),
     "Every protein at FDR <= 0.10 in the baseline: log2 FC, p and FDR under each variant.",
     "Which PDF page shows what."

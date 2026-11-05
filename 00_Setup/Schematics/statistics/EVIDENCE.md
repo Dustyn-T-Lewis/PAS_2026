@@ -7,11 +7,10 @@ Read 2026-10-16 after the coordinator's rerun of run_all.R.
 | Seven steps in number order | 01_Fit ... 07_Sensitivity | `run_all.R` `statistics`; `02_Statistics/README.md` |
 | No arrows between cards | not a chain: 02-07 read 01's fit.rds (and 05 reads proteins.rds; 06 reads enrichment and modules; 07 reads fit and processing files) | each step README "Reads" row |
 | 01: limpa dpcDE for proteins, limma for scores | | `01_Fit/README.md` Proteins, Scores and eigengenes |
-| 01: moderated F, TREAT and lfsr | sheet `protein_ftest` (F_stat, P.Value); `protein_contrasts` columns `treat_p`, `treat_fdr`, `logFC_shrunk`, `lfsr` | `02_Statistics/01_Fit/c_data/01_fit.xlsx` |
+| 01: TREAT and lfsr | `protein_contrasts` columns `treat_p`, `treat_fdr`, `logFC_shrunk`, `lfsr` | `02_Statistics/01_Fit/c_data/01_fit.xlsx` |
 | 01: ordinary t for module eigengenes | module rows of `score_contrasts` have df = 15.0 (residual df, no prior df); other levels 18.6 or 19.8 | `02_Statistics/01_Fit/c_data/fit.rds` `$score_contrasts`, `count(level, df)` |
 | 02: fgsea on GO:BP, Reactome, Hallmark, KEGG, MitoCarta | collections in sheet `summary` | `02_Statistics/02_Enrichment/c_data/02_enrichment.xlsx`, `summary` |
 | 02: camera beside fgsea | columns `camera_p`, `camera_fdr` in sheet `fgsea`; script comment "camera is unweighted" (02_enrichment.R line 202) | `02_enrichment.xlsx` `fgsea`; `02_enrichment.R` |
-| 02: pattern ORA | sheet `pattern_ora` | `02_enrichment.xlsx` |
 | 02: fry for cross-sex signatures | sheet `signatures` (fry direction, p, mixed p) | `02_enrichment.xlsx` |
 | 03: single-score AUC within each sex; 252 relabellings | `perfect$relabellings` = 252 for every row | `02_Statistics/03_Classification/c_data/classification.rds` `$perfect` |
 | 04: sex R² 0.39, treatment R² 0.04 | sex r2 0.3936, treatment r2 0.0380 | `02_Statistics/04_PCA/c_data/04_pca.xlsx`, sheet `permanova` |

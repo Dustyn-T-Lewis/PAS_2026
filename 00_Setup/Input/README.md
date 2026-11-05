@@ -1,6 +1,6 @@
 # Input
 
-Study data and reference files. The pipeline reads them from here; only STRINGdb contacts a server at run time.
+Study data and reference files. The pipeline reads them from here, with three network calls: `msigdbr` downloads MSigDB 2026.1 from Zenodo on its first run and caches it; `STRINGdb$new()` contacts string-db.org every time it is constructed; and `get_ppi_enrichment()` (02_Enrichment) is computed on the STRING server. STRING maps, clusters and interactions come from the local `STRING_v12/` copies.
 
 | File | One row is | Read by |
 |---|---|---|

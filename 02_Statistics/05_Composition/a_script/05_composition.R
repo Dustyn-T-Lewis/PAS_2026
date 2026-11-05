@@ -37,7 +37,7 @@ quant <- readRDS(inputs[["proteins"]])
 targets <- as_tibble(quant$proteins$targets)
 expr <- quant$E_norm$full[, targets$sample_id]
 detected <- quant$proteins$other$n.observations[rownames(expr), targets$sample_id] > 0
-genes <- first_symbol(quant$proteins$genes[rownames(expr), "Genes"])
+genes <- set_names(first_symbol(quant$proteins$genes[rownames(expr), "Genes"]), rownames(expr))
 
 usable <- rowSums(detected) >= MIN_MICE_DETECTED
 scaled <- t(scale(t(expr)))
@@ -91,7 +91,7 @@ tests <- composition |>
     },
     .by = c(group, sex)
   ) |>
-  mutate(sex = if_else(sex == "F", "female", "male"))
+  mutate(sex = unname(SEX_NAMES[sex]))
 
 plot_index <- preview_pdf(file.path(out$reports, "05_composition.pdf"), list(
   "marker scores by group" = \() {
@@ -118,11 +118,16 @@ saveRDS(
 )
 write_workbook(
   list(
-    tests = tests, scores = composition, members = marker_members, plot_index = plot_index
+    tests = tests,
+    scores = mutate(composition, sex = SEX_NAMES[sex], size = n_proteins, .keep = "unused"),
+    members = marker_members, plot_index = plot_index
   ),
   c(
     "Per marker group and sex: PAS and vehicle means, difference with 95% CI, Welch p.",
-    "Per mouse and marker group: score (mean scaled log2 abundance, or % of signal).",
+    paste(
+      "Per mouse and marker group: proteins scored (size) and score (mean scaled log2",
+      "abundance, or % of signal)."
+    ),
     str_glue("Proteins scored per marker group (detected in at least {MIN_MICE_DETECTED} mice)."),
     "Which PDF page shows what."
   ),

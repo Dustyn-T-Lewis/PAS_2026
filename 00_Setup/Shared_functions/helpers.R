@@ -35,6 +35,8 @@ PHENOTYPES <- c(
   "capillary_density", "csa_mean", "satellite_cells_per_fiber",
   "conductance_sol_pyr", "conductance_pla_pyr", "conductance_sol_oct"
 )
+# The design codes sex F and M; workbooks and the association tables spell it out.
+SEX_NAMES <- c(F = "female", M = "male")
 
 input_path <- \(...) here("00_Setup", "Input", ...)
 output_path <- \(stage, step, file) here(stage, step, "c_data", file)
@@ -52,6 +54,13 @@ stage_paths <- function(stage, step, reports = TRUE) {
 # A set is tested when this many of its genes are detected in the universe (enrichVolcano's
 # min_size and max_size); 04_Gene_Sets trims the lists to it and 02_Enrichment passes it to fgsea.
 TEST_WINDOW <- list(full = c(15, 500), mito = c(10, 500))
+# The side lists' windows, on the same count: fgsea's own nPermSimple runs them, so they keep sets
+# above 500. A compartment holding more than half the ranked genes is skipped, as its complement
+# is then the smaller set and the test mostly reads the rest of the proteome. 02_Enrichment tests
+# with these windows and 04_Gene_Sets marks those sets tested.
+side_list_size <- function(n_ranked) {
+  list(compartments = c(15, n_ranked / 2), literature = c(5, Inf))
+}
 
 # Sets called in one test are grouped by the proteins they share, as EnrichmentMap and DAVID group
 # them (Merico et al. 2010, PLoS One, doi:10.1371/journal.pone.0013984; Huang et al. 2007, Genome
@@ -117,7 +126,9 @@ first_symbol <- \(genes) str_split_i(genes, ";", 1)
 # Set names in MSigDB style: upper case, runs of other characters as one underscore.
 set_id <- \(x) str_to_upper(str_replace_all(x, "[^A-Za-z0-9]+", "_"))
 
-# STRING v12, mouse, medium confidence, read from the copies in 00_Setup/Input/STRING_v12.
+# STRING v12, mouse, medium confidence. map(), get_clusters() and get_interactions() read the
+# copies in 00_Setup/Input/STRING_v12, but STRINGdb$new() contacts string-db.org every time it is
+# constructed and get_ppi_enrichment() is computed on that server.
 string_db <- function() {
   STRINGdb::STRINGdb$new(
     version = "12.0", species = 10090, score_threshold = 400, network_type = "full",
@@ -132,7 +143,7 @@ pi_score <- \(p, logfc) p^abs(logfc)
 tier_counts <- function(p, fdr, pi = NULL) {
   tibble(
     tests = length(p), p_le_0.05 = sum(p <= ALPHA),
-    pi_le_0.05 = if (is.null(pi)) NA_integer_ else sum(pi <= ALPHA),
+    pi_le_0.05 = if (!is.null(pi)) sum(pi <= ALPHA),
     fdr_le_0.10 = sum(fdr <= 0.10), fdr_le_0.05 = sum(fdr <= ALPHA)
   )
 }
@@ -245,14 +256,19 @@ gsea_table_page <- function(results, sets, ranks, n = 5) {
   ))
 }
 
-# Every workbook opens on read_me and ends with the packages attached.
+# Workbooks call a p-value p and its BH FDR fdr whichever package computed them; the rds files
+# keep limma's names, which the figures read.
+p_fdr <- \(x) rename(x, p = P.Value, fdr = adj.P.Val)
+
+# Every workbook opens on read_me and ends with the packages loaded, including those called
+# through :: without being attached.
 write_workbook <- function(sheets, holds, file) {
   stopifnot(length(sheets) == length(holds))
   sheets <- c(sheets, list(
-    package_versions = sessioninfo::package_info("attached", dependencies = FALSE) |>
+    package_versions = sessioninfo::package_info("loaded", dependencies = FALSE) |>
       as_tibble() |>
       dplyr::select(package, version = loadedversion, source)
   ))
-  read_me <- tibble(sheet = names(sheets), holds = c(holds, "Packages attached at run time."))
+  read_me <- tibble(sheet = names(sheets), holds = c(holds, "Packages loaded at run time."))
   writexl::write_xlsx(c(list(read_me = read_me), sheets), file)
 }

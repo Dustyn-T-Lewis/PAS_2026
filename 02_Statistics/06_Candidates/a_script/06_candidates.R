@@ -20,21 +20,18 @@ COMMUNITY_ROUTES <- 2
 out <- stage_paths("02_Statistics", "06_Candidates")
 inputs <- c(
   fit = output_path("02_Statistics", "01_Fit", "fit.rds"),
-  proteins = output_path("01_Processing", "02_Quantification", "proteins.rds"),
   design = output_path("01_Processing", "03_Design", "design.rds"),
   enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"),
   modules = output_path("01_Processing", "06_Modules", "modules.rds"),
   gene_sets = output_path("01_Processing", "04_Gene_Sets", "gene_sets.rds")
 )
 fit <- readRDS(inputs[["fit"]])
-quant <- readRDS(inputs[["proteins"]])
 d <- readRDS(inputs[["design"]])
 enr <- readRDS(inputs[["enrichment"]])
 mods <- readRDS(inputs[["modules"]])
 gs <- readRDS(inputs[["gene_sets"]])
 targets <- as_tibble(fit$targets)
 expr <- fit$E_norm$full[, targets$sample_id]
-detected <- quant$proteins$other$n.observations[rownames(expr), targets$sample_id] > 0
 sv1 <- d$design[targets$sample_id, "sv1"]
 SEX_CONTRAST <- map_chr(SEX_COMPARISONS, "contrast")
 
@@ -53,8 +50,6 @@ routes <- imap(SEX_CONTRAST, \(cn, sex) {
   code <- SEX_COMPARISONS[[sex]]$sex
   veh <- targets$group == paste0("VEH_", code)
   pas <- targets$group == paste0("PAS_", code)
-  measured <- rowSums(detected[, veh]) >= MIN_DETECTED_PER_GROUP &
-    rowSums(detected[, pas]) >= MIN_DETECTED_PER_GROUP
   in_sex <- veh | pas
   # The surrogate variable is removed within the sex before mice are compared one by one.
   adjusted <- limma::removeBatchEffect(expr[, in_sex], covariates = sv1[in_sex])
@@ -70,13 +65,19 @@ routes <- imap(SEX_CONTRAST, \(cn, sex) {
     filter(level == "module", contrast == cn, P.Value <= ALPHA) |>
     pull(feature)
   hubs <- filter(mods$modules, module %in% responsive, kME >= HUB_KME)$protein
+  # Leading edges of the shown sets in both universes, full proteome and MitoCarta, pooled.
   leading <- enr$results |>
-    filter(contrast == cn, padj <= ALPHA, dedup_status == "kept") |>
+    filter(contrast == cn, padj <= ALPHA, shown) |>
     pull(leading_edge) |>
     str_split(";") |>
     unlist()
   proteins |>
-    filter(contrast == cn, measured[feature]) |>
+    filter(contrast == cn) |>
+    mutate(
+      detected_veh = .data[[paste0("detected_VEH_", code)]],
+      detected_pas = .data[[paste0("detected_PAS_", code)]]
+    ) |>
+    filter(detected_veh >= MIN_DETECTED_PER_GROUP, detected_pas >= MIN_DETECTED_PER_GROUP) |>
     transmute(
       sex, feature, gene, logFC, logFC_shrunk, P.Value, adj.P.Val, lfsr, pi_score,
       auc = auc[feature],
@@ -85,12 +86,9 @@ routes <- imap(SEX_CONTRAST, \(cn, sex) {
       both_sexes = feature %in% both,
       phenotype = feature %in% associated,
       hub = feature %in% hubs,
-      pathway = gene %in% leading & P.Value <= ALPHA
-    ) |>
-    mutate(
+      pathway = gene %in% leading & P.Value <= ALPHA,
       routes = statistics + every_mouse + both_sexes + phenotype + hub + pathway,
-      detected_veh = rowSums(detected[feature, veh, drop = FALSE]),
-      detected_pas = rowSums(detected[feature, pas, drop = FALSE])
+      detected_veh, detected_pas
     )
 }) |>
   list_rbind() |>
@@ -163,7 +161,10 @@ saveRDS(
   file.path(out$data, "candidates.rds")
 )
 write_workbook(
-  list(summary = summary, candidates = candidates, edges = network_edges, plot_index = plot_index),
+  list(
+    summary = summary, candidates = p_fdr(candidates), edges = network_edges,
+    plot_index = plot_index
+  ),
   c(
     "Per sex: proteins passing any route, two or more, three or more, and each route's count.",
     paste(

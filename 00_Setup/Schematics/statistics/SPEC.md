@@ -8,8 +8,8 @@ Left edge: one small neutral card "01_Processing" with one arrow pointing right 
 
 Centre (about two thirds of the width): one large neutral rounded panel, with no title, that encloses all seven step cards; arrows touch only the outer edge of this panel, never a card inside it. Inside the panel, seven pale blue-grey step cards of equal size in a grid, four in the top row and three in the bottom row, read in number order. Each card shows its two-digit number large at top left, a bold title beside it, and one to three short lines of text underneath. There are no arrows or lines between the seven cards.
 Top row:
-- "01" "Fit": "limpa dpcDE for proteins, limma for scores", "moderated F, TREAT and lfsr", "ordinary t for module eigengenes".
-- "02" "Enrichment": "fgsea on GO:BP, Reactome, Hallmark, KEGG, MitoCarta", "camera beside fgsea; pattern ORA", "fry for cross-sex signatures".
+- "01" "Fit": "limpa dpcDE for proteins, limma for scores", "TREAT and lfsr", "ordinary t for module eigengenes".
+- "02" "Enrichment": "fgsea on GO:BP, Reactome, Hallmark, KEGG, MitoCarta", "camera beside fgsea", "fry for cross-sex signatures".
 - "03" "Classification": "single-score AUC within each sex", "against all 252 relabellings".
 - "04" "PCA": "PCA and PERMANOVA", "sex R² 0.39, treatment R² 0.04".
 Bottom row:

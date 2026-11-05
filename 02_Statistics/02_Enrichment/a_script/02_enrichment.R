@@ -1,8 +1,8 @@
 # Every pathway test the comparisons read, run once: fgsea on each comparison contrast's moderated
 # t and on each protein-phenotype association t, camera beside each across mice, side lists, fry
-# for one sex's response in the other, ORA of the F-test patterns and of the co-expression
-# clusters in each contrast's Π lists, and STRING connectivity. fgsea permutes genes, so camera and
-# the singscore tests from 01_Fit are the mouse-level checks on it.
+# for one sex's response in the other, ORA of the co-expression clusters in each contrast's Π
+# lists, and STRING connectivity. fgsea permutes genes, so camera and the singscore tests from
+# 01_Fit are the mouse-level checks on it.
 
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
@@ -28,13 +28,13 @@ da <- map(set_names(names(gs$tested)), \(u) {
     enrichVolcano::as_da(species = "Mus musculus")
 })
 
-# One contrast at a time and seeded each time, so a contrast's result does not depend on which
-# others ran beside it.
+# One contrast, or one phenotype association, at a time and seeded each time, so a test's result
+# does not depend on which others ran beside it.
 fgsea_of <- function(da, collection, size) {
   set.seed(SEED)
   suppressMessages(enrichVolcano::run_enrichment(da, collection,
     tests = "fgsea", min_size = size[1], max_size = size[2]
-  ))$fgsea
+  ))$fgsea@results
 }
 # The ranking fgsea tested: moderated t, one protein per gene by abundance.
 gene_ranks <- function(da) {
@@ -63,14 +63,9 @@ mark_shown <- function(tests, by) {
     left_join(select(called, all_of(key), overlap_group, shown), by = key) |>
     mutate(shown = coalesce(shown, FALSE))
 }
-enrichment_objects <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
+enrichment_tables <- map(set_names(COMPARISON_CONTRASTS), \(cn) {
   imap(gs$tested, \(collection, u) {
-    tested <- fgsea_of(da[[u]][da[[u]]$contrast == cn, ], collection, TEST_WINDOW[[u]])
-    set.seed(SEED)
-    enrichVolcano::dedup_terms(tested, sets[[u]],
-      method = "collapse_pathways", term_threshold = ALPHA,
-      stats = set_names(list(ranks[[cn]][[u]]), cn)
-    )
+    fgsea_of(da[[u]][da[[u]]$contrast == cn, ], collection, TEST_WINDOW[[u]])
   })
 })
 
@@ -84,8 +79,8 @@ score_stats <- fit$score_contrasts |>
     contrast,
     term = feature, score_logFC = logFC, score_p = P.Value, score_fdr = adj.P.Val, r_group
   )
-results <- imap(enrichment_objects, \(by_universe, cn) {
-  imap(by_universe, \(e, u) mutate(e@results, universe = u, .before = 1)) |>
+results <- map(enrichment_tables, \(by_universe) {
+  imap(by_universe, \(e, u) mutate(e, universe = u, .before = 1)) |>
     list_rbind()
 }) |>
   list_rbind() |>
@@ -98,16 +93,16 @@ results <- imap(enrichment_objects, \(by_universe, cn) {
   transmute(
     contrast, universe,
     collection = database, term, NES = score, p, padj, size, direction,
-    dedup_status, merged_into, similarity, overlap_group, shown, score_logFC, score_p, score_fdr,
-    r_group, families,
+    overlap_group, shown, score_logFC, score_p, score_fdr, r_group, families,
     leading_edge = flatten(leading_edge)
   ) |>
   arrange(factor(contrast, COMPARISON_CONTRASTS), universe, collection, p)
 
 # The side lists run on fgsea directly, on the ranking the main tests used: enrichVolcano keeps
 # fgsea's default nPermSimple, and at that default a set with unbalanced gene-level statistics
-# gets no p-value and drops out. fgsea's own advice is nPermSimple = 10000.
-SIDE_LIST_SIZE <- list(compartments = c(15, Inf), literature = c(5, Inf))
+# gets no p-value and drops out. fgsea's own advice is nPermSimple = 10000. The windows are
+# side_list_size()'s, on the full proteome's ranked genes.
+SIDE_LIST_SIZE <- side_list_size(length(ranks[[1]]$full))
 side_list <- function(collection, size) {
   side_sets <- unlist(unname(collection), recursive = FALSE)
   map(COMPARISON_CONTRASTS, \(cn) {
@@ -133,30 +128,22 @@ literature <- side_list(list(Literature = gs$literature_sets), SIDE_LIST_SIZE$li
 
 # Pathway associations: fgsea on each protein's association t with one phenotype within one sex,
 # under both association models (genes permuted, so its FDR runs optimistic), beside the same set's
-# singscore association under the same model, which is tested across mice. Each phenotype column
-# carries the same collapsePathways flag as the contrasts, and its shown sets are picked over both
-# universes together.
+# singscore association under the same model, which is tested across mice. Each phenotype's shown
+# sets are picked over both universes together.
 association_models <- unique(fit$association_designs$model)
 association_fgsea <- expand_grid(
-  model = association_models, sex = names(SEX_COMPARISONS), u = names(gs$tested)
+  model = association_models, sex = names(SEX_COMPARISONS), phenotype = PHENOTYPES,
+  u = names(gs$tested)
 ) |>
-  pmap(\(model, sex, u) {
-    da <- fit$protein_associations |>
-      filter(model == !!model, sex == !!sex, universe == u) |>
+  pmap(\(model, sex, phenotype, u) {
+    fit$protein_associations |>
+      filter(model == !!model, sex == !!sex, phenotype == !!phenotype, universe == u) |>
       transmute(
         protein = feature, gene, contrast = phenotype, logFC = estimate, t, P.Value, adj.P.Val,
         abundance = AveExpr
       ) |>
-      enrichVolcano::as_da(species = "Mus musculus")
-    set.seed(SEED)
-    tested <- suppressMessages(enrichVolcano::run_enrichment(da, gs$tested[[u]],
-      tests = "fgsea", min_size = TEST_WINDOW[[u]][1], max_size = TEST_WINDOW[[u]][2]
-    ))$fgsea
-    set.seed(SEED)
-    enrichVolcano::dedup_terms(tested, sets[[u]],
-      method = "collapse_pathways", term_threshold = ALPHA,
-      stats = map(split(da, da$contrast), gene_ranks)
-    )@results |>
+      enrichVolcano::as_da(species = "Mus musculus") |>
+      fgsea_of(gs$tested[[u]], TEST_WINDOW[[u]]) |>
       mutate(model = model, sex = sex, universe = u, .before = 1)
   }) |>
   list_rbind() |>
@@ -164,8 +151,7 @@ association_fgsea <- expand_grid(
   transmute(
     model, sex, universe,
     collection = database, phenotype = contrast, term, NES = score, fgsea_p = p,
-    fgsea_fdr = padj, size, dedup_status, merged_into, overlap_group, shown,
-    leading_edge = flatten(leading_edge)
+    fgsea_fdr = padj, size, overlap_group, shown, leading_edge = flatten(leading_edge)
   ) |>
   left_join(
     fit$score_associations |>
@@ -320,12 +306,6 @@ ora_of <- function(genes) {
   }) |>
     list_rbind()
 }
-# The PAS F-test proteins, per response pattern.
-pattern_ora <- fit$protein_ftest |>
-  filter(universe == "full", P.Value <= ALPHA, !is.na(gene), gene != "") |>
-  reframe(ora_of(unique(gene)), .by = pattern) |>
-  rename(genes_in_pattern = genes_in_list) |>
-  arrange(pattern, collection, p)
 
 # The S3 heatmap rows: each comparison contrast's Π <= 0.05 proteins, split by direction, and each
 # direction block cut into co-expression clusters by dynamicTreeCut's hybrid method on
@@ -380,16 +360,14 @@ cluster_ora <- heatmap_clusters |>
   )
 
 tier_table <- results |>
-  reframe(tier_counts(p, padj), .by = c(contrast, universe, collection)) |>
-  select(-pi_le_0.05)
+  reframe(tier_counts(p, padj), .by = c(contrast, universe, collection))
 association_summary <- association_fgsea |>
   reframe(tier_counts(fgsea_p, fgsea_fdr),
     camera_fdr_le_0.05 = sum(camera_fdr <= ALPHA),
     singscore_p_le_0.05 = sum(score_p <= ALPHA),
     singscore_fdr_le_0.05 = sum(score_fdr <= ALPHA),
     .by = c(model, sex, universe, collection, phenotype)
-  ) |>
-  select(-pi_le_0.05)
+  )
 
 plot_index <- preview_pdf(
   file.path(out$reports, "02_enrichment.pdf"),
@@ -406,51 +384,55 @@ saveRDS(
   list(
     results = results, ranks = ranks, sets = sets, compartments = compartments,
     literature = literature, association_fgsea = association_fgsea,
-    signatures = signatures, pattern_ora = pattern_ora, heatmap_clusters = heatmap_clusters,
-    cluster_ora = cluster_ora, string = string_tests, summary = tier_table
+    signatures = signatures, heatmap_clusters = heatmap_clusters, cluster_ora = cluster_ora,
+    string = string_tests, summary = tier_table
   ),
   file.path(out$data, "enrichment.rds")
 )
 write_workbook(
   list(
-    summary = tier_table, fgsea = results, compartments = compartments, literature = literature,
-    association_summary = association_summary, association_fgsea = association_fgsea,
-    signatures = signatures, pattern_ora = pattern_ora, heatmap_clusters = heatmap_clusters,
-    cluster_ora = cluster_ora, string = string_tests, plot_index = plot_index
+    summary = tier_table,
+    fgsea = rename(results, set = term, fdr = padj),
+    compartments = rename(compartments, fdr = padj),
+    literature = rename(literature, fdr = list_fdr),
+    association_summary = association_summary,
+    association_fgsea = rename(association_fgsea, set = term, p = fgsea_p, fdr = fgsea_fdr),
+    signatures = rename(signatures, size = n_proteins),
+    cluster_ora = cluster_ora |>
+      filter(p <= ALPHA) |>
+      rename(set = term, members = overlap_genes),
+    string = rename(string_tests, size = n_proteins), plot_index = plot_index
   ),
   c(
     "Per contrast and collection: sets tested, at p ≤ 0.05, FDR tiers.",
     paste(
-      "Every tested set and contrast: NES, p, BH FDR, size, collapsePathways flag, overlap group",
-      "and whether F03 shows the set (one per group of overlapping sets at FDR ≤ 0.05), camera p",
-      "and FDR (inter-protein correlation estimated), singscore",
-      "contrast (log2 FC, p, FDR, r with group), GO Slim families, leading edge."
+      "Every tested set and contrast: NES, p, BH FDR, size, overlap group and whether F03 shows",
+      "the set (one per group of overlapping sets at FDR ≤ 0.05), camera p and FDR",
+      "(inter-protein correlation estimated), singscore contrast (log2 FC, p, FDR, r with",
+      "group), GO Slim families, leading edge."
     ),
-    "GO Slim cellular compartments, fgsea per contrast, full proteome.",
+    str_glue(
+      "GO Slim cellular compartments, fgsea per contrast, full proteome; compartments with more ",
+      "than {SIDE_LIST_SIZE$compartments[2]} of the {length(ranks[[1]]$full)} ranked genes are ",
+      "not tested."
+    ),
     "Literature-informed and ROS sets, fgsea per contrast, full proteome, BH across the list.",
     "Per model, sex, collection and phenotype: fgsea, camera and singscore association counts.",
     paste(
       "Every set's fgsea on protein association t per model (pooled, treatment), sex and",
-      "phenotype, with its collapsePathways flag, overlap group and shown flag (picked as in",
-      "fgsea, both universes together), camera p and FDR on the same slope, beside",
-      "its singscore association (slope, r, p, FDR)."
+      "phenotype, with its overlap group and shown flag (picked as in fgsea, both universes",
+      "together), camera p and FDR on the same slope, beside its singscore association (slope,",
+      "r, p, FDR)."
     ),
     paste(
       "Each sex's Π ≤ 0.05 up and down proteins tested in the other sex's PAS contrast by fry:",
       "size, share moving the same way, fry direction, p and mixed p."
     ),
     paste(
-      "ORA of each response pattern of the PAS F-test proteins (p ≤ 0.05), full-proteome",
-      "collections: overlap, size, p, BH FDR within pattern and collection, overlap genes."
-    ),
-    paste(
-      "S3's heatmap rows: each comparison contrast's Π ≤ 0.05 proteins in drawing order, their",
-      "direction block and co-expression cluster (dynamicTreeCut hybrid, deepSplit 2, minimum",
-      "10; empty where the cut left the protein unassigned)."
-    ),
-    paste(
-      "ORA of each co-expression cluster, full-proteome collections: overlap, size, p, BH FDR",
-      "within cluster and collection, overlap genes."
+      "ORA of each S3 heatmap co-expression cluster, full-proteome collections, sets at p ≤ 0.05:",
+      "overlap, size, p, BH FDR within cluster and collection (over every set tested), members",
+      "of the set in the cluster. The cluster of each protein is in enrichment.rds",
+      "(heatmap_clusters)."
     ),
     "STRING v12 connectivity of each contrast's Π and FDR lists.",
     "Which PDF page shows what."

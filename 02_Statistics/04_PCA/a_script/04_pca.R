@@ -83,7 +83,7 @@ scores <- function(o, n) {
     bind_cols(samples, .name_repair = "minimal")
 }
 proteome_scores <- scores(proteome, N_COMPONENTS)
-phenotype_scores <- scores(phenotype, 2)
+phenotype_scores <- select(scores(phenotype, 2), -c(run_depth, protein_groups, raw_signal_rel))
 phenotype_loadings <- as_tibble(phenotype$pca$rotation[, 1:2], rownames = "phenotype")
 
 group <- factor(samples$group, FIGURE_GROUPS)
@@ -111,7 +111,7 @@ saveRDS(
 )
 write_workbook(
   list(
-    proteome_scores = proteome_scores,
+    proteome_scores = mutate(proteome_scores, sex = SEX_NAMES[sex]),
     proteome_variance = tibble(component = seq_along(proteome$variance), share = proteome$variance),
     permanova = mutate(proteome$permanova, dispersion_p = c(
       proteome$dispersion_p, rep(NA, nrow(proteome$permanova) - 1)
@@ -119,7 +119,8 @@ write_workbook(
     component_r2 = select(component_r2, component, factor, r2),
     mito_vector = mito_vector,
     technical_groups = technical_groups, technical_tests = technical_tests,
-    phenotype_scores = phenotype_scores, phenotype_loadings = phenotype_loadings,
+    phenotype_scores = mutate(phenotype_scores, sex = SEX_NAMES[sex]),
+    phenotype_loadings = phenotype_loadings,
     phenotype_permanova = mutate(phenotype$permanova, dispersion_p = c(
       phenotype$dispersion_p, rep(NA, nrow(phenotype$permanova) - 1)
     )),

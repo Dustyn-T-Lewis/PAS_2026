@@ -47,11 +47,9 @@ report_phenotypes <- function(comparison) {
   associations <- fit$protein_associations |>
     mutate(level = "protein") |>
     bind_rows(fit$score_associations) |>
-    filter(sex == comparison) |>
-    mutate(label = coalesce(gene, feature), .after = feature)
+    filter(sex == comparison)
   association_summary <- associations |>
-    reframe(tier_counts(P.Value, adj.P.Val), .by = c(level, universe, phenotype, model)) |>
-    select(-pi_le_0.05)
+    reframe(tier_counts(P.Value, adj.P.Val), .by = c(level, universe, phenotype, model))
   associations <- filter(associations, model != "pooled_mito") |>
     arrange(level, phenotype, model, P.Value)
   # One row per feature and phenotype: the pooled association with the within-treatment p beside it.
@@ -60,7 +58,7 @@ report_phenotypes <- function(comparison) {
       associations |>
         filter(model == "treatment") |>
         select(level, universe, feature, phenotype,
-          p_treatment = P.Value, fdr_treatment = adj.P.Val
+          treatment_p = P.Value, treatment_fdr = adj.P.Val
         ),
       by = c("level", "universe", "feature", "phenotype"), relationship = "one-to-one",
       unmatched = "error"
@@ -106,12 +104,12 @@ report_phenotypes <- function(comparison) {
     },
     "strongest robust protein per phenotype" = \() {
       par(mfrow = c(2, 3))
-      pwalk(examples, \(feature, phenotype, label, ...) {
+      pwalk(examples, \(feature, gene, phenotype, ...) {
         x <- phenotype_of(phenotype)
         y <- fit$E_norm$full[feature, mice]
         plot(x, y,
           pch = 16, col = GROUP_COLOURS[targets$group], xlab = PHENOTYPE_LABELS[[phenotype]],
-          ylab = "log2 abundance", main = label
+          ylab = "log2 abundance", main = coalesce(gene, feature)
         )
         abline(lm(y ~ x), lty = 2)
       })
@@ -120,21 +118,34 @@ report_phenotypes <- function(comparison) {
 
   write_workbook(
     list(
-      phenotype_effects = effects, association_summary = association_summary,
-      protein_associations = filter(associations, level == "protein"),
-      score_associations = filter(associations, level != "protein"),
-      pathway_association_fgsea = fgsea, treatment_r = r_group, examples = examples,
+      phenotype_effects = transmute(effects, phenotype, pct_change, ci_low, ci_high, p = P.Value),
+      association_summary = association_summary,
+      protein_associations = associations |>
+        filter(level == "protein") |>
+        select(-sex, -level, -collection, -genes) |>
+        p_fdr(),
+      score_associations = associations |>
+        filter(level != "protein") |>
+        select(-sex, -gene, -genes, -is_mito, -starts_with("detected_")) |>
+        p_fdr(),
+      pathway_association_fgsea = rename(fgsea, set = term, p = fgsea_p, fdr = fgsea_fdr),
+      treatment_r = r_group,
+      examples = p_fdr(select(examples, -model, -universe, -sex, -level, -collection, -genes)),
       plot_index = plot_index
     ),
     c(
-      "Phenotype effects: PAS vs vehicle per phenotype in this sex, % change, 95% CI, Welch p.",
+      str_glue(
+        "Phenotype effects: PAS ({effects$n_pas[1]} mice) vs vehicle ({effects$n_veh[1]}) per ",
+        "phenotype in this sex, % change, 95% CI, Welch p."
+      ),
       paste(
         "Per level, universe, phenotype and model: associations at p ≤ 0.05, FDR tiers;",
         "pooled_mito adds the pellet mito share to the pooled model."
       ),
       paste(
         "Every protein's association with each phenotype across this sex's ten mice, pooled and",
-        "within treatment: slope (log2 per SD), 95% CI, t, p, BH FDR, r pooled, in VEH, in PAS."
+        "within treatment: slope (log2 per SD), 95% CI, t, p, BH FDR, mice detected per group,",
+        "r pooled, in VEH, in PAS."
       ),
       paste(
         "Every pathway, module, complex and cluster score's association with each phenotype,",
@@ -148,7 +159,10 @@ report_phenotypes <- function(comparison) {
         "Treatment effect beside the associations: every feature's r with PAS (PAS = 1)",
         "in this sex, with the contrast's p and FDR."
       ),
-      "The robust example protein per phenotype.",
+      paste(
+        "The robust example protein per phenotype (pooled model, full proteome), with the",
+        "within-treatment p and FDR."
+      ),
       "Which PDF page shows what."
     ),
     out$workbook

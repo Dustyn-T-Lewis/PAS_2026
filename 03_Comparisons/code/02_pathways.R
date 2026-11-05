@@ -18,6 +18,8 @@ report_pathways <- function(comparison) {
   results <- filter(enr$results, contrast == !!contrast) |>
     select(-contrast) |>
     arrange(factor(collection, names(collections)), p)
+  # The interaction has no pair of groups to correlate with, so its r_group is empty.
+  empty_r <- if (all(is.na(results$r_group))) "r_group"
   tier_table <- filter(enr$summary, contrast == !!contrast) |>
     select(-contrast)
   compartments <- filter(enr$compartments, contrast == !!contrast) |>
@@ -48,18 +50,20 @@ report_pathways <- function(comparison) {
 
   write_workbook(
     list(
-      summary = tier_table, fgsea = results, families = family_summary, compartments = compartments,
-      literature = literature, plot_index = plot_index
+      summary = tier_table,
+      fgsea = rename(select(results, -all_of(empty_r)), set = term, fdr = padj),
+      families = family_summary, compartments = rename(compartments, fdr = padj),
+      literature = rename(literature, fdr = list_fdr), plot_index = plot_index
     ),
     c(
       "Per universe and collection: p ≤ 0.05, FDR tiers.",
       paste(
-        "Every tested set, by p: NES, p, BH FDR within collection, size, redundancy flag, camera",
-        "p and FDR, singscore contrast (log2 FC, p, FDR, r with group), GO Slim families,",
-        "leading edge."
+        "Every tested set, by p: NES, p, BH FDR within collection, size, overlap group and shown",
+        "flag, camera p and FDR, singscore contrast (log2 FC, p, FDR, r with group where there",
+        "is one), GO Slim families, leading edge."
       ),
       "Per GO Slim family: GO:BP terms tested and at p and FDR ≤ 0.05 by direction.",
-      "GO Slim cellular compartments: fgsea, full proteome.",
+      "GO Slim cellular compartments up to half the ranked genes: fgsea, full proteome.",
       "Literature-informed and ROS sets, fgsea in the full proteome, BH across the list.",
       "Which PDF page shows what."
     ),

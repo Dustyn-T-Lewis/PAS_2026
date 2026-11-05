@@ -12,16 +12,14 @@ Runs every pathway test once, per contrast and per phenotype, so the comparisons
 
 - Contrasts: `enrichVolcano::run_enrichment(tests = "fgsea")` on each contrast's moderated t; GO:BP, Reactome, Hallmark and KEGG LEGACY in the full proteome, MitoCarta in the mitochondrial universe; BH within contrast and collection.
 - Each fgsea row carries two checks: the set's singscore contrast from 01_Fit, tested across mice, and `limma::camera`, which estimates the set's inter-protein correlation. fgsea permutes genes and runs optimistic; where they disagree, trust the checks.
-- Redundancy: `fgsea::collapsePathways` via `enrichVolcano::dedup_terms()` flags each FDR-level term `kept` or `redundant`. Nothing is dropped.
 - Shown sets: within each test, sets at FDR ≤ 0.05 are grouped by `representative_sets()` (Jaccard tree cut at 0.70); each group is shown by its most specific set within 10-fold of the group's best p. F03 and F04 draw these.
-- Phenotypes: fgsea on each protein's association t, per sex, model and phenotype.
-- Also: GO Slim compartments and the 19 literature and ROS sets (`fgsea(nPermSimple = 10000)`, BH within each list); cross-sex signatures (each sex's Π ≤ 0.05 lists tested in the other sex by `limma::fry`); ORA (`fgsea::fora`) of the F-test response patterns and of the S3 heatmap clusters; STRING connectivity of the Π lists.
+- Phenotypes: fgsea on each protein's association t, run and seeded once per sex, model and phenotype, as each contrast is.
+- Also: GO Slim compartments and the 19 literature and ROS sets (`fgsea(nPermSimple = 10000)`, BH within each list; a compartment holding more than half the ranked genes is skipped, which drops organelle); cross-sex signatures (each sex's Π ≤ 0.05 lists tested in the other sex by `limma::fry`); ORA (`fgsea::fora`) of the S3 heatmap clusters, the sheet keeping sets at p ≤ 0.05; STRING connectivity of the Π lists.
 - S3 clusters: average linkage on 1 − Pearson r over mice where both proteins were detected, cut by `dynamicTreeCut` (hybrid, deepSplit 2, minClusterSize 10).
 
 ## Results
 
 - Sets at p ≤ 0.05 / FDR ≤ 0.05, GO:BP, Reactome, Hallmark, KEGG, MitoCarta: female 95/10, 24/0, 2/1, 6/0, 11/2; male 161/35, 16/0, 6/1, 7/5, 6/0; interaction 93/20, 19/6, 3/3, 8/2, 12/11.
-- FDR-level terms kept by collapsePathways: 8 of 13 (female), 12 of 41 (male), 22 of 42 (interaction). Shown after overlap grouping: 8, 14, 24.
+- Sets shown after overlap grouping: 8 of 13 at FDR ≤ 0.05 (female), 14 of 41 (male), 24 of 42 (interaction).
 - No cross-sex signature reaches p ≤ 0.05 in the other sex by fry (p 0.074 to 0.98), though 50 to 78% of each list moves the same way.
-- Pattern ORA: proteins up in females and down in males over-represent striated muscle contraction (FDR 6e-6); no other pattern has a term at FDR ≤ 0.05.
 - Cluster ORA reaches FDR ≤ 0.05 in four clusters (male C3 and C4, interaction C2 and C3); male C3 and interaction C3 hold the muscle contraction and myogenesis sets. No female cluster has one. The clusters are built from responding proteins, so this ORA describes them and tests little.
