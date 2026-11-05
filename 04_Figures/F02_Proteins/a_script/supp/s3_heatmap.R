@@ -126,6 +126,15 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, he
   }
 
   block_of <- selected$direction[!duplicated(slices)]
+  row_gap_mm <- if_else(head(block_of, -1) == tail(block_of, -1), 1, 2.5)
+  # The last box sits on the foot of the heatmap, its axis level with the bottom row: extend lets
+  # it hang below the body by the axis height, and a gap above it of twice the last slice's height
+  # plus that overhang, less the box (and 1 mm), makes anno_zoom's smart-align push it right down.
+  overhang_mm <- axis_mm - 0.6
+  last_share <- mean(slices == last(levels(slices)))
+  push <- (unit(1, "npc") - unit(sum(row_gap_mm), "mm")) * (2 * last_share) +
+    unit(4 * overhang_mm - 2 * last(box_mm) + 1, "mm")
+  gaps <- grid::unit.c(rep(unit(1.2, "mm"), nlevels(slices) - 1), max(unit(1.2, "mm"), push))
   cluster_n <- table(factor(selected$cluster, levels(slices)))
   groups <- factor(targets$group, FIGURE_GROUPS)
   not_detected <- \(j, i, x, y, w, h, fill) {
@@ -150,7 +159,8 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, he
     right_annotation = ComplexHeatmap::rowAnnotation(
       ora = ComplexHeatmap::anno_zoom(
         align_to = split(seq_along(slices), slices), which = "row", panel_fun = bars,
-        size = unit(box_mm, "mm"), gap = unit(1.2, "mm"), width = unit(zoom_mm, "mm"),
+        size = unit(box_mm, "mm"), gap = gaps, extend = unit(c(overhang_mm, 0), "mm"),
+        width = unit(zoom_mm, "mm"),
         link_width = unit(2.5, "mm"), link_gp = grid::gpar(col = "grey55", fill = NA, lwd = 0.5)
       ),
       show_annotation_name = FALSE
@@ -160,18 +170,23 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, he
     row_split = slices, cluster_rows = FALSE, show_row_names = FALSE,
     row_title = sprintf("%s (%d)", levels(slices), cluster_n), row_title_rot = 0,
     row_title_gp = grid::gpar(fontsize = 5),
-    row_gap = unit(if_else(head(block_of, -1) == tail(block_of, -1), 1, 2.5), "mm"),
+    row_gap = unit(row_gap_mm, "mm"),
     column_gap = unit(0.6, "mm"), layer_fun = not_detected, show_heatmap_legend = FALSE
   )
   # grid.grabExpr returns to the device open before it, and with none open R starts Rplots.pdf.
+  margin_mm <- 2
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off())
   grob <- grid::grid.grabExpr(
     ComplexHeatmap::draw(heatmap, padding = unit(c(1, 1, 1, 1), "mm")),
-    width = width_mm / 25.4, height = HEATMAP_MM / 25.4
+    width = width_mm / 25.4, height = (HEATMAP_MM + 2 * margin_mm) / 25.4
   )
-  # The heatmap keeps the size it was drawn at; the volcano takes the rest of the column.
-  column <- volcano / wrap_elements(full = grob) +
+  # The heatmap keeps the size it was drawn at, its plot margins included, so its rows and
+  # anno_zoom's boxes (fixed in mm when drawn) stay level; the volcano takes the rest. Unclipped,
+  # so the last box's axis labels may hang past the heatmap's foot.
+  heatmap_block <- wrap_elements(full = grob, clip = FALSE) +
+    theme(plot.margin = margin_part(t = margin_mm, b = margin_mm, unit = "mm"))
+  column <- volcano / heatmap_block +
     plot_layout(heights = unit(c(1, HEATMAP_MM), c("null", "mm")))
   cells <- as_tibble(centred, rownames = "feature") |>
     pivot_longer(-feature, names_to = "sample_id", values_to = "log2_vs_own_sex_vehicle") |>
