@@ -20,7 +20,7 @@ The 56 female candidates passing two or more routes; edges are STRING v12 links 
 
 ![Panel b](b_reports/b_male_network.png)
 
-The same for males: 47 protein groups on 46 nodes, since two Cav1 groups share one gene. 20 have no partner; the rest form seven communities, among them muscle contraction, EMT, nervous system development and heme metabolism. Many members are nerve, red-cell and extracellular matrix proteins, classes that fall in male PAS pellets ([05_Composition](../../02_Statistics/05_Composition/README.md)), so much of this network may record pellet content rather than a change in the fibres.
+The same for males: 47 protein groups on 45 nodes, since two Cav1 groups share one gene and two Mbp groups another. 20 have no partner; the rest form seven communities, among them muscle contraction, EMT, nervous system development and heme metabolism. Many members are nerve, red-cell and extracellular matrix proteins, classes that fall in male PAS pellets ([05_Composition](../../02_Statistics/05_Composition/README.md)), so much of this network may record pellet content rather than a change in the fibres.
 
 ### c. Female candidates, every mouse
 
@@ -44,7 +44,7 @@ One column per contrast, read top to bottom: the volcano, then the heatmap of it
 
 ![Panel a](b_reports/supp/S3a_pi_female.png)
 
-The 107 female Π ≤ 0.05 proteins: 44 up in one cluster (C1, 43) and 63 down in C2 (51) and C3 (10), with three unassigned. No female set reaches FDR ≤ 0.05; C2's best is Reactome cell cycle (p 0.001, FDR 0.17). The female PAS columns separate by construction; the male columns are the informative part.
+The 107 female Π ≤ 0.05 proteins: 44 up in one cluster (C1, 43) and 63 down in C2 (51) and C3 (10), with three unassigned. No female set reaches FDR ≤ 0.05; C2's best is Reactome cell cycle (p 0.001, FDR 0.16). The female PAS columns separate by construction; the male columns are the informative part.
 
 ### b. Male PAS against vehicle
 

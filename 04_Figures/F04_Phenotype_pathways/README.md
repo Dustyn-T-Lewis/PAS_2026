@@ -11,7 +11,7 @@ Associations are co-movement across mice, not PAS effects. The models are descri
 
 ### a. Pathways per phenotype
 
-46 gene sets in one block per trait: the four sets each trait shows in females, then the four in males, under the within-treatment model (shown sets are defined in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md)). Every row is drawn in the three contrast columns and at all six traits in both sexes; fill is NES and area −log10 FDR. Bars count distinct sets at FDR ≤ 0.05: 220 in females (67 up, 153 down) and 165 in males (87 up, 78 down). Of the 47 outlined cells that chose a row, camera gives p ≤ 0.05 for 7 and FDR ≤ 0.05 for none, so read the grid as a ranking.
+46 gene sets in one block per trait: up to four sets each trait shows in females, then up to four in males (male satellite cells show two), under the within-treatment model (shown sets are defined in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md)). Every row is drawn in the three contrast columns and at all six traits in both sexes; fill is NES and area −log10 FDR. Bars count distinct sets at FDR ≤ 0.05: 220 in females (67 up, 153 down) and 165 in males (87 up, 78 down). Of the 47 outlined cells that chose a row, camera gives p ≤ 0.05 for 7 and FDR ≤ 0.05 for none, so read the grid as a ranking.
 
 ## Supplementary Figure 6
 

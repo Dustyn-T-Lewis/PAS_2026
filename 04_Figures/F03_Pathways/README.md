@@ -19,7 +19,7 @@
 
 ![Panel a](b_reports/supp/S5a_compartments.png)
 
-23 GO Slim compartments (27 to 737 proteins; organelle, holding most of the proteome, is not tested) per contrast, drawn as in Figure 3 with a ring at FDR ≤ 0.05 (BH across the 23). Females have 11 passing (endoplasmic reticulum and extracellular terms up, nuclear and cytosolic terms down), males 6 (5 down, 1 up) and the interaction 4 (all up). Mitochondrion shows no shift in any contrast (FDR ≥ 0.98). The compartments overlap heavily, so these FDRs run optimistic.
+23 GO Slim compartments (27 to 737 proteins; organelle, holding most of the proteome, is not tested) per contrast, drawn as in Figure 3 with a ring at FDR ≤ 0.05 (BH across the 23). Females have 11 passing (4 up: endoplasmic reticulum and extracellular terms; 7 down, among them nuclear and cytosolic terms), males 6 (5 down, 1 up) and the interaction 4 (all up). Mitochondrion shows no shift in any contrast (FDR ≥ 0.98). The compartments overlap heavily, so these FDRs run optimistic.
 
 ### b. Literature and ROS sets
 

@@ -18,4 +18,4 @@ Contrast: `treatment_by_sex`, (PAS_F − VEH_F) − (PAS_M − VEH_M). A positiv
 
 ## Phenotypes and classification
 
-No step runs for either. The phenotype interaction is in `02_Statistics/01_Fit` (sheet `phenotype_interaction`): only capillary density differs (p 0.014; the other five p ≥ 0.22). Classification needs a label each mouse carries, and the interaction is a difference of group differences.
+No step runs for either. The phenotype interaction is in `02_Statistics/01_Fit` (sheet `phenotype_interaction`): only capillary density differs (p 0.014; the other five p 0.22 to 0.95). Classification needs a label each mouse carries, and the interaction is a difference of group differences.

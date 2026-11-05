@@ -15,7 +15,7 @@ Runs every pathway test once, per contrast and per phenotype, so the comparisons
 - Shown sets: within each test, sets at FDR ≤ 0.05 are grouped by `representative_sets()` (Jaccard tree cut at 0.70); each group is shown by its most specific set within 10-fold of the group's best p. F03 and F04 draw these.
 - Phenotypes: fgsea on each protein's association t, run and seeded once per sex, model and phenotype, as each contrast is.
 - Also: GO Slim compartments and the 19 literature and ROS sets (`fgsea(nPermSimple = 10000)`, BH within each list; a compartment holding more than half the ranked genes is skipped, which drops organelle); cross-sex signatures (each sex's Π ≤ 0.05 lists tested in the other sex by `limma::fry`); ORA (`fgsea::fora`) of the S3 heatmap clusters, the sheet keeping sets at p ≤ 0.05; STRING connectivity of the Π lists.
-- S3 clusters: average linkage on 1 − Pearson r over mice where both proteins were detected, cut by `dynamicTreeCut` (hybrid, deepSplit 2, minClusterSize 10).
+- S3 clusters: each direction's proteins clustered on their own, average linkage on 1 − Pearson r over mice where both proteins were detected, cut by `dynamicTreeCut` (hybrid, deepSplit 2, minClusterSize 10).
 
 ## Results
 
