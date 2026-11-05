@@ -425,7 +425,9 @@ run_panels <- function(figure, panels) {
 # panel whose data is a list of tables gives one sheet per table, named <panel>_<table>).
 write_figure_workbook <- function(panels, figure, name) {
   sheets <- list_flatten(map(panels, "data"), name_spec = "{outer}_{inner}")
-  writexl::write_xlsx(sheets, here("04_Figures", figure, "c_data", paste0(name, ".xlsx")))
+  file <- here("04_Figures", figure, "c_data", paste0(name, ".xlsx"))
+  dir.create(dirname(file), showWarnings = FALSE)
+  writexl::write_xlsx(sheets, file)
 }
 
 # Each score's r-equivalent against the comparison contrasts and, within each sex, against each

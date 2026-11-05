@@ -1253,7 +1253,7 @@
     },
     "S4Arrays": {
       "Package": "S4Arrays",
-      "Version": "1.12.0",
+      "Version": "1.12.1",
       "Source": "Bioconductor",
       "Title": "Foundation of array-like containers in Bioconductor",
       "Description": "The S4Arrays package defines the Array virtual class to be extended by other S4 classes that wish to implement a container with an array-like semantic. It also provides: (1) low-level functionality meant to help the developer of such container to implement basic operations like display, subsetting, or coercion of their array-like objects to an ordinary matrix or array, and (2) a framework that facilitates block processing of array-like objects (typically on-disk objects).",
@@ -1290,14 +1290,14 @@
       ],
       "VignetteBuilder": "knitr",
       "Collate": "utils.R rowsum.R abind.R aperm2.R array_selection.R Nindex-utils.R arep.R array_recycling.R Array-class.R dim-tuning-utils.R Array-subsetting.R Array-subassignment.R ArrayGrid-class.R mapToGrid.R extract_array.R type.R is_sparse.R read_block.R write_block.R show-utils.R Array-kronecker-methods.R zzz.R",
-      "git_url": "https://git.bioconductor.org/packages/S4Arrays",
-      "git_branch": "RELEASE_3_23",
-      "git_last_commit": "b1246fd",
-      "git_last_commit_date": "2026-04-28",
       "Repository": "Bioconductor 3.23",
       "NeedsCompilation": "yes",
       "Author": "Hervé Pagès [aut, cre] (ORCID: <https://orcid.org/0009-0002-8272-4522>), Jacques Serizay [ctb]",
-      "Maintainer": "Hervé Pagès <hpages.on.github@gmail.com>"
+      "Maintainer": "Hervé Pagès <hpages.on.github@gmail.com>",
+      "RemoteType": "repository",
+      "RemoteUrl": "https://github.com/bioc/S4Arrays",
+      "RemoteRef": "RELEASE_3_23",
+      "RemoteSha": "fd4e6c339dc25b7c4e29c3d8d3d0fa95f41a08f4"
     },
     "S4Vectors": {
       "Package": "S4Vectors",
@@ -6888,11 +6888,12 @@
       "biocViews": "ImmunoOncology, Microarray, StatisticalMethod, Preprocessing, MultipleComparison, Sequencing, RNASeq, BatchEffect, Normalization",
       "RoxygenNote": "7.0.2",
       "Config/pak/sysreqs": "libpng-dev libxml2-dev libssl-dev zlib1g-dev",
-      "Repository": "https://bioc-release.r-universe.dev",
+      "Repository": "Bioconductor 3.23",
+      "NeedsCompilation": "yes",
+      "RemoteType": "repository",
       "RemoteUrl": "https://github.com/bioc/sva",
       "RemoteRef": "RELEASE_3_23",
-      "RemoteSha": "87a4798db8134fd0952a516489dd555545a92d36",
-      "NeedsCompilation": "yes"
+      "RemoteSha": "87a4798db8134fd0952a516489dd555545a92d36"
     },
     "sys": {
       "Package": "sys",
