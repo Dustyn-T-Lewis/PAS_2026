@@ -11,8 +11,8 @@ counts <- fit$protein_contrasts |>
   filter(contrast %in% COMPARISON_CONTRASTS) |>
   mutate(direction = if_else(logFC > 0, "Up", "Down")) |>
   summarise(
-    tests = n(), nominal = sum(P.Value <= ALPHA), pi = sum(pi_score <= ALPHA),
-    fdr = sum(adj.P.Val <= ALPHA), .by = c(universe, contrast, direction)
+    tests = n(), p_le_0.05 = sum(P.Value <= ALPHA), pi_le_0.05 = sum(pi_score <= ALPHA),
+    fdr_le_0.05 = sum(adj.P.Val <= ALPHA), .by = c(universe, contrast, direction)
   ) |>
   mutate(tests = sum(tests), .by = c(universe, contrast))
 universe_label <- distinct(counts, universe, tests) |>
@@ -23,25 +23,25 @@ universe_label <- distinct(counts, universe, tests) |>
   select(universe, label) |>
   deframe()
 boxes <- counts |>
-  summarise(fdr = sum(fdr), .by = c(universe, contrast)) |>
+  summarise(fdr = sum(fdr_le_0.05), .by = c(universe, contrast)) |>
   transmute(
     x = -Inf, y = factor(contrast, rev(COMPARISON_CONTRASTS)), contrast,
     label = sprintf("%s\nFDR %d", CONTRAST_SHORT[contrast], fdr),
     universe = factor(universe_label[universe], universe_label)
   )
-tiers <- c(nominal = paste("p ≤", ALPHA), pi = paste("Π ≤", ALPHA))
+tiers <- c(p_le_0.05 = paste("p ≤", ALPHA), pi_le_0.05 = paste("Π ≤", ALPHA))
 bars <- counts |>
-  pivot_longer(c(nominal, pi), names_to = "tier", values_to = "n") |>
+  pivot_longer(names(tiers), names_to = "tier", values_to = "n") |>
   mutate(
     signed = if_else(direction == "Up", n, -n),
     fill = paste0(direction, ", ", tiers[tier]),
     universe = factor(universe_label[universe], universe_label),
     row = factor(contrast, rev(COMPARISON_CONTRASTS))
   ) |>
-  arrange(tier == "pi")
+  arrange(tier == "pi_le_0.05")
 fills <- c(
-  set_names(DIRECTION_LIGHT, paste0(names(DIRECTION_LIGHT), ", ", tiers[["nominal"]])),
-  set_names(DIRECTION_COLOURS, paste0(names(DIRECTION_COLOURS), ", ", tiers[["pi"]]))
+  set_names(DIRECTION_LIGHT, paste0(names(DIRECTION_LIGHT), ", ", tiers[["p_le_0.05"]])),
+  set_names(DIRECTION_COLOURS, paste0(names(DIRECTION_COLOURS), ", ", tiers[["pi_le_0.05"]]))
 )
 
 plot <- ggplot(bars, aes(signed, row)) +

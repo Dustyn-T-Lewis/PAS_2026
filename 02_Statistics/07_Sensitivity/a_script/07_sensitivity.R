@@ -70,9 +70,9 @@ fit_variant <- function(v) {
   map(set_names(COMPARISON_CONTRASTS), \(cn) {
     contrast <- set_names(rep(0, ncol(v$design)), colnames(v$design))
     contrast[group_cols] <- d$contrasts[group_cols, cn]
-    reparametrised <- contrastAsCoef(v$design, contrast)$design
-    f <- eBayes(dpcDE(v$y, reparametrised, sample.weights = v$weights, plot = FALSE))
-    topTable(f, coef = 1, number = Inf, sort.by = "none") |>
+    reparametrised <- limma::contrastAsCoef(v$design, contrast)$design
+    f <- limma::eBayes(dpcDE(v$y, reparametrised, sample.weights = v$weights, plot = FALSE))
+    limma::topTable(f, coef = 1, number = Inf, sort.by = "none") |>
       as_tibble(rownames = "feature") |>
       transmute(feature, contrast = cn, logFC, P.Value, adj.P.Val)
   }) |>
@@ -100,7 +100,7 @@ counts <- results |>
   mutate(variant = factor(variant, names(variants))) |>
   arrange(contrast, variant)
 named <- baseline |>
-  filter(adj.P.Val <= 0.10) |>
+  filter(adj.P.Val <= FDR_LOOSE) |>
   select(contrast, feature) |>
   inner_join(results, by = c("contrast", "feature")) |>
   select(variant, contrast, feature, gene, logFC, P.Value, adj.P.Val)

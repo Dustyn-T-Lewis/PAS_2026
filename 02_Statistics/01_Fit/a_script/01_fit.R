@@ -57,11 +57,11 @@ association_design <- function(x, model) {
   )
   if (model == "pooled_mito") cbind(m, pellet_mito = pellet_mito) else m
 }
-slope_contrasts <- \(design) makeContrasts(female = slope_F, male = slope_M, levels = design)
+slope_contrasts <- \(design) limma::makeContrasts(female = slope_F, male = slope_M, levels = design)
 
 tidy <- function(fit, coefs) {
   map(coefs, \(k) {
-    topTable(fit, coef = k, number = Inf, sort.by = "none", confint = TRUE) |>
+    limma::topTable(fit, coef = k, number = Inf, sort.by = "none", confint = TRUE) |>
       as_tibble(rownames = "feature") |>
       transmute(feature,
         coef = k, estimate = logFC, ci_low = CI.L, ci_high = CI.R,
@@ -86,8 +86,8 @@ fit_proteins <- function(design, contrasts) {
   map(set_names(names(quant$universes)), \(universe) {
     y <- protein_elist(universe)
     map(set_names(colnames(contrasts)), \(cn) {
-      reparametrised <- contrastAsCoef(design, contrasts[, cn])$design
-      eBayes(dpcDE(y, reparametrised, sample.weights = TRUE, plot = FALSE))
+      reparametrised <- limma::contrastAsCoef(design, contrasts[, cn])$design
+      limma::eBayes(dpcDE(y, reparametrised, sample.weights = TRUE, plot = FALSE))
     })
   })
 }
@@ -106,7 +106,7 @@ protein_fits <- fit_proteins(d$design, d$contrasts)
 TREAT_LFC <- log2(1.2)
 treat_tables <- imap(protein_fits, \(by_contrast, universe) {
   imap(by_contrast, \(f, cn) {
-    topTreat(treat(f, lfc = TREAT_LFC), coef = 1, number = Inf, sort.by = "none") |>
+    limma::topTreat(limma::treat(f, lfc = TREAT_LFC), coef = 1, number = Inf, sort.by = "none") |>
       as_tibble(rownames = "feature") |>
       transmute(
         universe = universe, feature, contrast = cn, treat_p = P.Value, treat_fdr = adj.P.Val
@@ -176,8 +176,8 @@ tidy_ordinary <- function(fit, coefs) {
 }
 fit_scores <- function(design, contrasts, coefs) {
   imap(score_sets, \(m, universe) {
-    f <- contrasts.fit(lmFit(m, design), contrasts)
-    tidied <- if (universe == "module") tidy_ordinary(f, coefs) else tidy(eBayes(f), coefs)
+    f <- limma::contrasts.fit(limma::lmFit(m, design), contrasts)
+    tidied <- if (universe == "module") tidy_ordinary(f, coefs) else tidy(limma::eBayes(f), coefs)
     tidied |>
       mutate(
         level = level_of(universe, feature),
@@ -330,7 +330,7 @@ contrast_summary <- bind_rows(
 ) |>
   reframe(
     tier_counts(P.Value, adj.P.Val, pi_score),
-    share_true_effects = if (n() >= PI0_MIN_TESTS) 1 - propTrueNull(P.Value) else NA_real_,
+    share_true_effects = if (n() >= PI0_MIN_TESTS) 1 - limma::propTrueNull(P.Value) else NA_real_,
     .by = c(level, universe, contrast)
   )
 association_summary <- protein_associations |>
@@ -338,12 +338,12 @@ association_summary <- protein_associations |>
   bind_rows(score_associations) |>
   reframe(tier_counts(P.Value, adj.P.Val), .by = c(level, universe, phenotype, sex, model))
 
-sa_page <- \(universe) \() plotSA(protein_fits[[universe]][[1]], main = universe)
+sa_page <- \(universe) \() limma::plotSA(protein_fits[[universe]][[1]], main = universe)
 volcano <- \(cn) {
   \() {
     f <- protein_fits$full[[cn]]
     fdr <- filter(protein_contrasts, universe == "full", contrast == cn)$adj.P.Val
-    volcanoplot(f,
+    limma::volcanoplot(f,
       coef = 1, highlight = sum(fdr <= ALPHA),
       names = first_symbol(f$genes$Genes), main = CONTRAST_LABELS[[cn]]
     )

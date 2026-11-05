@@ -11,12 +11,8 @@ runs <- readRDS(inputs[["filtering"]])$run_qc |>
   )
 
 plot <- ggplot(runs, aes(group, n)) +
-  geom_point(aes(fill = group, shape = str_sub(group, 1, 3)),
-    position = position_jitter(width = 0.15, seed = SEED), size = 1.5, colour = "grey15",
-    stroke = 0.25
-  ) +
+  group_points(position_jitter(width = 0.15, seed = SEED)) +
   facet_wrap(~unit, scales = "free_y") +
-  group_point_scales() +
   scale_y_continuous(labels = scales::label_comma()) +
   labs(
     x = NULL, y = "identified per run", title = "Depth per run",

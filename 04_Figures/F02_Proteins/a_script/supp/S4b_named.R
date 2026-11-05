@@ -5,7 +5,7 @@ source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 inputs <- c(sensitivity = output_path("02_Statistics", "07_Sensitivity", "sensitivity.rds"))
 sensitivity <- readRDS(inputs[["sensitivity"]])
 named <- sensitivity$named
-FDR_BINS <- c("≤ 0.05", "≤ 0.10", "≤ 0.25", "> 0.25")
+FDR_BINS <- c(sprintf("≤ %.2f", c(ALPHA, FDR_LOOSE, 0.25)), "> 0.25")
 
 order <- named |>
   filter(variant == "baseline") |>
@@ -15,7 +15,7 @@ cells <- named |>
     variant = factor(variant, levels(sensitivity$counts$variant)),
     contrast = factor(contrast, COMPARISON_CONTRASTS),
     row = factor(paste(contrast, feature), rev(paste(order$contrast, order$feature))),
-    fdr = cut(adj.P.Val, c(0, 0.05, 0.10, 0.25, 1), FDR_BINS, include.lowest = TRUE)
+    fdr = cut(adj.P.Val, c(0, ALPHA, FDR_LOOSE, 0.25, 1), FDR_BINS, include.lowest = TRUE)
   )
 genes <- set_names(order$gene, paste(order$contrast, order$feature))
 
@@ -35,7 +35,7 @@ plot <- ggplot(cells, aes(variant, row, fill = fdr)) +
   ) +
   labs(
     x = NULL, y = NULL, title = "Baseline proteins under each variant",
-    subtitle = "Proteins at FDR ≤ 0.10 in the baseline; text: log2 FC"
+    subtitle = sprintf("Proteins at FDR ≤ %.2f in the baseline; text: log2 FC", FDR_LOOSE)
   ) +
   theme_figure() +
   theme(

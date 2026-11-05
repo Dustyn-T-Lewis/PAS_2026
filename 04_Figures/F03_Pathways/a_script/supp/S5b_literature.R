@@ -14,7 +14,7 @@ SHADES <- scales::alpha(c("grey94", "grey86"), 0.5)
 MIN_BLOCK_MM <- 5.5
 
 rows <- literature |>
-  filter(contrast == "PAS_vs_VEH_female") |>
+  filter(contrast == SEX_CONTRASTS[["female"]]) |>
   mutate(block = factor(str_wrap(hypothesis, 12))) |>
   arrange(block) |>
   transmute(
@@ -36,19 +36,19 @@ grid <- pathway_grid(
   title = "Literature-informed and ROS sets",
   subtitle = "Grouped by hypothesis; [expected direction]",
   tones = set_names(c("Contrast", levels(rows$block))),
-  x_angle = 90, selected_label = paste("FDR ≤", ALPHA), fill_limit = 2.5, outline_shape = 21,
+  selected_label = paste("FDR ≤", ALPHA), fill_limit = 2.5, outline_shape = 21,
   min_block_mm = MIN_BLOCK_MM
 ) +
   theme(strip.text.y.left = element_text(
     angle = 0, hjust = 0, size = 5, margin = margin(1.5, 1.5, 1.5, 1.5)
   ))
 
-height_mm <- sum(pmax(3 * table(rows$block), MIN_BLOCK_MM)) + nlevels(rows$block) + 30
+height_mm <- grid_body_mm(rows, MIN_BLOCK_MM) + 31
 save_figure(grid, "F03_Pathways", "S5b_literature", 116, height_mm)
 list(
   plot = grid,
   data = literature |>
     left_join(select(rows, set = term, label, collection), by = "set") |>
-    transmute(hypothesis, expected, set, label, collection, contrast, NES, p, fdr = list_fdr, size),
+    transmute(hypothesis, expected, set, label, collection, contrast, NES, fdr = list_fdr),
   height_mm = height_mm
 )

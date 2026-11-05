@@ -106,9 +106,9 @@ sizes <- count(modules, module, name = "proteins") |>
   left_join(
     tibble(
       module = colnames(eigengenes),
-      r_pellet_mito = map_dbl(eigengenes, \(e) cor(e, quant$pct_mito)),
+      r_pellet_mito = map_dbl(eigengenes, \(e) stats::cor(e, quant$pct_mito)),
       r_pellet_mito_within_group = map_dbl(
-        eigengenes, \(e) cor(within_group(e), within_group(quant$pct_mito))
+        eigengenes, \(e) stats::cor(within_group(e), within_group(quant$pct_mito))
       )
     ),
     by = "module"

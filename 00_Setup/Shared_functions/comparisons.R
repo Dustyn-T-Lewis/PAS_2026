@@ -8,7 +8,7 @@ comparison_paths <- function(comparison, step) {
   root <- here("03_Comparisons", COMPARISONS[[comparison]]$dir)
   walk(file.path(root, c("b_reports", "c_data")), dir.create, showWarnings = FALSE)
   list(
-    root = root, data = file.path(root, "c_data"), reports = file.path(root, "b_reports"),
+    data = file.path(root, "c_data"), reports = file.path(root, "b_reports"),
     workbook = file.path(root, "c_data", paste0(step, ".xlsx"))
   )
 }

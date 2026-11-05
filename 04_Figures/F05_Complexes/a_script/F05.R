@@ -1,6 +1,6 @@
 # Figure 5, complexes: CORUM complexes and MitoCarta pathways that PAS shifts, against the
 # contrasts and the phenotypes, in F03's grid. The panel is its own script beside this one; this
-# file runs it and writes one workbook.
+# file runs it, saves it as the figure and writes one workbook.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 PANELS <- "a_set_matrix"

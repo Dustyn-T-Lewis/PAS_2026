@@ -27,4 +27,4 @@ plot <- ggplot(r2, aes(pc, factor)) +
   theme(panel.grid = element_blank())
 
 save_figure(plot, "F01_Global", "S2a_component_r2", 90, 55)
-list(plot = plot, data = r2)
+list(plot = plot, data = select(r2, -component))

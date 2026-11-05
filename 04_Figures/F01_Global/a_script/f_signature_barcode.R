@@ -82,4 +82,4 @@ plot <- ggplot() +
   )
 
 save_figure(plot, "F01_Global", "f_signature_barcode", 57, 64)
-list(plot = plot, data = select(enr$signatures, -members))
+list(plot = plot, data = select(enr$signatures, -members, -fry_direction, -p_mixed))

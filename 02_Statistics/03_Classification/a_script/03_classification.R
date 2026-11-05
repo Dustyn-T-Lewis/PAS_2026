@@ -80,7 +80,7 @@ results <- map(set_names(names(SEX_COMPARISONS)), \(comparison) {
   })
 })
 r_group <- fit$score_contrasts |>
-  filter(contrast %in% map_chr(SEX_COMPARISONS, "contrast")) |>
+  filter(contrast %in% SEX_CONTRASTS) |>
   transmute(comparison = COMPARISON_OF_CONTRAST[contrast], feature, r_group)
 roc <- map(results, \(r) list_rbind(map(r, "roc"))) |>
   list_rbind() |>

@@ -9,8 +9,6 @@
 
 ### a. Pathways per contrast
 
-![Panel a](b_reports/a_pathways.png)
-
 24 gene sets in four blocks of six: the shown full-proteome sets of the female, male and interaction contrasts, then MitoCarta pathways shown in any contrast (shown sets are defined in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md)). Each row is drawn in the three contrast columns and at every trait in both sexes; dot fill is NES (magenta down, green up) and area −log10 FDR. Bars count distinct sets at FDR ≤ 0.05: females 4 up and 2 down, males 1 up and 13 down, interaction 15 up and 1 down; in MitoCarta, females 2 up, interaction 6 up and 2 down, males none. fgsea permutes genes and runs optimistic: camera gives p ≤ 0.05 for only 3 of the 24 rows in the contrast that shows them, and the male falls in cytoskeletal, adhesion and matrix sets match the male pellet composition shifts (S1 f).
 
 ## Supplementary Figure 5
@@ -35,4 +33,4 @@
 
 ## Workbook
 
-`c_data/F03.xlsx` holds `a_pathways` (every drawn cell, with camera p and FDR) and `counts` (distinct and all sets at FDR ≤ 0.05). `c_data/S5.xlsx` holds `S5a_compartments` and `S5b_literature`.
+`c_data/F03.xlsx` holds `a_pathways_cells` (every drawn cell) and `a_pathways_counts` (distinct and all sets at FDR ≤ 0.05). camera p and FDR for every set are in the `fgsea` sheet of [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md)'s workbook. `c_data/S5.xlsx` holds `S5a_compartments` and `S5b_literature`.

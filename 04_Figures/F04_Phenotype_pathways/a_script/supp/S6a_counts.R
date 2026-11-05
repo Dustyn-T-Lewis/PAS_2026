@@ -8,11 +8,8 @@ DIRECTION_KEYS <- c(Up = "▲ positive", Down = "▼ negative")
 counts <- readRDS(inputs[["fit"]])$protein_associations |>
   filter(universe == "full") |>
   mutate(direction = if_else(t > 0, "Up", "Down")) |>
-  summarise(
-    p_le_0.05 = sum(P.Value <= ALPHA), fdr_le_0.05 = sum(adj.P.Val <= ALPHA),
-    .by = c(phenotype, sex, model, direction)
-  ) |>
-  complete(phenotype, sex, model, direction, fill = list(p_le_0.05 = 0L, fdr_le_0.05 = 0L)) |>
+  summarise(p_le_0.05 = sum(P.Value <= ALPHA), .by = c(phenotype, sex, model, direction)) |>
+  complete(phenotype, sex, model, direction, fill = list(p_le_0.05 = 0L)) |>
   mutate(
     trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS)),
     sex = factor(str_to_sentence(sex), c("Female", "Male")),
@@ -47,5 +44,5 @@ plot <- ggplot(counts, aes(x, trait, fill = direction)) +
 save_figure(plot, "F04_Phenotype_pathways", "S6a_counts", 180, 62)
 list(
   plot = plot,
-  data = select(counts, phenotype, sex, model, direction, p_le_0.05, fdr_le_0.05)
+  data = select(counts, phenotype, sex, model, direction, p_le_0.05)
 )

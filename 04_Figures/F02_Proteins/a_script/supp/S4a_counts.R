@@ -9,7 +9,8 @@ counts <- sensitivity$counts
 top_n <- sensitivity$top_n
 n_proteins <- filter(counts, variant == "baseline", contrast == COMPARISON_CONTRASTS[[1]])$tests
 METRICS <- c(
-  p_le_0.05 = paste("p ≤", ALPHA), fdr_le_0.10 = "FDR ≤ 0.10", fdr_le_0.05 = paste("FDR ≤", ALPHA),
+  p_le_0.05 = paste("p ≤", ALPHA), fdr_le_0.10 = sprintf("FDR ≤ %.2f", FDR_LOOSE),
+  fdr_le_0.05 = paste("FDR ≤", ALPHA),
   top_shared = paste("Top", top_n, "kept")
 )
 RATIO_CAP <- 2.5

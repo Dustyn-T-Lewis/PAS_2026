@@ -1,7 +1,7 @@
 # F02_Proteins
 
 - Figure 2: within each sex, which proteins are the strongest follow-up candidates, how they group by known interactions, and how every mouse looks for the strongest.
-- Supplementary Figure 3: each comparison's Π ≤ 0.05 proteins across all 20 mice, cut into co-expression clusters, and the volcano plots.
+- Supplementary Figure 3: per comparison, the volcano plot and the Π ≤ 0.05 proteins across all 20 mice, cut into co-expression clusters (landscape, 240 × 186 mm).
 - Supplementary Figure 4: how the protein results move when one processing or model choice changes.
 
 Candidates and their six routes are defined in [`02_Statistics/06_Candidates`](../../02_Statistics/06_Candidates/README.md). They are discovery-stage candidates, not validated biomarkers.
@@ -38,7 +38,7 @@ The same for the 12 male protein groups passing three or more routes (Cav1 twice
 
 ![Supplementary Figure 3](b_reports/supp/S3.png)
 
-The heatmaps show log2 abundance minus the own-sex vehicle mean (green above, magenta below, grey not detected), rows split by direction and cut into clusters as described in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md). Bars beside each cluster are its three smallest-p ORA sets at p ≤ 0.05, on one −log10 p axis for panels a to c. The clusters come from proteins chosen for responding, so the ORA describes them and tests little.
+One column per contrast, read top to bottom: the volcano, then the heatmap of its Π ≤ 0.05 proteins, then each cluster's ORA bars. Volcanoes show every protein in the full proteome, coloured where Π ≤ 0.05, with p = 0.05 dashed and FDR ≤ 0.05 ringed and named, on axes shared across the three columns; at p ≤ 0.05 there are 177 female, 193 male and 162 interaction proteins, and only Cops3, Dusp3 and Cops8 pass FDR ≤ 0.05, all female and down. The heatmaps show log2 abundance minus the own-sex vehicle mean (green above, magenta below, full colour from ±1), grey where the protein was not detected in that mouse (no observed precursor, so the imputed value is masked). Each co-expression cluster is its own row slice, with its direction as a thin strip on the left (green up or F > M, magenta down or F < M); the clusters are described in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md). Bars beside each cluster are its three smallest-p ORA sets, whether or not they reach p ≤ 0.05, each cluster on its own −log10 p axis with p = 0.05 dotted on every bar and FDR ≤ 0.05 outlined; a cluster whose bars stop left of the dotted line has no set at p ≤ 0.05. The clusters come from proteins chosen for responding, so the ORA describes them and tests little.
 
 ### a. Female PAS against vehicle
 
@@ -57,12 +57,6 @@ The 106 male Π ≤ 0.05 proteins: 27 up (C1, C2) and 79 down (C3, C4), with sev
 ![Panel c](b_reports/supp/S3c_pi_interaction.png)
 
 The 142 interaction Π ≤ 0.05 proteins: 97 with a larger female effect (C1 to C3) and 45 with a larger male effect (C4, C5). C3 holds Hallmark myogenesis (FDR 6e-9) and C2 Hallmark EMT (FDR 0.002). A positive difference can come from a female rise, a male fall or both, and the columns show which.
-
-### d. Volcano plots
-
-![Panel d](b_reports/supp/S3d_volcanoes.png)
-
-Every protein per contrast, coloured where Π ≤ 0.05, with p = 0.05 dashed and FDR ≤ 0.05 ringed and named. At p ≤ 0.05: 177 female, 193 male, 162 interaction. Only Cops3, Dusp3 and Cops8 pass FDR ≤ 0.05, all female and down.
 
 ## Supplementary Figure 4
 
@@ -84,8 +78,8 @@ The 22 baseline proteins at FDR ≤ 0.10 (18 female, 4 male), shaded by their FD
 
 ## Run
 
-`Rscript 04_Figures/F02_Proteins/a_script/F02.R`, `a_script/supp/S3.R` and `a_script/supp/S4.R`. Each panel script also runs alone.
+`Rscript 04_Figures/F02_Proteins/a_script/F02.R`, `a_script/supp/S3.R` and `a_script/supp/S4.R`. Each panel script also runs alone. The F02 panels share `a_script/candidates.R` and the S3 heatmaps `a_script/supp/s3_heatmap.R`.
 
 ## Workbook
 
-`c_data/F02.xlsx`, `S3.xlsx` and `S4.xlsx` hold one sheet per panel with the table it draws. Each S3 heatmap has two sheets: `<panel>_heatmap` (proteins in drawn order with cluster) and `<panel>_ora` (the bars).
+`c_data/F02.xlsx`, `S3.xlsx` and `S4.xlsx` hold one sheet per panel with the table it draws. The network sheets list every candidate drawn or left out for want of a STRING partner (`has_partner`), with the routes it passed (`route_*`). Panels c and d, and each S3 column's `<panel>_heatmap` sheet, hold one row per protein and mouse: the value drawn (log2 against the own-sex vehicle mean) and whether the protein was detected in that mouse. Each S3 column also has `<panel>_volcano` (every protein in the full proteome) and `<panel>_ora` (the drawn bars, including sets above p = 0.05; 02_Enrichment's `cluster_ora` sheet keeps only p ≤ 0.05).

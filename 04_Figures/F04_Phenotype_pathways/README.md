@@ -11,8 +11,6 @@ Associations are co-movement across mice, not PAS effects. The models are descri
 
 ### a. Pathways per phenotype
 
-![Panel a](b_reports/a_trait_pathways.png)
-
 46 gene sets in one block per trait: the four sets each trait shows in females, then the four in males, under the within-treatment model (shown sets are defined in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md)). Every row is drawn in the three contrast columns and at all six traits in both sexes; fill is NES and area −log10 FDR. Bars count distinct sets at FDR ≤ 0.05: 220 in females (67 up, 153 down) and 165 in males (87 up, 78 down). Of the 47 outlined cells that chose a row, camera gives p ≤ 0.05 for 7 and FDR ≤ 0.05 for none, so read the grid as a ranking.
 
 ## Supplementary Figure 6
@@ -37,4 +35,4 @@ The three proteins with the smallest within-treatment p for each phenotype and s
 
 ## Workbook
 
-`c_data/F04.xlsx` holds `a_trait_pathways` (every drawn cell, with camera p and FDR) and `counts` (distinct and all within-treatment sets at FDR ≤ 0.05). `c_data/S6.xlsx` holds `S6a_counts` and `S6b_top_proteins`.
+`c_data/F04.xlsx` holds `a_trait_pathways_cells` (every drawn cell) and `a_trait_pathways_counts` (distinct and all within-treatment sets at FDR ≤ 0.05). camera p and FDR for every set are in the `association_fgsea` sheet of [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md)'s workbook. `c_data/S6.xlsx` holds `S6a_counts` and `S6b_top_proteins`.

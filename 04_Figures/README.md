@@ -1,6 +1,6 @@
 # 04_Figures
 
-The main figures and their supplements, drawn from saved results only. Each folder holds one script per panel plus the composite script (`a_script/`, supplements in `a_script/supp/`), the PDFs and PNGs (`b_reports/`) and one workbook per figure with a sheet per panel (`c_data/`). Shared drawing code is in `00_Setup/Shared_functions/figures.R`.
+The main figures and their supplements, drawn from saved results only. Each folder holds one script per panel plus the composite script (`a_script/`, supplements in `a_script/supp/`), the PDFs and PNGs (`b_reports/`) and one workbook per figure with a sheet per panel (`c_data/`). Drawing code used by more than one figure is in `00_Setup/Shared_functions/figures.R`; code shared by one figure's panels sits beside them in its `a_script/` (`pca_panel.R` in F01, `candidates.R` and `supp/s3_heatmap.R` in F02). A figure with one panel saves only the composite.
 
 | Folder | Holds |
 |---|---|

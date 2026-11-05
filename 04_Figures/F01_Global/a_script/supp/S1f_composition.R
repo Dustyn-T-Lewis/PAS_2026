@@ -28,10 +28,7 @@ labels <- comp$tests |>
 
 plot <- ggplot(scores, aes(group, score)) +
   stat_summary(fun = mean, geom = "crossbar", width = 0.5, linewidth = 0.25, colour = "grey30") +
-  geom_point(aes(fill = group, shape = str_sub(group, 1, 3)),
-    position = position_jitter(width = 0.12, seed = SEED), size = 1.5, colour = "grey15",
-    stroke = 0.25
-  ) +
+  group_points(position_jitter(width = 0.12, seed = SEED)) +
   geom_text(
     aes(-Inf, Inf, label = text), labels,
     hjust = -0.08, vjust = 1.2, size = 1.6, lineheight = 0.9, inherit.aes = FALSE
@@ -39,7 +36,6 @@ plot <- ggplot(scores, aes(group, score)) +
   ggh4x::facet_nested_wrap(~ unit + marker,
     nrow = 1, scales = "free_y", labeller = labeller(marker = label_wrap_gen(14))
   ) +
-  group_point_scales() +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.35))) +
   labs(
     x = NULL, y = NULL, title = "Pellet composition",
@@ -52,4 +48,4 @@ plot <- ggplot(scores, aes(group, score)) +
   theme(axis.text.x = element_blank(), strip.text = element_text(size = 5.5))
 
 save_figure(plot, "F01_Global", "S1f_composition", 180, 60)
-list(plot = plot, data = shown)
+list(plot = plot, data = rename(shown, marker = group, group = group_label))

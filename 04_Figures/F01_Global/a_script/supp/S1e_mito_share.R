@@ -26,15 +26,11 @@ label <- paste(
 )
 
 plot <- ggplot(share, aes(group, pct_mito_signal)) +
-  geom_point(aes(fill = group, shape = str_sub(group, 1, 3)),
-    position = position_jitter(width = 0.15, seed = SEED), size = 1.5, colour = "grey15",
-    stroke = 0.25
-  ) +
+  group_points(position_jitter(width = 0.15, seed = SEED)) +
   annotate("label",
     x = -Inf, y = Inf, label = label, hjust = 0, vjust = 1, size = 1.7, lineheight = 0.95,
     fill = NA, linewidth = 0, label.padding = unit(1, "mm")
   ) +
-  group_point_scales() +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.3))) +
   labs(
     x = NULL, y = "% signal from MitoCarta", title = "Pellet mitochondrial share",

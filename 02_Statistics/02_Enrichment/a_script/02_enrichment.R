@@ -254,24 +254,23 @@ association_fgsea <- association_fgsea |>
 # protein's largest residual component, which depends on the order the mice are listed in. The
 # share of members whose fold change in the other sex points the same way is reported beside it;
 # members are listed by gene for the barcode, which places them in the other sex's ranking.
-SEXES <- map_chr(SEX_COMPARISONS, "contrast")
-signature_proteins <- imap(SEXES, \(cn, sex) {
+signature_proteins <- imap(SEX_CONTRASTS, \(cn, sex) {
   hits <- filter(proteome, contrast == cn, pi_score <= ALPHA)
   list(up = hits$feature[hits$logFC > 0], down = hits$feature[hits$logFC < 0])
 })
-signatures <- imap(SEXES, \(cn, source) {
-  target <- setdiff(names(SEXES), source)
+signatures <- imap(SEX_CONTRASTS, \(cn, source) {
+  target <- setdiff(names(SEX_CONTRASTS), source)
   lists <- signature_proteins[[source]]
   names(lists) <- paste(source, names(lists))
-  design <- limma::contrastAsCoef(d$design, d$contrasts[, SEXES[[target]]])$design
+  design <- limma::contrastAsCoef(d$design, d$contrasts[, SEX_CONTRASTS[[target]]])$design
   tested <- limma::fry(expression$full, lists, design, contrast = 1, standardize = "none")
-  in_target <- filter(proteome, contrast == SEXES[[target]])
+  in_target <- filter(proteome, contrast == SEX_CONTRASTS[[target]])
   imap(lists, \(proteins, name) {
     target_fc <- in_target$logFC[match(proteins, in_target$feature)]
     up <- str_ends(name, "up")
     members <- intersect(
       unique(in_target$gene[match(proteins, in_target$feature)]),
-      names(ranks[[SEXES[[target]]]]$full)
+      names(ranks[[SEX_CONTRASTS[[target]]]]$full)
     )
     tibble(
       source = source, ranked_in = target, direction = str_remove(name, "^\\w+ "),

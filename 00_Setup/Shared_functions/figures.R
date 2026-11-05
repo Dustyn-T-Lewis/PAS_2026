@@ -12,7 +12,6 @@ GROUP_COLOURS <- c(VEH_F = "#FDB863", PAS_F = "#D55E00", VEH_M = "#92C5DE", PAS_
 GROUP_LABELS <- c(
   VEH_F = "Female VEH", PAS_F = "Female PAS", VEH_M = "Male VEH", PAS_M = "Male PAS"
 )
-GROUP_SHORT <- c(VEH_F = "F VEH", PAS_F = "F PAS", VEH_M = "M VEH", PAS_M = "M PAS")
 # Up and down in green and magenta (PiYG), so direction never borrows a group's orange or blue;
 # fold changes, NES, correlations and r-equivalents all use it.
 DIRECTION_COLOURS <- c(Down = "#C51B7D", Up = "#4D9221")
@@ -29,17 +28,10 @@ TRAIT_SHORT <- c(
   conductance_sol_pyr = "Sol. pyr", conductance_pla_pyr = "Pla. pyr",
   conductance_sol_oct = "Sol. oct"
 )
-# One colour per phenotype for loading arrows, away from the group oranges and blues.
-PHENOTYPE_COLOURS <- set_names(
-  c("#1B9E77", "#7570B3", "#E6AB02", "#A6761D", "#666666", "#111111"), PHENOTYPE_LABELS
-)
 MODEL_LABELS <- c(
   pooled = "Pooled", pooled_mito = "Pooled + pellet MitoCarta share",
   treatment = "Within treatment"
 )
-# The association models in greys, darkest for within treatment, so a model never reads as a
-# direction, a sex or a contrast.
-MODEL_COLOURS <- c(pooled = "grey60", pooled_mito = "grey80", treatment = "grey15")
 CONTRAST_LABELS <- c(
   PAS_vs_VEH_female = "PAS vs VEH, female", PAS_vs_VEH_male = "PAS vs VEH, male",
   treatment_by_sex = "Treatment × sex", sex_in_VEH = "Sex in VEH", sex_in_PAS = "Sex in PAS"
@@ -64,16 +56,8 @@ DATABASE_COLOURS <- c(
   "GO:BP" = "#44AA99", Reactome = "#332288", Hallmark = "#DDCC77", KEGG = "#88CCEE",
   MitoCarta = "#997700"
 )
-# WGCNA's module names, each drawn in a muted tone of its colour.
-MODULE_COLOURS <- c(
-  turquoise = "#8CCFC9", blue = "#8FA8D8", brown = "#BC9A7C", yellow = "#E6D58C",
-  green = "#9DCB92", red = "#E39B94", black = "#8A8A8A", pink = "#E9B7CF"
-)
 # Dot area stops growing at this -log10 FDR or p.
 LOG_CAP <- 4
-# The every-mouse panels show the candidates passing at least this many routes; the other
-# candidate thresholds come with candidates.rds from 02_Statistics/06_Candidates.
-CANDIDATE_DOT_ROUTES <- 3
 
 # HRvLR's figure theme: minimal, a light major grid, bold title and a plain grey subtitle, with the
 # panel letter in a left margin column level with the title. Keys sit under the plot, small, so
@@ -111,12 +95,6 @@ colour_bar <- \(...) {
 # p as the labels print it, without scientific notation.
 format_p <- \(p) if_else(p < 0.001, "p < 0.001", sprintf("p = %.2g", p))
 
-# Gene symbols, with the accession added where two protein groups share one.
-protein_label <- function(gene, feature) {
-  shared <- gene %in% gene[duplicated(gene)]
-  if_else(shared, paste(gene, feature), gene)
-}
-
 # Set labels, with the database added where two sets from different databases share one.
 label_with_database <- function(label, collection) {
   shared <- label %in% label[duplicated(label)]
@@ -145,9 +123,12 @@ contrast_strips <- function(x = NULL, y = NULL) {
 }
 
 # Mice as points, fill by group and shape by treatment (circle vehicle, triangle PAS), with one
-# key that shows both; the points need shape = treatment, "VEH" or "PAS".
-group_point_scales <- function() {
+# key that shows both; the data need group (as FIGURE_GROUPS codes). position goes to geom_point().
+group_points <- function(position = "identity") {
   list(
+    geom_point(aes(fill = group, shape = str_sub(group, 1, 3)),
+      position = position, size = 1.5, colour = "grey15", stroke = 0.25
+    ),
     scale_fill_manual(
       values = GROUP_COLOURS, labels = GROUP_LABELS, name = NULL,
       guide = guide_legend(
@@ -156,49 +137,6 @@ group_point_scales <- function() {
     ),
     scale_shape_manual(values = c(VEH = 21, PAS = 24), guide = "none")
   )
-}
-
-# PCA scores with a shaded 95% t-ellipse per group (fill: group; shape: treatment), the PERMANOVA
-# terms in the top-right corner (bold at p <= 0.05), and arrows (x, y, label) from the origin,
-# already scaled to the score axes, each in its own colour with a key.
-pca_panel <- function(scores, variance, title, subtitle, permanova, arrows, arrow_colours) {
-  axis <- \(i) sprintf("PC%d (%.1f%%)", i, 100 * variance[i])
-  scores <- mutate(scores,
-    group = factor(group, FIGURE_GROUPS), treatment = factor(treatment, c("VEH", "PAS"))
-  )
-  arrows <- mutate(arrows, label = factor(label, names(arrow_colours)))
-  terms <- c(sex = "Sex", treatment = "Treatment", `sex:treatment` = "Treatment × sex")
-  permanova <- permanova |>
-    filter(term %in% names(terms)) |>
-    transmute(
-      text = sprintf("%s  R² %.2f, p %.2g", terms[term], r2, p),
-      face = if_else(p <= ALPHA, "bold", "plain"),
-      vjust = 1.5 + 1.35 * (row_number() - 1)
-    )
-  ggplot(scores, aes(PC1, PC2)) +
-    stat_ellipse(
-      aes(fill = group, colour = after_scale(fill)),
-      geom = "polygon", type = "t", level = 0.95, linewidth = 0.3, alpha = 0.12,
-      show.legend = FALSE
-    ) +
-    geom_segment(
-      aes(0, 0, xend = x, yend = y, colour = label), arrows,
-      arrow = grid::arrow(length = grid::unit(1.1, "mm"), type = "closed"), linewidth = 0.45
-    ) +
-    geom_point(aes(fill = group, shape = treatment), size = 1.5, colour = "grey15", stroke = 0.25) +
-    geom_text(
-      aes(Inf, Inf, label = text, fontface = face, vjust = vjust), permanova,
-      hjust = 1.04, size = 1.6, colour = "grey15", inherit.aes = FALSE
-    ) +
-    group_point_scales() +
-    scale_colour_manual(
-      values = arrow_colours, labels = scales::label_wrap(20), name = NULL,
-      guide = guide_legend(ncol = 2, order = 2, override.aes = list(linewidth = 0.5))
-    ) +
-    scale_y_continuous(expand = expansion(mult = c(0.05, 0.3))) +
-    labs(x = axis(1), y = axis(2), title = title, subtitle = subtitle) +
-    theme_figure() +
-    theme(legend.box = "vertical", legend.key.width = unit(4, "mm"))
 }
 
 # A main figure's folder part (a_script, b_reports); a supplementary figure's files, named S and
@@ -223,16 +161,6 @@ save_figure <- function(plot, figure, name, width_mm, height_mm) {
   save(".png", dpi = 600)
 }
 
-# Dot area grows with -log10 FDR (or p), capped at cap, from a minimum big enough to show the
-# fill of a cell near FDR 1; the key reads in FDR (or p) units.
-log_size_scale <- function(name = "FDR", range = c(0.6, 3.2), cap = LOG_CAP) {
-  scale_size(
-    range = range, limits = c(0, cap), breaks = -log10(c(0.1, 0.05, 0.01, 10^-cap)),
-    labels = c("0.1", "0.05", "0.01", paste("≤", format(10^-cap, scientific = FALSE))),
-    name = name
-  )
-}
-
 # Pathway sets as a dot grid, after HRvLR's pathway_grid(): one row per set within its block, one
 # column per contrast or trait under boxed strips, a dot per cell (fill value, keyed as fill_name
 # on a PiYG scale to +-fill_limit, by default the largest drawn; area -log10 p, keyed as size_name)
@@ -242,12 +170,12 @@ log_size_scale <- function(name = "FDR", range = c(0.6, 3.2), cap = LOG_CAP) {
 # column, value and p (an FDR or a p), and optionally selected (TRUE outlines the cell in
 # outline_shape, keyed as selected_label); columns holds column, column_block and label, in display
 # order, the column blocks side by side under one key. tones maps a strip's name to its
-# contrast_strips() key. Panels have a fixed size, column_mm wide and 3 mm a row, a block at least
-# min_block_mm tall so a short block's strip label fits.
-pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, tones = NULL,
-                         x_angle = 0, column_mm = 5, selected_label = "Selected",
-                         fill_name = "NES", fill_limit = NULL, fill_breaks = c(-2, 0, 2),
-                         size_name = "FDR", outline_shape = 22, min_block_mm = 0) {
+# contrast_strips() key. Panels have a fixed size, 5 mm a column and 3 mm a row, a block at least
+# min_block_mm tall so a short block's strip label fits. Dot area stops growing at LOG_CAP.
+pathway_grid <- function(cells, rows, columns, selected_label, title = NULL, subtitle = NULL,
+                         tones = NULL, fill_name = "NES", fill_limit = NULL,
+                         fill_breaks = c(-2, 0, 2), size_name = "FDR", outline_shape = 22,
+                         min_block_mm = 0) {
   column_blocks <- unique(columns$column_block)
   blocks <- levels(droplevels(rows$block))
   # The database squares take a narrow column of their own, " " under an empty strip.
@@ -293,9 +221,9 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
     ) +
     ggh4x::force_panelsizes(
       cols = unit(
-        c(if (length(lead)) 3.5, column_mm * table(columns$column_block)[column_blocks]), "mm"
+        c(if (length(lead)) 3.5, 5 * table(columns$column_block)[column_blocks]), "mm"
       ),
-      rows = unit(pmax(3 * table(rows$block)[blocks], min_block_mm), "mm")
+      rows = unit(block_mm(rows, min_block_mm), "mm")
     ) +
     # Order pinned from rows and columns, so a layer that lacks some rows (the bands, the
     # outlines) cannot reorder a facet and move an outline off its cell.
@@ -311,7 +239,11 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
       palette = "PiYG", direction = 1, limits = c(-fill_limit, fill_limit), oob = scales::squish,
       breaks = fill_breaks, name = fill_name
     ) +
-    log_size_scale(size_name, range = c(0.6, 2.8)) +
+    scale_size(
+      range = c(0.6, 2.8), limits = c(0, LOG_CAP), breaks = -log10(c(0.1, 0.05, 0.01, 10^-LOG_CAP)),
+      labels = c("0.1", "0.05", "0.01", paste("≤", format(10^-LOG_CAP, scientific = FALSE))),
+      name = size_name
+    ) +
     scale_colour_manual(
       values = DATABASE_COLOURS, limits = names(DATABASE_COLOURS), name = "Database"
     ) +
@@ -325,14 +257,22 @@ pathway_grid <- function(cells, rows, columns, title = NULL, subtitle = NULL, to
     theme_figure() +
     theme(
       axis.text.y = element_text(size = 5.2),
-      axis.text.x = element_text(
-        size = 5.5, angle = x_angle, hjust = if (x_angle) 1 else 0.5, vjust = 0.5
-      ),
+      axis.text.x = element_text(size = 5.5, angle = 90, hjust = 1, vjust = 0.5),
       strip.placement = "outside", strip.text = element_text(size = 5.5),
       strip.text.y.left = element_text(angle = 90), panel.spacing = unit(1, "mm"),
       legend.position = "right", legend.box.just = "left", legend.key.size = unit(2.6, "mm"),
       legend.text = element_text(size = 5.5), legend.title = element_text(size = 6)
     )
+}
+
+# A pathway_grid()'s blocks in mm, top to bottom; their sum and the 1 mm between blocks are the
+# grid's body, to which a figure adds its title, column labels and keys.
+block_mm <- function(rows, min_block_mm = 0) {
+  blocks <- levels(droplevels(rows$block))
+  pmax(3 * table(rows$block)[blocks], min_block_mm)
+}
+grid_body_mm <- \(rows, min_block_mm = 0) {
+  sum(block_mm(rows, min_block_mm)) + nlevels(droplevels(rows$block)) - 1
 }
 
 # Column strips of the F03 and F04 grids, keyed to contrast_strips(); Contrast falls back to grey.
@@ -463,77 +403,11 @@ count_bars <- function(counts, pairs, rows, width_mm = 30,
     )
 }
 
-# Display names for pathway sets: the collection prefix dropped, title case, shortened.
-set_label <- \(term, width = 48) str_trunc(enrichVolcano::clean_label(term, width = 200), width)
-
-# protein_heatmap()'s fill, full magenta at -limit and full green at +limit, and its key: the fill
-# with breaks at -limit, 0 and limit, then the not-detected grey.
-heatmap_colours <- \(limit) {
-  circlize::colorRamp2(
-    c(-limit, 0, limit), c(DIRECTION_COLOURS[["Down"]], "white", DIRECTION_COLOURS[["Up"]])
-  )
-}
-heatmap_legends <- function(limit, name = "log2 vs\nown-sex VEH", direction = "vertical") {
-  small <- grid::gpar(fontsize = 5.5)
-  list(
-    ComplexHeatmap::Legend(
-      col_fun = heatmap_colours(limit), at = c(-limit, 0, limit), title = name,
-      title_gp = grid::gpar(fontsize = 5.5, fontface = "bold"), labels_gp = small,
-      grid_width = unit(2, "mm"), grid_height = unit(2, "mm"), legend_width = unit(14, "mm"),
-      direction = direction
-    ),
-    ComplexHeatmap::Legend(
-      labels = "not detected", legend_gp = grid::gpar(fill = "grey75"), labels_gp = small,
-      grid_width = unit(2, "mm"), grid_height = unit(2, "mm")
-    )
-  )
-}
-
-# Proteins by mice as a ComplexHeatmap, each protein centred on its own sex's vehicle mean, rows
-# drawn in the order given, columns split by group under a group-colour bar and clustered within
-# it, magenta below and green above; cells where detected (same shape as values) is FALSE are
-# grey, so an imputed value never reads as no change. targets lists the columns of values in
-# order. row_gap (mm, one per gap or one for all) separates the row_split levels, which carry no
-# titles. Returns a grob patchwork can place with wrap_elements(); left and right are optional
-# rowAnnotations; padding (mm: bottom, left, top, right) surrounds the heatmap. Group titles run
-# upright on one line, for a narrow heatmap.
-protein_heatmap <- function(values, targets, detected, row_split = NULL, row_gap = 0.8,
-                            left = NULL, right = NULL, limit = 1, width_mm = 120,
-                            height_mm = 120, padding = c(1, 1, 4, 1)) {
-  groups <- factor(targets$group, FIGURE_GROUPS)
-  top <- ComplexHeatmap::HeatmapAnnotation(
-    group = groups, col = list(group = GROUP_COLOURS), show_annotation_name = FALSE,
-    show_legend = FALSE, simple_anno_size = unit(1.6, "mm")
-  )
-  small <- grid::gpar(fontsize = 5.5)
-  not_detected <- \(j, i, x, y, w, h, fill) {
-    hide <- !ComplexHeatmap::pindex(detected, i, j)
-    if (any(hide)) {
-      grid::grid.rect(x[hide], y[hide], w[hide], h[hide],
-        gp = grid::gpar(fill = "grey75", col = NA)
-      )
-    }
-  }
-  heatmap <- ComplexHeatmap::Heatmap(centre_on_vehicle(values, targets),
-    name = "log2 vs\nown-sex VEH", col = heatmap_colours(limit), top_annotation = top,
-    left_annotation = left, right_annotation = right, column_split = groups,
-    cluster_column_slices = FALSE, column_title_gp = small,
-    column_title = GROUP_LABELS[levels(droplevels(groups))], column_title_rot = 90,
-    column_labels = rep("", ncol(values)), row_split = row_split, cluster_rows = FALSE,
-    row_title_gp = small, row_title = NULL, row_title_rot = 90, show_row_names = FALSE,
-    show_column_dend = FALSE, column_gap = unit(0.6, "mm"), row_gap = unit(row_gap, "mm"),
-    layer_fun = not_detected, show_heatmap_legend = FALSE
-  )
-  # grid.grabExpr returns to the device open before it, and with none open R starts Rplots.pdf.
-  grDevices::pdf(NULL)
-  on.exit(grDevices::dev.off())
-  grid::grid.grabExpr(
-    ComplexHeatmap::draw(heatmap,
-      heatmap_legend_side = "right", annotation_legend_side = "right",
-      padding = unit(padding, "mm")
-    ),
-    width = width_mm / 25.4, height = height_mm / 25.4
-  )
+# Display names for pathway sets: the collection prefix dropped, title case, shortened to width
+# characters when a width is given.
+set_label <- function(term, width = NULL) {
+  label <- enrichVolcano::clean_label(term, width = 200)
+  if (is.null(width)) label else str_trunc(label, width)
 }
 
 # A figure's panel scripts, each run in its own environment, as YvO's stitchers do, and each plot
@@ -552,280 +426,6 @@ run_panels <- function(figure, panels) {
 write_figure_workbook <- function(panels, figure, name) {
   sheets <- list_flatten(map(panels, "data"), name_spec = "{outer}_{inner}")
   writexl::write_xlsx(sheets, here("04_Figures", figure, "c_data", paste0(name, ".xlsx")))
-}
-
-# One contrast's S3 heatmap: its proteins at Π <= 0.05 (full proteome) across every mouse, each
-# centred on its own sex's vehicle mean, grey where not detected, in 02_Enrichment's drawing order
-# (heatmap_clusters): split by direction (for the interaction, by which sex's PAS effect is
-# larger) and within each direction by co-expression cluster, the proteins the cut left
-# unassigned at the block's end under its last cluster. Beside each cluster, up to n_sets sets its
-# proteins over-represent at p <= ALPHA, smallest p (then FDR) first (cluster_ora), on one -log10 p
-# range for every comparison contrast. fit is 01_Fit's output, quant 02_Quantification's and
-# enrichment 02_Enrichment's. width_mm and height_mm are the panel's size, returned for
-# save_figure; the title and subtitle take the top 10 mm and the bars ora_mm of the width.
-pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 60, height_mm = 178,
-                             ora_mm = 22, n_sets = 3) {
-  names <- if (contrast == "treatment_by_sex") c("F > M", "F < M") else c("up", "down")
-  targets <- arrange(fit$targets, factor(group, FIGURE_GROUPS))
-  selected <- enrichment$heatmap_clusters |>
-    filter(contrast == !!contrast) |>
-    arrange(row) |>
-    left_join(
-      filter(fit$protein_contrasts, universe == "full", contrast == !!contrast) |>
-        select(feature, logFC, P.Value, adj.P.Val, pi_score),
-      by = "feature"
-    ) |>
-    mutate(direction = factor(names[match(direction, c("up", "down"))], names), slice = cluster) |>
-    fill(slice, .by = direction)
-  slices <- factor(selected$slice, unique(selected$slice))
-  values <- fit$E_norm$full[selected$feature, targets$sample_id]
-  detected <- quant$proteins$other$n.observations[selected$feature, targets$sample_id] > 0
-  top <- enrichment$cluster_ora |>
-    filter(p <= ALPHA) |>
-    arrange(p, fdr) |>
-    slice_head(n = n_sets, by = c(contrast, cluster))
-  reach <- max(-log10(c(top$p, ALPHA))) * 1.05
-  top <- top |>
-    filter(contrast == !!contrast) |>
-    arrange(factor(cluster, levels(slices)))
-  block_of <- map_chr(split(as.character(selected$direction), slices), 1)
-  gaps <- if_else(head(block_of, -1) == tail(block_of, -1), 0.7, 2.6)
-  # A direction block's strip, drawn from its first slice down across its slices and gaps.
-  strip <- function(index, levels) {
-    first <- as.integer(slices[index[1]])
-    if (first > 1 && block_of[[first - 1]] == block_of[[first]]) {
-      return(invisible())
-    }
-    at <- slice_positions(slices, gaps, length(index))
-    block <- block_of[[first]]
-    span <- max((at$top + at$height)[block_of == block]) - at$top[first]
-    # In npc of this slice, so the strip scales with the grob when patchwork fits it to the panel.
-    grid::pushViewport(grid::viewport(
-      y = unit(1, "npc"), height = unit(span / at$height[first], "npc"), just = "top"
-    ))
-    tone <- if (block == names[1]) "Up" else "Down"
-    grid::grid.rect(gp = grid::gpar(fill = DIRECTION_LIGHT[[tone]], col = NA))
-    grid::grid.text(
-      sprintf("%s (%d)", block, sum(selected$direction == block)),
-      rot = 90, gp = grid::gpar(fontsize = 5.5)
-    )
-    grid::popViewport()
-  }
-  cluster_n <- table(factor(selected$cluster, levels(slices)))
-  left <- ComplexHeatmap::rowAnnotation(
-    direction = ComplexHeatmap::anno_block(
-      which = "row", width = unit(3, "mm"), panel_fun = strip
-    ),
-    cluster = ComplexHeatmap::anno_block(
-      which = "row", width = unit(7.5, "mm"), gp = grid::gpar(fill = NA, col = NA),
-      labels = sprintf("%s (%d)", names(cluster_n), cluster_n), labels_rot = 0,
-      labels_just = "right", labels_offset = unit(1, "npc") - unit(0.6, "mm"),
-      labels_gp = grid::gpar(fontsize = 5)
-    ),
-    show_annotation_name = FALSE, gap = unit(0.4, "mm")
-  )
-  right <- ComplexHeatmap::rowAnnotation(
-    ora = ora_bars(top, slices, block_of, gaps, ora_mm, reach), show_annotation_name = FALSE
-  )
-  heatmap <- protein_heatmap(values, targets, detected,
-    row_split = slices, left = left, right = right, row_gap = gaps, limit = 1.5,
-    width_mm = width_mm, height_mm = height_mm - 10, padding = c(7, 1, 4, 1)
-  )
-  plot <- wrap_elements(plot = heatmap) +
-    labs(
-      title = CONTRAST_LABELS[[contrast]],
-      subtitle = sprintf("Π ≤ %s: %d proteins; bars: ORA", ALPHA, nrow(selected))
-    ) +
-    theme_figure()
-  list(
-    plot = plot,
-    data = list(
-      heatmap = select(
-        selected, feature, gene, direction, cluster, logFC, P.Value, adj.P.Val, pi_score
-      ),
-      ora = select(
-        top, contrast, direction, cluster, collection, term, overlap, size, p, fdr,
-        genes_in_cluster, overlap_genes
-      )
-    ),
-    width_mm = width_mm, height_mm = height_mm
-  )
-}
-
-# Set names for the bars beside a heatmap: sentence case (proper nouns kept), a few long words
-# shortened, and the hyphens clean_label() drops put back.
-PROPER_WORDS <- "Golgi"
-WORD_ABBREVIATIONS <- c(
-  regulation = "reg.", development = "dev.", process = "proc.", organization = "org.",
-  positive = "pos.", negative = "neg.", dependent = "dep.", localization = "loc.",
-  biosynthetic = "biosynth."
-)
-NAME_FIXES <- c("\\b([Cc])ell cell\\b" = "\\1ell-cell", " (mediated|based|dep\\.)(?= |$)" = "-\\1")
-DATABASE_TAGS <- c("GO:BP" = "GO", Reactome = "R", Hallmark = "H", KEGG = "K")
-bar_set_name <- function(term) {
-  words <- str_split(set_label(term, 200), " ")
-  map_chr(words, \(w) {
-    lower <- seq_along(w) > 1 & str_detect(w, "^[A-Z][a-z]+$") & !w %in% PROPER_WORDS
-    w[lower] <- str_to_lower(w[lower])
-    short <- WORD_ABBREVIATIONS[str_to_lower(w)]
-    w[!is.na(short)] <- paste0(str_sub(w, 1, 1), str_sub(short, 2))[!is.na(short)]
-    paste(w, collapse = " ")
-  }) |>
-    str_replace_all(NAME_FIXES)
-}
-
-# Each row slice's top and height in mm down a split heatmap's body, from inside one slice's
-# annotation viewport: that slice's rows (n_rows) fix the mm per row, gaps (mm) separate slices.
-slice_positions <- function(slices, gaps, n_rows) {
-  mm_per_row <- grid::convertHeight(unit(1, "npc"), "mm", valueOnly = TRUE) / n_rows
-  height <- tabulate(slices) * mm_per_row
-  list(top = cumsum(c(0, head(height, -1) + gaps)), height = height)
-}
-
-# Frames of the given sizes (mm) as near their centres (mm down the body) as they go without
-# overlapping, none ending below its bottom (mm, one per frame): pushed down from the top, then
-# back up from the bottom.
-place_frames <- function(centre, size, bottom, pad = 2.5) {
-  top <- centre - size / 2
-  for (k in seq_along(top)[-1]) top[k] <- max(top[k], top[k - 1] + size[k - 1] + pad)
-  for (k in rev(seq_along(top))) {
-    limit <- min(bottom[k], if (k < length(top)) top[k + 1] - pad else Inf)
-    top[k] <- min(top[k], limit - size[k])
-  }
-  top + size / 2
-}
-
-# The ORA bars beside each row slice of a heatmap, as a ComplexHeatmap row annotation: per slice,
-# its sets stacked from the top in a frame beside the slice (centred, unless that would overlap a
-# neighbouring frame or run past the slice's direction block), each a -log10 p bar bar_mm thick
-# on the range 0 to reach, filled by database, outlined black at FDR <= ALPHA, with a dotted mark
-# at p = ALPHA, and named "Set (overlap/size)" above it on at most two lines of `width` characters
-# (a database tag where two of the slice's sets share a name; an ellipsis after the last whole
-# word that fits when two lines cannot hold the name). A slice with no set says so. The axis
-# hangs under the last slice. top holds cluster (the slice), collection, term, overlap, size, p
-# and fdr, in drawing order; slices gives each heatmap row's slice, blocks each slice's direction
-# block and gaps the heatmap's row gaps (mm).
-ora_bars <- function(top, slices, blocks, gaps, width_mm, reach, bar_mm = 1.9, width = 24) {
-  line_mm <- 1.75
-  note_mm <- 2
-  # The name's first k words, ellipsis after, for the largest k that fits two lines.
-  two_lines <- function(name, counts) {
-    words <- str_split_1(name, " ")
-    for (k in rev(seq_along(words))) {
-      name <- paste(head(words, k), collapse = " ")
-      if (k < length(words)) name <- paste0(str_remove(name, "\\.$"), "…")
-      label <- str_wrap(paste(name, counts), width)
-      if (str_count(label, "\n") <= 1) break
-    }
-    label
-  }
-  top <- top |>
-    mutate(
-      name = bar_set_name(term),
-      name = if_else(
-        name %in% name[duplicated(name)], sprintf("%s (%s)", name, DATABASE_TAGS[collection]), name
-      ),
-      label = map2_chr(name, sprintf("(%d/%d)", overlap, size), two_lines),
-      # Slot height: the label's lines, 0.8 mm to the bar, the bar and 0.8 mm below it.
-      slot = (str_count(label, "\n") + 1) * line_mm + 0.8 + bar_mm + 0.8,
-      bar_hi = sum(slot) - cumsum(slot) + 0.8 + bar_mm,
-      .by = cluster
-    )
-  frame_mm <- map_dbl(levels(slices), \(s) max(sum(top$slot[top$cluster == s]), note_mm))
-  bar_theme <- \() {
-    theme_void(base_size = 7, base_family = "Helvetica") + theme(plot.margin = margin(0, 0, 0, 1))
-  }
-  bar_scales <- \(height) {
-    list(
-      scale_fill_manual(values = DATABASE_COLOURS, guide = "none"),
-      scale_colour_manual(values = c(`TRUE` = "black", `FALSE` = "transparent"), guide = "none"),
-      coord_cartesian(xlim = c(0, reach), ylim = c(0, height), expand = FALSE, clip = "off")
-    )
-  }
-  # A name of its own per grob, so grid.grabExpr() keeps every slice's bars.
-  draw_grob <- function(plot, y, height, just = "centre") {
-    grid::pushViewport(grid::viewport(y = y, height = height, just = c("centre", just)))
-    grob <- ggplotGrob(plot)
-    grid::grid.draw(grid::editGrob(grob, name = grid::grobName(grob, "ora_bars")))
-    grid::popViewport()
-  }
-  draw <- function(index, levels) {
-    k <- as.integer(slices[index[1]])
-    slice <- levels(slices)[k]
-    at <- slice_positions(slices, gaps, length(index))
-    centre <- at$top + at$height / 2
-    # Each frame ends by the bottom of its direction block.
-    block_bottom <- ave(at$top + at$height, blocks, FUN = max)
-    placed <- place_frames(centre, frame_mm, block_bottom)
-    y <- unit(0.5 - (placed[k] - centre[k]) / at$height[k], "npc")
-    sets <- filter(top, cluster == slice)
-    if (nrow(sets) > 0) {
-      plot <- ggplot(sets) +
-        geom_rect(aes(
-          xmin = 0, xmax = -log10(p), ymin = bar_hi - bar_mm, ymax = bar_hi,
-          fill = collection, colour = fdr <= ALPHA
-        ), linewidth = 0.3) +
-        geom_segment(aes(
-          x = -log10(ALPHA), xend = -log10(ALPHA), y = bar_hi - bar_mm - 0.2, yend = bar_hi + 0.2
-        ), linetype = "11", linewidth = 0.3) +
-        geom_text(aes(0, bar_hi + 0.8, label = label),
-          hjust = 0, vjust = 0, size = 5 / .pt, lineheight = 0.85, family = "Helvetica"
-        ) +
-        bar_scales(frame_mm[k]) +
-        bar_theme()
-      draw_grob(plot, y, unit(frame_mm[k], "mm"))
-    } else {
-      grid::grid.text(paste("no set at p ≤", ALPHA),
-        x = unit(1, "mm"), y = y, just = "left",
-        gp = grid::gpar(fontsize = 4.5, col = "grey50", fontfamily = "Helvetica")
-      )
-    }
-    if (k == nlevels(slices)) {
-      axis <- ggplot(tibble(x = c(0, reach)), aes(x, 1)) +
-        geom_blank() +
-        bar_scales(1) +
-        scale_x_continuous(breaks = scales::breaks_pretty(4)) +
-        labs(x = "-log10 p") +
-        bar_theme() +
-        theme(
-          axis.line.x = element_line(linewidth = 0.25),
-          axis.ticks.x = element_line(linewidth = 0.25),
-          axis.ticks.length.x = unit(0.6, "mm"),
-          axis.text.x = element_text(size = 5, margin = margin(t = 0.5)),
-          axis.title.x = element_text(size = 5.5, margin = margin(t = 0.8))
-        )
-      draw_grob(axis, unit(0, "npc") - unit(1, "mm"), unit(6.5, "mm"), just = "top")
-    }
-  }
-  ComplexHeatmap::anno_block(which = "row", width = unit(width_mm, "mm"), panel_fun = draw)
-}
-
-# The key S3's heatmaps share: the heatmap fill and not-detected grey, the databases its ORA bars
-# use and the FDR outline, in one row, as a grob.
-pi_heatmap_key <- function(collections, limit = 1.5) {
-  small <- grid::gpar(fontsize = 5.5)
-  collections <- intersect(names(DATABASE_COLOURS), collections)
-  keys <- c(
-    heatmap_legends(limit, "log2 vs own-sex VEH", direction = "horizontal"),
-    list(
-      ComplexHeatmap::Legend(
-        labels = collections, legend_gp = grid::gpar(fill = DATABASE_COLOURS[collections]),
-        title = "ORA database", title_gp = grid::gpar(fontsize = 5.5, fontface = "bold"),
-        labels_gp = small, nrow = 1, grid_width = unit(2, "mm"), grid_height = unit(2, "mm")
-      ),
-      ComplexHeatmap::Legend(
-        labels = paste("FDR ≤", ALPHA), legend_gp = grid::gpar(fill = "white"), border = "black",
-        title = "Outlined", title_gp = grid::gpar(fontsize = 5.5, fontface = "bold"),
-        labels_gp = small, grid_width = unit(2, "mm"), grid_height = unit(2, "mm")
-      )
-    )
-  )
-  pack <- ComplexHeatmap::packLegend(
-    list = keys, direction = "horizontal", column_gap = unit(6, "mm")
-  )
-  grDevices::pdf(NULL)
-  on.exit(grDevices::dev.off())
-  grid::grid.grabExpr(ComplexHeatmap::draw(pack))
 }
 
 # Each score's r-equivalent against the comparison contrasts and, within each sex, against each
@@ -851,160 +451,4 @@ score_cells <- function(contrasts, associations) {
       section = factor(section, c("Contrast", "Female traits", "Male traits")),
       column = factor(column, c(CONTRAST_SHORT, TRAIT_SHORT))
     )
-}
-
-# One sex's candidates (those passing community_routes or more routes) as a STRING network:
-# shaded hulls for communities, each named beside it by its ORA term; edges at the STRING score
-# 06_Candidates used; node size routes passed, colour log2 fold change. Communities are kept
-# together by adding invisible within-community edges to the layout only. Proteins without a
-# STRING partner are left out of the drawing, counted under it and flagged by has_partner in the
-# data. cand is candidates.rds from 02_Statistics/06_Candidates. Returns the plot and the
-# candidates drawn.
-candidate_network <- function(cand, sex, title) {
-  limits <- cand$thresholds
-  shown <- filter(cand$candidates, sex == !!sex, routes >= limits$community_routes)
-  nodes <- shown |>
-    distinct(gene, .keep_all = TRUE) |>
-    mutate(group = if_else(is.na(name), NA_character_, str_wrap(set_label(name, 200), 24)))
-  links <- cand$edges |>
-    filter(sex == !!sex, a %in% nodes$gene, b %in% nodes$gene) |>
-    distinct(a, b)
-  linked <- nodes |> filter(!is.na(community) | gene %in% c(links$a, links$b))
-  alone <- setdiff(nodes$gene, linked$gene)
-  within <- linked |>
-    filter(!is.na(community)) |>
-    reframe(as_tibble(t(combn(gene, 2)), .name_repair = \(x) c("a", "b")), .by = community) |>
-    select(a, b)
-  layout_graph <- igraph::graph_from_data_frame(
-    bind_rows(mutate(links, w = 1), mutate(within, w = 4)),
-    directed = FALSE, vertices = select(linked, gene)
-  )
-  set.seed(SEED)
-  xy <- igraph::layout_with_fr(layout_graph, weights = igraph::E(layout_graph)$w)
-  positions <- tibble(gene = igraph::V(layout_graph)$name, x = xy[, 1], y = xy[, 2]) |>
-    left_join(linked, by = "gene")
-  segments <- links |>
-    left_join(select(positions, a = gene, x, y), by = "a") |>
-    left_join(select(positions, b = gene, xend = x, yend = y), by = "b")
-  # Gene and community names repelled together, so neither covers a node or the other; each
-  # community name starts above its hull's highest member.
-  labels <- bind_rows(
-    transmute(positions, x, y, label = gene, size = 1.9, colour = "black"),
-    positions |>
-      filter(!is.na(group)) |>
-      summarise(x = mean(x), y = max(y), .by = group) |>
-      transmute(x, y, label = group, size = 1.6, colour = "grey30")
-  )
-  limit <- max(abs(nodes$logFC))
-  plot <- ggplot(positions, aes(x, y)) +
-    ggforce::geom_mark_hull(
-      aes(fill = group, filter = !is.na(group)),
-      expand = unit(3.5, "mm"), radius = unit(3, "mm"), alpha = 0.18, colour = NA
-    ) +
-    geom_segment(aes(x, y, xend = xend, yend = yend), segments,
-      colour = "grey60", linewidth = 0.3
-    ) +
-    geom_point(aes(colour = logFC, size = routes)) +
-    ggrepel::geom_text_repel(aes(label = label), labels,
-      size = labels$size, colour = labels$colour, lineheight = 0.9, seed = SEED,
-      max.overlaps = Inf, box.padding = 0.15, point.padding = 0.1,
-      min.segment.length = 0.3, segment.size = 0.2, bg.color = "white", bg.r = 0.15
-    ) +
-    scale_colour_gradient2(
-      low = DIRECTION_COLOURS[["Down"]], high = DIRECTION_COLOURS[["Up"]],
-      limits = c(-limit, limit), name = "log2 FC", guide = colour_bar(order = 1)
-    ) +
-    scale_fill_brewer(palette = "Set2", guide = "none") +
-    # One size key for both sexes: the limits span every candidate passing community_routes.
-    scale_size_continuous(
-      range = c(1.6, 3.6), limits = c(limits$community_routes, max(cand$candidates$routes)),
-      breaks = seq(limits$community_routes, max(cand$candidates$routes)), name = "routes",
-      guide = guide_legend(order = 2)
-    ) +
-    # Room around the network for the community names.
-    scale_x_continuous(expand = expansion(mult = 0.1)) +
-    scale_y_continuous(expand = expansion(mult = 0.1)) +
-    coord_cartesian(clip = "off") +
-    labs(
-      x = NULL, y = NULL, title = title,
-      subtitle = sprintf(
-        "%d proteins passing %d or more routes; edges: STRING score ≥ %d",
-        nrow(shown), limits$community_routes, limits$string_score
-      ),
-      caption = if (length(alone)) {
-        sprintf("%d proteins without a STRING partner (listed in the workbook)", length(alone))
-      }
-    ) +
-    theme_figure() +
-    theme(
-      axis.text = element_blank(), panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(), legend.box = "vertical",
-      plot.caption = element_text(size = 5.2, hjust = 0, colour = "grey30")
-    )
-  list(
-    plot = plot,
-    data = shown |>
-      mutate(has_partner = gene %in% linked$gene) |>
-      select(gene, logFC, P.Value, lfsr, routes, statistics:pathway, community, name, has_partner)
-  )
-}
-
-# Every mouse for one sex's candidates passing CANDIDATE_DOT_ROUTES or more routes, most routes
-# first and smallest p within: each protein's log2 abundance minus its own sex's vehicle mean, all
-# four groups, open circles where the protein was not detected in that mouse. cands comes from
-# 06_Candidates, fit from 01_Fit and quant from 02_Quantification. Returns the plot and the
-# candidates drawn.
-candidate_dots <- function(cands, fit, quant, sex, title, ncol = 7) {
-  shown <- cands |>
-    filter(sex == !!sex, routes >= CANDIDATE_DOT_ROUTES) |>
-    arrange(desc(routes), P.Value)
-  targets <- mutate(as_tibble(fit$targets), group = factor(group, FIGURE_GROUPS))
-  values <- fit$E_norm$full[shown$feature, targets$sample_id, drop = FALSE]
-  observations <- quant$proteins$other$n.observations
-  detected <- observations[shown$feature, targets$sample_id, drop = FALSE] > 0
-  genes <- set_names(
-    sprintf("%s (%d)", protein_label(shown$gene, shown$feature), shown$routes), shown$feature
-  )
-  points <- as_tibble(centre_on_vehicle(values, targets), rownames = "feature") |>
-    pivot_longer(-feature, names_to = "sample_id", values_to = "value") |>
-    left_join(select(targets, sample_id, group), by = "sample_id") |>
-    mutate(
-      seen = detected[cbind(feature, sample_id)],
-      protein = factor(genes[feature], unique(genes))
-    )
-  plot <- ggplot(points, aes(group, value, colour = group)) +
-    geom_hline(yintercept = 0, colour = "grey70", linewidth = 0.25) +
-    stat_summary(
-      fun = mean, geom = "crossbar", width = 0.5, linewidth = 0.25, colour = "grey30"
-    ) +
-    geom_point(aes(shape = seen),
-      position = position_jitter(width = 0.12, seed = SEED), size = 0.9
-    ) +
-    facet_wrap(~protein, ncol = ncol, scales = "free_y") +
-    scale_colour_manual(values = GROUP_COLOURS, labels = GROUP_LABELS, name = NULL) +
-    scale_shape_manual(
-      values = c(`TRUE` = 16, `FALSE` = 1),
-      labels = c(`TRUE` = "detected", `FALSE` = "not detected"),
-      name = NULL
-    ) +
-    scale_x_discrete(labels = \(g) str_wrap(GROUP_SHORT[g], 3)) +
-    labs(
-      x = NULL, y = "log2 vs own-sex vehicle", title = title,
-      subtitle = sprintf(
-        "Proteins passing %d or more routes (routes in brackets); bar: group mean",
-        CANDIDATE_DOT_ROUTES
-      )
-    ) +
-    theme_figure() +
-    theme(
-      axis.text.x = element_text(size = 4.5, lineheight = 0.9),
-      strip.text = element_text(size = 5.5), panel.spacing = unit(1.2, "mm")
-    ) +
-    guides(colour = guide_legend(nrow = 1, order = 1), shape = guide_legend(order = 2))
-  list(
-    plot = plot,
-    data = select(
-      shown, gene, logFC, P.Value, adj.P.Val, lfsr, auc, routes, detected_veh, detected_pas
-    )
-  )
 }

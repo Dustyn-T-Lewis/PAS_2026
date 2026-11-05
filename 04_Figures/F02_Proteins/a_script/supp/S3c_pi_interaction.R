@@ -1,8 +1,10 @@
-# S3 c: treatment × sex, the proteins at Π <= 0.05 in the full proteome across every mouse,
-# centred on each sex's vehicle mean, split by direction (01_Fit) and co-expression cluster
-# (02_Enrichment); grey where the protein was not detected in that mouse (02_Quantification),
-# with each cluster's ORA bars (02_Enrichment).
+# S3 c: treatment × sex. Above, every protein in the full proteome as log2 FC against -log10 p
+# (01_Fit); below, the proteins at Π <= 0.05 across every mouse, centred on each sex's vehicle
+# mean, in one slice per co-expression cluster (02_Enrichment) with its direction on the left,
+# grey where the protein was not detected in that mouse (02_Quantification), and each cluster's
+# ORA bars (02_Enrichment).
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
+source(here("04_Figures", "F02_Proteins", "a_script", "supp", "s3_heatmap.R"))
 
 inputs <- c(
   fit = output_path("02_Statistics", "01_Fit", "fit.rds"),

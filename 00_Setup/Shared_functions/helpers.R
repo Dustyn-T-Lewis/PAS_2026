@@ -11,6 +11,8 @@ source(here::here("00_Setup", "Shared_functions", "figures.R"))
 
 SEED <- 20260910
 ALPHA <- 0.05
+# The looser FDR line the protein counts and the sensitivity check also report.
+FDR_LOOSE <- 0.10
 # DIA-NN precursor and library q-value cutoff, applied in 01_Filtering and again when
 # 05_Composition reads the report for haemoglobin.
 Q_CUTOFF <- 0.01
@@ -27,6 +29,7 @@ COMPARISONS <- list(
 )
 COMPARISON_CONTRASTS <- map_chr(COMPARISONS, "contrast")
 SEX_COMPARISONS <- COMPARISONS[c("female", "male")]
+SEX_CONTRASTS <- map_chr(SEX_COMPARISONS, "contrast")
 COMPARISON_OF_CONTRAST <- c(
   set_names(names(COMPARISONS), COMPARISON_CONTRASTS),
   sex_in_VEH = "context", sex_in_PAS = "context"
@@ -46,7 +49,7 @@ stage_paths <- function(stage, step, reports = TRUE) {
   dirs <- file.path(root, c("c_data", if (reports) "b_reports"))
   walk(dirs, dir.create, recursive = TRUE, showWarnings = FALSE)
   list(
-    root = root, data = file.path(root, "c_data"), reports = file.path(root, "b_reports"),
+    data = file.path(root, "c_data"), reports = file.path(root, "b_reports"),
     workbook = file.path(root, "c_data", paste0(tolower(step), ".xlsx"))
   )
 }
@@ -144,7 +147,7 @@ tier_counts <- function(p, fdr, pi = NULL) {
   tibble(
     tests = length(p), p_le_0.05 = sum(p <= ALPHA),
     pi_le_0.05 = if (!is.null(pi)) sum(pi <= ALPHA),
-    fdr_le_0.10 = sum(fdr <= 0.10), fdr_le_0.05 = sum(fdr <= ALPHA)
+    fdr_le_0.10 = sum(fdr <= FDR_LOOSE), fdr_le_0.05 = sum(fdr <= ALPHA)
   )
 }
 
@@ -171,7 +174,9 @@ label_groups <- function(groups, collections, universe) {
   sets <- unlist(unname(collections), recursive = FALSE)
   sets <- sets[!str_detect(names(sets), paste0("^REACTOME_.*(", REACTOME_DISEASE, ")"))]
   map(groups, \(g) {
-    top <- fgsea::fora(sets, g, universe, minSize = LABEL_MIN_SIZE, maxSize = 500) |>
+    top <- fgsea::fora(sets, g, universe,
+      minSize = LABEL_MIN_SIZE, maxSize = TEST_WINDOW$full[2]
+    ) |>
       as_tibble() |>
       slice_min(pval, n = 1, with_ties = FALSE)
     named <- nrow(top) == 1 && top$padj <= ALPHA

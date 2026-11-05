@@ -49,4 +49,4 @@ plot <- ggplot(labelled, aes(y = sex)) +
   theme(panel.grid.major.y = element_blank(), panel.spacing.x = unit(4, "mm"))
 
 save_figure(plot, "F01_Global", "S2b_perfect_separators", 90, 55)
-list(plot = plot, data = perfect)
+list(plot = plot, data = select(perfect, -sex))

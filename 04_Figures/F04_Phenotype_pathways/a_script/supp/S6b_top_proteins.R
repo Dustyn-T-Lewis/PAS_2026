@@ -6,6 +6,9 @@ source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(fit = output_path("02_Statistics", "01_Fit", "fit.rds"))
 TOP_N <- 3
+# The association models in greys, darkest for within treatment, so a model never reads as a
+# direction, a sex or a contrast.
+MODEL_COLOURS <- c(pooled = "grey60", pooled_mito = "grey80", treatment = "grey15")
 DRAWN_MODELS <- c("pooled", "treatment")
 associations <- readRDS(inputs[["fit"]])$protein_associations |>
   filter(universe == "full", model %in% DRAWN_MODELS)
@@ -63,7 +66,5 @@ list(
   plot = plot,
   data = shown |>
     arrange(trait, sex, rank, model) |>
-    select(
-      phenotype, sex, rank, model, feature, gene, estimate, r, r_equiv, P.Value, adj.P.Val
-    )
+    select(phenotype, sex, rank, model, feature, gene, r_equiv, p = P.Value, fdr = adj.P.Val)
 )

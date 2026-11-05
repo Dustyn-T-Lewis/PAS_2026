@@ -19,7 +19,7 @@ TONES <- c(set_names(names(BLOCKS), BLOCKS), SEX_TRAIT_TONES)
 # Each row shaded in its block's strip fill, light enough that the dots stay readable.
 SHADES <- scales::alpha(c(contrast_tone("fill"), MitoCarta = "grey85"), 0.5)
 BAR_LABELS <- c(PAS_vs_VEH_female = "F", PAS_vs_VEH_male = "M", treatment_by_sex = "T×S")
-WIDTH_MM <- 212
+WIDTH_MM <- 180
 
 by_contrast <- enr$results |>
   filter(universe == "full", shown) |>
@@ -34,7 +34,7 @@ rows <- bind_rows(by_contrast, mitocarta) |>
   mutate(block = factor(block, BLOCKS)) |>
   list_once(ROWS_PER_BLOCK) |>
   mutate(
-    label = label_with_database(set_label(term, 60), collection),
+    label = label_with_database(set_label(term, 32), collection),
     shade = unname(SHADES[TONES[as.character(block)]])
   )
 
@@ -56,7 +56,7 @@ grid <- pathway_grid(
     ),
     ALPHA, ROWS_PER_BLOCK
   ),
-  tones = TONES, x_angle = 90, selected_label = "Chosen in this contrast"
+  tones = TONES, selected_label = "Chosen in this contrast"
 )
 
 # Significant sets per contrast, direction and database: all of them, and the distinct ones the
@@ -65,7 +65,8 @@ counts <- enr$results |>
   filter(contrast %in% COMPARISON_CONTRASTS, padj <= ALPHA) |>
   mutate(block = if_else(universe == "mito", "MitoCarta", CONTRAST_SHORT[contrast])) |>
   summarise(
-    n_distinct = sum(shown), n_all = n(), .by = c(block, contrast, direction, collection)
+    distinct_fdr_le_0.05 = sum(shown), all_fdr_le_0.05 = n(),
+    .by = c(block, contrast, direction, collection)
   ) |>
   arrange(factor(block, BLOCKS), match(contrast, COMPARISON_CONTRASTS), direction, collection)
 sizes <- table(rows$block)
@@ -80,18 +81,23 @@ pairs <- tibble(
     y = (slot - 0.5) * span + 0.5
   )
 bars <- count_bars(
-  transmute(counts, block, bar = BAR_LABELS[contrast], direction, collection, n = n_distinct),
-  pairs, rows
+  transmute(counts, block,
+    bar = BAR_LABELS[contrast], direction, collection, n = distinct_fdr_le_0.05
+  ),
+  pairs, rows,
+  width_mm = 18
 )
 
 plot <- (grid + free(bars, type = "space", side = "b")) + plot_layout(guides = "collect")
-height_mm <- 3 * nrow(rows) + nlevels(rows$block) + 32
-save_figure(plot, "F03_Pathways", "a_pathways", WIDTH_MM, height_mm)
+height_mm <- grid_body_mm(rows) + 33
 list(
   plot = plot,
-  data = transmute(drawn,
-    block = as.character(block), term, collection, universe, column_block, contrast, sex,
-    phenotype, NES, p, fdr, shown, selected, camera_p, camera_fdr
+  data = list(
+    cells = transmute(drawn,
+      block = as.character(block), set = term, collection, universe, contrast, sex, phenotype,
+      NES, fdr, shown, selected
+    ),
+    counts = counts
   ),
-  counts = counts, width_mm = WIDTH_MM, height_mm = height_mm
+  width_mm = WIDTH_MM, height_mm = height_mm
 )

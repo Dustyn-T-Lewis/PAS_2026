@@ -16,7 +16,7 @@ in_scope <- \(x) filter(x, level == "complex" | collection == "MitoCarta")
 contrasts <- in_scope(fit$score_contrasts)
 shown <- contrasts |>
   filter(any(shown & contrast %in% COMPARISON_CONTRASTS), .by = feature) |>
-  filter(contrast == "PAS_vs_VEH_female") |>
+  filter(contrast == SEX_CONTRASTS[["female"]]) |>
   mutate(key = if_else(level == "complex", "complex", "MitoCarta")) |>
   arrange(match(key, names(BLOCKS)), r_equiv)
 rows <- transmute(shown,
@@ -29,7 +29,6 @@ cells <- score_cells(contrasts, in_scope(fit$score_associations)) |>
   inner_join(select(rows, feature = term, block, label), by = "feature") |>
   arrange(match(feature, rows$term), section, column) |>
   mutate(column_block = as.character(section), id = paste(section, column))
-height_mm <- 3 * nrow(rows) + 32
 grid <- pathway_grid(
   transmute(cells,
     term = feature, column = id, value = r_equiv, p = P.Value, selected = adj.P.Val <= ALPHA
@@ -43,19 +42,18 @@ grid <- pathway_grid(
     ),
     ALPHA
   ),
-  tones = TONES, x_angle = 90, selected_label = paste("FDR ≤", ALPHA),
+  tones = TONES, selected_label = paste("FDR ≤", ALPHA),
   fill_name = "r-equivalent", fill_limit = 1, fill_breaks = c(-1, 0, 1), size_name = "p",
   outline_shape = 21
 )
 
-save_figure(grid, "F05_Complexes", "a_set_matrix", 180, height_mm)
 list(
   plot = grid,
   data = cells |>
     left_join(select(shown, feature, members), by = "feature") |>
     transmute(
-      block = as.character(block), feature, label, members, column_block,
-      column = as.character(column), r_equiv, P.Value, adj.P.Val
+      block = as.character(block), set = feature, label, members, column_block,
+      column = as.character(column), r_equiv, p = P.Value, fdr = adj.P.Val
     ),
-  height_mm = height_mm
+  height_mm = grid_body_mm(rows) + 31
 )

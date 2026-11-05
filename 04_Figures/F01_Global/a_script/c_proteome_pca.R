@@ -2,6 +2,7 @@
 # treatment, and the direction in which the pellet's MitoCarta share rises, fitted as a vector
 # (envfit; its R² and p are in the README and in 04_PCA's workbook).
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
+source(here("04_Figures", "F01_Global", "a_script", "pca_panel.R"))
 
 inputs <- c(
   pca = output_path("02_Statistics", "04_PCA", "pca.rds"),
@@ -10,9 +11,8 @@ inputs <- c(
 pca <- readRDS(inputs[["pca"]])
 n_proteins <- nrow(readRDS(inputs[["fit"]])$E_norm$full)
 scores <- pca$proteome_scores
-reach <- 0.8 * max(abs(c(scores$PC1, scores$PC2)))
 mito_label <- "Pellet MitoCarta share (envfit)"
-mito_arrow <- with(pca$mito_vector, tibble(x = PC1 * reach, y = PC2 * reach, label = mito_label))
+mito_arrow <- with(pca$mito_vector, tibble(x = PC1, y = PC2, label = mito_label))
 
 plot <- pca_panel(
   scores, pca$proteome_variance, "Proteome PCA",
@@ -27,5 +27,8 @@ plot <- pca_panel(
 save_figure(plot, "F01_Global", "c_proteome_pca", 57, 64)
 list(
   plot = plot,
-  data = select(scores, sample_id, group, sex, treatment, PC1, PC2, pct_mito)
+  data = bind_rows(
+    mutate(select(scores, sample_id, group, sex, treatment, PC1, PC2), what = "score"),
+    mutate(pca$mito_vector, sample_id = mito_label, what = "envfit arrow")
+  )
 )

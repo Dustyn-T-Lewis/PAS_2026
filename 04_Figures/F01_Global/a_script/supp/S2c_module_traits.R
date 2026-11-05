@@ -16,6 +16,11 @@ inputs <- c(
   classification = output_path("02_Statistics", "03_Classification", "classification.rds")
 )
 fit <- readRDS(inputs[["fit"]])
+# WGCNA's module names, each drawn in a muted tone of its colour.
+MODULE_COLOURS <- c(
+  turquoise = "#8CCFC9", blue = "#8FA8D8", brown = "#BC9A7C", yellow = "#E6D58C",
+  green = "#9DCB92", red = "#E39B94", black = "#8A8A8A", pink = "#E9B7CF"
+)
 AUC_SECTION <- "AUC (PAS vs vehicle)"
 BOLD_R <- 0.4
 sizes <- readRDS(inputs[["modules"]])$sizes |>
@@ -24,7 +29,7 @@ sizes <- readRDS(inputs[["modules"]])$sizes |>
   mutate(
     module_j = sprintf("%s (J %.2f)", module, median_jaccard),
     name = if_else(is.na(label) | label == "unannotated", module_j,
-      sprintf("%s · %s", module_j, set_label(label, 200))
+      sprintf("%s · %s", module_j, set_label(label))
     ),
     row = factor(module, module)
   )
@@ -35,7 +40,7 @@ auc_cells <- readRDS(inputs[["classification"]])$roc |>
   modules_only() |>
   transmute(
     module = feature, section = AUC_SECTION, column = str_to_sentence(comparison), r = 2 * auc - 1,
-    P.Value = p, adj.P.Val = fdr, auc, auc_low, auc_high
+    P.Value = p, adj.P.Val = fdr, auc
   )
 score_sections <- score_cells(
   modules_only(fit$score_contrasts), modules_only(fit$score_associations)
@@ -122,5 +127,11 @@ plot <- wrap_elements(plot = (size_bar | heatmap) + plot_layout(widths = c(1, 4.
 save_figure(plot, "F01_Global", "S2c_module_traits", 180, 92)
 list(
   plot = plot,
-  data = left_join(select(cells, -row, -text), select(sizes, -row), by = "module")
+  data = cells |>
+    select(-row, -text, -evidence, -face) |>
+    rename(p = P.Value, fdr = adj.P.Val) |>
+    left_join(
+      select(sizes, module, proteins, mito_share, label, median_jaccard, name),
+      by = "module"
+    )
 )

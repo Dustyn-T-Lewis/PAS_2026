@@ -31,4 +31,4 @@ plot <- ggplot(benchmark, aes(spread, method)) +
   theme(strip.text = element_text(size = 5.5), panel.spacing.x = unit(3, "mm"))
 
 save_figure(plot, "F01_Global", "S1c_normalisation", 55, 55)
-list(plot = plot, data = benchmark)
+list(plot = plot, data = select(benchmark, -eligible, -chosen))

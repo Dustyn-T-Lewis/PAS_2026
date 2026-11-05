@@ -13,7 +13,7 @@ inputs <- c(enrichment = output_path("02_Statistics", "02_Enrichment", "enrichme
 enr <- readRDS(inputs[["enrichment"]])
 ROWS_PER_SEX <- 4
 SEX_SHADES <- set_names(scales::alpha(SEX_COLOURS, 0.14), c("female", "male"))
-WIDTH_MM <- 212
+WIDTH_MM <- 180
 
 assoc <- filter(enr$association_fgsea, model == "treatment") |>
   mutate(block = factor(TRAIT_SHORT[phenotype], TRAIT_SHORT))
@@ -25,7 +25,7 @@ rows <- assoc |>
   list_once(ROWS_PER_SEX) |>
   transmute(
     block = trait, term, collection, sex,
-    label = label_with_database(set_label(term, 60), collection),
+    label = label_with_database(set_label(term, 32), collection),
     shade = unname(SEX_SHADES[sex])
   )
 
@@ -44,7 +44,7 @@ grid <- pathway_grid(
     ),
     ALPHA, ROWS_PER_SEX
   ),
-  tones = SEX_TRAIT_TONES, x_angle = 90, selected_label = "Chosen at this trait"
+  tones = SEX_TRAIT_TONES, selected_label = "Chosen at this trait"
 )
 
 # Significant sets per trait, sex, direction and database: all of them, and the distinct ones
@@ -53,7 +53,8 @@ counts <- assoc |>
   filter(fgsea_fdr <= ALPHA) |>
   mutate(direction = if_else(NES > 0, "up", "down")) |>
   summarise(
-    n_distinct = sum(shown), n_all = n(), .by = c(block, phenotype, sex, direction, collection)
+    distinct_fdr_le_0.05 = sum(shown), all_fdr_le_0.05 = n(),
+    .by = c(block, phenotype, sex, direction, collection)
   ) |>
   arrange(block, sex, direction, collection) |>
   mutate(block = as.character(block))
@@ -71,19 +72,22 @@ pairs <- rows |>
 bars <- count_bars(
   transmute(counts, block,
     bar = if_else(sex == "female", "F", "M"), direction, collection,
-    n = n_distinct
+    n = distinct_fdr_le_0.05
   ),
-  pairs, rows
+  pairs, rows,
+  width_mm = 18
 )
 
 plot <- (grid + free(bars, type = "space", side = "b")) + plot_layout(guides = "collect")
-height_mm <- 3 * nrow(rows) + nlevels(rows$block) + 32
-save_figure(plot, "F04_Phenotype_pathways", "a_trait_pathways", WIDTH_MM, height_mm)
+height_mm <- grid_body_mm(rows) + 33
 list(
   plot = plot,
-  data = transmute(drawn,
-    block = as.character(block), term, collection, universe, column_block, contrast, sex,
-    phenotype, NES, p, fdr, shown, selected, chosen_sex, camera_p, camera_fdr
+  data = list(
+    cells = transmute(drawn,
+      block = as.character(block), set = term, collection, universe, contrast, sex, phenotype,
+      NES, fdr, shown, selected, chosen_sex
+    ),
+    counts = select(counts, -block)
   ),
-  counts = select(counts, -block), width_mm = WIDTH_MM, height_mm = height_mm
+  width_mm = WIDTH_MM, height_mm = height_mm
 )

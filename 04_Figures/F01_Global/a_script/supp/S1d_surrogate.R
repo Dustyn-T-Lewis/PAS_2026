@@ -16,14 +16,11 @@ label <- with(r, paste(
 ))
 
 plot <- ggplot(sv, aes(run_depth_log2, sv1)) +
-  geom_point(aes(fill = group, shape = str_sub(group, 1, 3)),
-    size = 1.5, colour = "grey15", stroke = 0.25
-  ) +
+  group_points() +
   annotate("label",
     x = -Inf, y = Inf, label = label, hjust = 0, vjust = 1, size = 1.7, lineheight = 0.95,
     fill = NA, linewidth = 0, label.padding = unit(1, "mm")
   ) +
-  group_point_scales() +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.45))) +
   labs(
     x = "run depth (log2 precursors identified)", y = "surrogate variable 1",

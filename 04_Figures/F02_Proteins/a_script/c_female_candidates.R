@@ -2,6 +2,7 @@
 # own-sex vehicle mean in all four groups; open circles mark mice in which the protein was not
 # detected.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
+source(here("04_Figures", "F02_Proteins", "a_script", "candidates.R"))
 
 inputs <- c(
   candidates = output_path("02_Statistics", "06_Candidates", "candidates.rds"),

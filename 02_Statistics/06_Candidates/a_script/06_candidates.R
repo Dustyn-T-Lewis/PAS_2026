@@ -33,11 +33,10 @@ gs <- readRDS(inputs[["gene_sets"]])
 targets <- as_tibble(fit$targets)
 expr <- fit$E_norm$full[, targets$sample_id]
 sv1 <- d$design[targets$sample_id, "sv1"]
-SEX_CONTRAST <- map_chr(SEX_COMPARISONS, "contrast")
 
 proteins <- filter(fit$protein_contrasts, universe == "full")
 both <- proteins |>
-  filter(contrast %in% SEX_CONTRAST) |>
+  filter(contrast %in% SEX_CONTRASTS) |>
   select(feature, contrast, logFC, P.Value) |>
   pivot_wider(names_from = contrast, values_from = c(logFC, P.Value)) |>
   filter(
@@ -46,7 +45,7 @@ both <- proteins |>
   ) |>
   pull(feature)
 
-routes <- imap(SEX_CONTRAST, \(cn, sex) {
+routes <- imap(SEX_CONTRASTS, \(cn, sex) {
   code <- SEX_COMPARISONS[[sex]]$sex
   veh <- targets$group == paste0("VEH_", code)
   pas <- targets$group == paste0("PAS_", code)
@@ -108,12 +107,14 @@ links <- string$get_interactions(string_ids$STRING_id) |>
 detected_genes <- unique(proteins$gene[!is.na(proteins$gene) & proteins$gene != ""])
 full_sets <- unlist(unname(gs$full[c("Hallmark", "Reactome", "GO:BP")]), recursive = FALSE)
 name_community <- function(members) {
-  ora <- fgsea::fora(full_sets, members, detected_genes, minSize = ORA_MIN_SIZE, maxSize = 500) |>
+  ora <- fgsea::fora(full_sets, members, detected_genes,
+    minSize = ORA_MIN_SIZE, maxSize = TEST_WINDOW$full[2]
+  ) |>
     filter(overlap >= 2) |>
     arrange(pval)
   if (nrow(ora) == 0) NA_character_ else ora$pathway[1]
 }
-communities <- map(names(SEX_CONTRAST), \(sex) {
+communities <- map(names(SEX_CONTRASTS), \(sex) {
   genes <- unique(routes$gene[routes$sex == sex & routes$routes >= COMMUNITY_ROUTES])
   edges <- filter(links, a %in% genes, b %in% genes)
   graph <- igraph::graph_from_data_frame(edges, directed = FALSE, vertices = genes)
@@ -145,7 +146,7 @@ summary <- candidates |>
 plot_index <- preview_pdf(file.path(out$reports, "06_candidates.pdf"), list(
   "routes passed per candidate" = \() {
     par(mfrow = c(1, 2))
-    walk(names(SEX_CONTRAST), \(s) {
+    walk(names(SEX_CONTRASTS), \(s) {
       barplot(table(candidates$routes[candidates$sex == s]),
         xlab = "routes passed", ylab = "proteins", main = s
       )
