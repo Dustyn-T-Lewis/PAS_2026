@@ -26,6 +26,8 @@ Gastrocnemius proteomics of pipecolic acid plus succinate (PAS) against vehicle 
 
 ## Run
 
+Start R in the repo root and renv puts the project library first. Restore it once, then run:
+
 ```sh
 Rscript -e 'renv::restore()'
 Rscript run_all.R

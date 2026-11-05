@@ -158,7 +158,7 @@ save_figure <- function(plot, figure, name, width_mm, height_mm) {
     )
   }
   save(".pdf", device = grDevices::cairo_pdf)
-  save(".png", dpi = 600)
+  save(".png", device = ragg::agg_png, dpi = 600)
 }
 
 # Pathway sets as a dot grid, after HRvLR's pathway_grid(): one row per set within its block, one
