@@ -12,7 +12,7 @@ source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 inputs <- c(enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"))
 enr <- readRDS(inputs[["enrichment"]])
 ROWS_PER_SEX <- 4
-SEX_SHADES <- set_names(scales::alpha(SEX_COLOURS, 0.14), c("female", "male"))
+SEX_SHADES <- set_names(scales::alpha(SEX_COLOURS, 0.14), SEX_NAMES)
 WIDTH_MM <- 180
 
 assoc <- filter(enr$association_fgsea, model == "treatment") |>
@@ -64,18 +64,17 @@ pairs <- rows |>
   mutate(row = row_number(), .by = block) |>
   summarise(y = mean(row), span = n(), .by = c(block, sex)) |>
   mutate(block = as.character(block)) |>
-  complete(block, sex = c("female", "male"), fill = list(span = 1L)) |>
+  complete(block, sex = unname(SEX_NAMES), fill = list(span = 1L)) |>
   mutate(
-    y = coalesce(y, as.numeric(block_rows[block])), bar = if_else(sex == "female", "F", "M"),
+    y = coalesce(y, as.numeric(block_rows[block])), bar = names(SEX_NAMES)[match(sex, SEX_NAMES)],
     tone = unname(SEX_COLOURS[str_to_title(sex)])
   )
 bars <- count_bars(
   transmute(counts, block,
-    bar = if_else(sex == "female", "F", "M"), direction, collection,
+    bar = names(SEX_NAMES)[match(sex, SEX_NAMES)], direction, collection,
     n = distinct_fdr_le_0.05
   ),
-  pairs, rows,
-  width_mm = 18
+  pairs, rows
 )
 
 plot <- (grid + free(bars, type = "space", side = "b")) + plot_layout(guides = "collect")

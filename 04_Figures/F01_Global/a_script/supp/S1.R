@@ -16,7 +16,7 @@ plots <- map(panels, "plot")
 keyless <- c("S1b_run_depth", "S1d_surrogate", "S1e_mito_share")
 plots[keyless] <- map(plots[keyless], \(p) p + theme(legend.position = "none"))
 top <- wrap_plots(plots[1:3], widths = c(60, 45, 50))
-bottom <- wrap_plots(plots[4:5], widths = c(80, 70))
+bottom <- wrap_plots(plots[4:5], widths = c(96, 84))
 figure <- wrap_elements(full = top) / wrap_elements(full = bottom) /
   wrap_elements(full = plots$S1f_composition) +
   plot_layout(heights = c(55, 62, 60))

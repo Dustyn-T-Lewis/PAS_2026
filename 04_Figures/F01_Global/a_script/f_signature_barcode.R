@@ -6,7 +6,7 @@ source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(enrichment = output_path("02_Statistics", "02_Enrichment", "enrichment.rds"))
 enr <- readRDS(inputs[["enrichment"]])
-ranks <- list(male = enr$ranks$PAS_vs_VEH_male$full, female = enr$ranks$PAS_vs_VEH_female$full)
+ranks <- map(SEX_CONTRASTS, \(cn) enr$ranks[[cn]]$full)
 SPAN <- 0.12
 MIN_HEIGHT <- 0.34
 
@@ -16,7 +16,7 @@ lane_name <- \(source, ranked_in) {
 lanes <- enr$signatures |>
   mutate(
     lane = factor(
-      lane_name(source, ranked_in), lane_name(c("female", "male"), c("male", "female"))
+      lane_name(source, ranked_in), lane_name(SEX_NAMES, rev(SEX_NAMES))
     ),
     side = if_else(direction == "up", 1, -1),
     ranks = map2(members, ranked_in, \(m, target) {

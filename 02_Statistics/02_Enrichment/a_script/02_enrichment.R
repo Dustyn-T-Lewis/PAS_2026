@@ -102,7 +102,7 @@ results <- map(enrichment_tables, \(by_universe) {
 # fgsea's default nPermSimple, and at that default a set with unbalanced gene-level statistics
 # gets no p-value and drops out. fgsea's own advice is nPermSimple = 10000. The windows are
 # side_list_size()'s, on the full proteome's ranked genes.
-SIDE_LIST_SIZE <- side_list_size(length(ranks[[1]]$full))
+side_windows <- side_list_size(length(ranks[[1]]$full))
 side_list <- function(collection, size) {
   side_sets <- unlist(unname(collection), recursive = FALSE)
   map(COMPARISON_CONTRASTS, \(cn) {
@@ -120,8 +120,8 @@ side_list <- function(collection, size) {
       leading_edge = flatten(leadingEdge)
     )
 }
-compartments <- side_list(gs$compartments, SIDE_LIST_SIZE$compartments)
-literature <- side_list(list(Literature = gs$literature_sets), SIDE_LIST_SIZE$literature) |>
+compartments <- side_list(gs$compartments, side_windows$compartments)
+literature <- side_list(list(Literature = gs$literature_sets), side_windows$literature) |>
   rename(list_fdr = padj) |>
   left_join(gs$literature, by = "set") |>
   relocate(hypothesis, expected, .after = contrast)
@@ -228,7 +228,7 @@ results <- results |>
     .by = c(contrast, universe, collection), .after = camera_p
   )
 # For an association, camera tests the phenotype slope within one sex on that model's design.
-slope_columns <- c(female = "slope_F", male = "slope_M")
+slope_columns <- set_names(paste0("slope_", names(SEX_NAMES)), SEX_NAMES)
 association_camera <- fit$association_designs |>
   pmap(\(phenotype, model, design) {
     expand_grid(sex = names(slope_columns), u = names(gs$tested)) |>
@@ -412,8 +412,8 @@ write_workbook(
     ),
     str_glue(
       "GO Slim cellular compartments, fgsea per contrast, full proteome; compartments with more ",
-      "than {SIDE_LIST_SIZE$compartments[2]} of the {length(ranks[[1]]$full)} ranked genes are ",
-      "not tested."
+      "than {floor(side_windows$compartments[2])} of the {length(ranks[[1]]$full)} ranked ",
+      "genes are not tested."
     ),
     "Literature-informed and ROS sets, fgsea per contrast, full proteome, BH across the list.",
     "Per model, sex, collection and phenotype: fgsea, camera and singscore association counts.",

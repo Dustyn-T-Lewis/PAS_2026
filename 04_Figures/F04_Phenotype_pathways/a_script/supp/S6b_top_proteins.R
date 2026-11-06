@@ -8,7 +8,7 @@ inputs <- c(fit = output_path("02_Statistics", "01_Fit", "fit.rds"))
 TOP_N <- 3
 # The association models in greys, darkest for within treatment, so a model never reads as a
 # direction, a sex or a contrast.
-MODEL_COLOURS <- c(pooled = "grey60", pooled_mito = "grey80", treatment = "grey15")
+MODEL_COLOURS <- c(pooled = "grey60", treatment = "grey15")
 DRAWN_MODELS <- c("pooled", "treatment")
 associations <- readRDS(inputs[["fit"]])$protein_associations |>
   filter(universe == "full", model %in% DRAWN_MODELS)
@@ -24,10 +24,9 @@ shown <- associations |>
     trait = factor(PHENOTYPE_LABELS[phenotype], PHENOTYPE_LABELS),
     sex = factor(str_to_sentence(sex), c("Female", "Male")),
     model = factor(MODEL_LABELS[model], MODEL_LABELS[DRAWN_MODELS]),
-    row = paste(phenotype, sex, feature)
+    row = paste(phenotype, sex, feature),
+    label = protein_label(gene, feature)
   ) |>
-  # The accession joins the symbol where two drawn protein groups share one.
-  mutate(label = if (n_distinct(feature) > 1) paste(gene, feature) else gene, .by = gene) |>
   arrange(trait, sex, desc(rank)) |>
   mutate(row = factor(row, unique(row)))
 

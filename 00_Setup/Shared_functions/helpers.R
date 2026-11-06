@@ -57,10 +57,10 @@ stage_paths <- function(stage, step, reports = TRUE) {
 # A set is tested when this many of its genes are detected in the universe (enrichVolcano's
 # min_size and max_size); 04_Gene_Sets trims the lists to it and 02_Enrichment passes it to fgsea.
 TEST_WINDOW <- list(full = c(15, 500), mito = c(10, 500))
-# The side lists' windows, on the same count: fgsea's own nPermSimple runs them, so they keep sets
-# above 500. A compartment holding more than half the ranked genes is skipped, as its complement
-# is then the smaller set and the test mostly reads the rest of the proteome. 02_Enrichment tests
-# with these windows and 04_Gene_Sets marks those sets tested.
+# Side-list windows on the same count. They run in fgsea directly (nPermSimple = 10000), so sets
+# above 500 stay in; a compartment holding more than half the ranked genes is skipped, since the
+# test then mostly reads the rest of the proteome. 02_Enrichment tests with these windows and
+# 04_Gene_Sets marks those sets tested.
 side_list_size <- function(n_ranked) {
   list(compartments = c(15, n_ranked / 2), literature = c(5, Inf))
 }
@@ -68,15 +68,14 @@ side_list_size <- function(n_ranked) {
 # Sets called in one test are grouped by the proteins they share, as EnrichmentMap and DAVID group
 # them (Merico et al. 2010, PLoS One, doi:10.1371/journal.pone.0013984; Huang et al. 2007, Genome
 # Biol, doi:10.1186/gb-2007-8-9-r183), on HRvLR's average-linkage Jaccard tree: cut at 0.70, a
-# group's sets share on average at least 30% of their proteins. A narrow set nested in a broad one
-# is shown in its place when its p is within 10-fold of the group's best.
+# group's sets share on average at least 30% of their proteins.
 OVERLAP_CUT <- 0.70
 SPECIFIC_WINDOW <- 10
 
 # One test's sets, each given as its tested genes (members) and its p: average-linkage clustering
-# on 1 - Jaccard (shared / union), cut at `cut`; in each group the set shown is the smallest of
-# those with p within `window`-fold of the group's smallest, ties to the smaller p. Returns one row
-# per set: overlap_group and shown.
+# on 1 - Jaccard (shared / union), cut at `cut`. Each group shows the smallest set with p within
+# `window`-fold of the group's best, ties to the smaller p. Returns one row per set: overlap_group
+# and shown.
 representative_sets <- function(members, p, cut = OVERLAP_CUT, window = SPECIFIC_WINDOW) {
   genes <- unique(unlist(members))
   incidence <- vapply(members, \(m) genes %in% m, logical(length(genes)))
@@ -202,8 +201,9 @@ centre_on_vehicle <- function(values, targets) {
   values - vehicle_mean[, targets$sex]
 }
 
-# What the protein heatmaps draw as colour and 02_Enrichment clusters: values centred on each
-# sex's vehicle mean, NA where detected (same shape as values) is FALSE.
+# The values 02_Enrichment clusters the S3 heatmap rows on (S3 itself draws every value, greying
+# the undetected): centred on each sex's vehicle mean, NA where detected (same shape as values)
+# is FALSE.
 heatmap_values <- function(values, targets, detected) {
   x <- centre_on_vehicle(values, targets)
   x[!detected] <- NA
@@ -212,11 +212,12 @@ heatmap_values <- function(values, targets, detected) {
 
 # Co-expression tree of the rows of x (heatmap_values()): average-linkage clustering on
 # 1 - Pearson r across mice, each pair over the mice where both proteins were detected. A pair
-# sharing fewer than min_shared mice counts as uncorrelated, and a protein detected in fewer than
-# min_shared mice stays off the tree. Returns the tree and its distance matrix (NULL for fewer
+# sharing fewer than min_shared (5) mice counts as uncorrelated, and a protein detected in fewer
+# than min_shared mice stays off the tree. Returns the tree and its distance matrix (NULL for fewer
 # than two proteins on it), the rows on the tree in the distance matrix's order (on_tree), and
 # every row in drawing order: tree order, then the rows off it.
-coexpression_tree <- function(x, min_shared = 5) {
+coexpression_tree <- function(x) {
+  min_shared <- 5
   seen <- !is.na(x)
   on_tree <- which(rowSums(seen) >= min_shared)
   tree <- distance <- NULL
@@ -247,11 +248,11 @@ preview_pdf <- function(file, pages) {
   tibble(file = basename(file), page = seq_along(pages), shows = names(pages))
 }
 
-# fgsea's own table of running scores for the n strongest sets each way among results (term, NES,
+# fgsea's own table of running scores for the five strongest sets each way among results (term, NES,
 # p, padj, direction), on the ranking they were tested against; a preview_pdf page.
-gsea_table_page <- function(results, sets, ranks, n = 5) {
+gsea_table_page <- function(results, sets, ranks) {
   top <- results |>
-    slice_min(p, n = n, by = direction, with_ties = FALSE) |>
+    slice_min(p, n = 5, by = direction, with_ties = FALSE) |>
     arrange(desc(NES))
   short <- set_label(top$term, 36)
   print(fgsea::plotGseaTable(

@@ -92,6 +92,14 @@ colour_bar <- \(...) {
   )
 }
 
+# Gene symbols, with the accession added where two protein groups share one; a protein may appear
+# on several rows.
+protein_label <- function(gene, feature) {
+  groups <- distinct(tibble(gene, feature))
+  shared <- gene %in% groups$gene[duplicated(groups$gene)]
+  if_else(shared, paste(gene, feature), gene)
+}
+
 # p as the labels print it, without scientific notation.
 format_p <- \(p) if_else(p < 0.001, "p < 0.001", sprintf("p = %.2g", p))
 
@@ -291,7 +299,7 @@ contrast_trait_cells <- function(enr, terms) {
   traits <- enr$association_fgsea |>
     filter(model == "treatment", term %in% terms) |>
     transmute(
-      column_block = names(SEX_TRAIT_TONES)[match(sex, c("female", "male"))],
+      column_block = names(SEX_TRAIT_TONES)[match(sex, SEX_NAMES)],
       column = paste(sex, phenotype), label = TRAIT_SHORT[phenotype], sex, phenotype, term,
       collection, universe, NES, p = fgsea_p, fdr = fgsea_fdr, shown, camera_p, camera_fdr
     )
@@ -319,10 +327,7 @@ list_once <- function(candidates, n) {
 # ▲ or ▼ before it and the group's label before the pair. pairs holds block, bar (the label), tone
 # (its colour), y (the pair's centre in rows from the block's top) and span (the rows it covers);
 # counts holds block, bar, direction ("up" or "down"), collection and n; rows is the grid's rows.
-count_bars <- function(counts, pairs, rows, width_mm = 30,
-                       x_title = sprintf(
-                         "Distinct significant sets\n(FDR ≤ %s, after overlap grouping)", ALPHA
-                       )) {
+count_bars <- function(counts, pairs, rows, width_mm = 18) {
   blocks <- levels(droplevels(rows$block))
   sizes <- table(rows$block)[blocks]
   gap <- 0.15
@@ -393,7 +398,10 @@ count_bars <- function(counts, pairs, rows, width_mm = 30,
     scale_fill_manual(values = DATABASE_COLOURS, guide = "none") +
     scale_colour_identity() +
     coord_cartesian(xlim = c(0, reach), expand = FALSE, clip = "off") +
-    labs(x = x_title, y = NULL) +
+    labs(
+      x = sprintf("Distinct significant sets\n(FDR ≤ %s, after overlap grouping)", ALPHA),
+      y = NULL
+    ) +
     theme_figure() +
     theme(
       axis.text.y = element_blank(), panel.grid.major.y = element_blank(),
@@ -445,12 +453,12 @@ score_cells <- function(contrasts, associations) {
     filter(model == "pooled") |>
     transmute(
       level, feature,
-      section = if_else(sex == "female", "Female traits", "Male traits"),
+      section = names(SEX_TRAIT_TONES)[match(sex, SEX_NAMES)],
       column = TRAIT_SHORT[phenotype], r_equiv, pearson_r = r, P.Value, adj.P.Val
     )
   bind_rows(contrast_cells, trait_cells) |>
     mutate(
-      section = factor(section, c("Contrast", "Female traits", "Male traits")),
+      section = factor(section, c("Contrast", names(SEX_TRAIT_TONES))),
       column = factor(column, c(CONTRAST_SHORT, TRAIT_SHORT))
     )
 }

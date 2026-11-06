@@ -15,6 +15,11 @@ VOLCANO_COLOURS <- set_names(
   c(DIRECTION_COLOURS[["Down"]], DIRECTION_COLOURS[["Up"]], "grey80"), VOLCANO_STATUS
 )
 HEATMAP_MM <- 112
+# Each column's size, as saved and as S3 stitches it; the ORA bars take ZOOM_MM of the width and
+# show each cluster's N_SETS smallest-p sets.
+COLUMN_MM <- c(width = 80, height = 172)
+ZOOM_MM <- 41
+N_SETS <- 3
 
 # One contrast's column. On top, every protein in the full proteome as log2 FC against -log10 p,
 # Π <= 0.05 coloured by direction and FDR <= 0.05 ringed and named, on the axes all three
@@ -23,13 +28,12 @@ HEATMAP_MM <- 112
 # one row slice per co-expression cluster in drawing order, the proteins the cut left unassigned
 # under their direction's last cluster, and the direction (for the interaction, which sex's PAS
 # effect is larger) as a thin strip on the left. Columns split by group and clustered within it.
-# Beside each cluster, in anno_zoom()'s box, the n_sets sets with the smallest ORA p (then FDR)
+# Beside each cluster, in anno_zoom()'s box, the N_SETS sets with the smallest ORA p (then FDR)
 # among all it was tested against (cluster_ora), whether or not they reach p <= ALPHA, as -log10 p
 # bars on the cluster's own range, filled by database and outlined at FDR <= ALPHA. fit is
-# 01_Fit's output, quant 02_Quantification's and enrichment 02_Enrichment's. width_mm and
-# height_mm are the column's size, returned for save_figure; the bars take zoom_mm of the width.
-pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, height_mm = 172,
-                             zoom_mm = 41, n_sets = 3) {
+# 01_Fit's output, quant 02_Quantification's and enrichment 02_Enrichment's. The column's size
+# (COLUMN_MM) is returned for save_figure.
+pi_heatmap_panel <- function(fit, quant, enrichment, contrast) {
   proteins <- fit$protein_contrasts |>
     filter(universe == "full", contrast %in% COMPARISON_CONTRASTS) |>
     mutate(
@@ -45,13 +49,18 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, he
     arrange(desc(status))
   named <- filter(proteins, adj.P.Val <= ALPHA)
 
-  names <- if (contrast == "treatment_by_sex") c("F > M", "F < M") else c("up", "down")
+  directions <- if (contrast == "treatment_by_sex") c("F > M", "F < M") else c("up", "down")
   targets <- arrange(fit$targets, factor(group, FIGURE_GROUPS))
   selected <- enrichment$heatmap_clusters |>
     filter(contrast == !!contrast) |>
     arrange(row) |>
-    mutate(direction = factor(names[match(direction, c("up", "down"))], names), slice = cluster) |>
+    mutate(
+      direction = factor(directions[match(direction, c("up", "down"))], directions),
+      slice = cluster
+    ) |>
     fill(slice, .by = direction) |>
+    # A direction block the cut left without a cluster is one slice of its own.
+    mutate(slice = coalesce(slice, as.character(direction))) |>
     arrange(factor(slice, unique(slice)))
   slices <- factor(selected$slice, unique(selected$slice))
   values <- fit$E_norm$full[selected$feature, targets$sample_id]
@@ -60,7 +69,7 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, he
   top <- enrichment$cluster_ora |>
     filter(contrast == !!contrast) |>
     arrange(p, fdr) |>
-    slice_head(n = n_sets, by = cluster) |>
+    slice_head(n = N_SETS, by = cluster) |>
     mutate(label = sprintf("%s (%d/%d)", set_label(term, 36), overlap, size))
 
   volcano <- ggplot(proteins, aes(logFC, -log10(P.Value))) +
@@ -127,9 +136,10 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, he
 
   block_of <- selected$direction[!duplicated(slices)]
   row_gap_mm <- if_else(head(block_of, -1) == tail(block_of, -1), 1, 2.5)
-  # The last box sits on the foot of the heatmap, its axis level with the bottom row: extend lets
-  # it hang below the body by the axis height, and a gap above it of twice the last slice's height
-  # plus that overhang, less the box (and 1 mm), makes anno_zoom's smart-align push it right down.
+  # The last box sits on the foot of the heatmap, its axis level with the bottom row. anno_zoom
+  # centres each box, padded by half its gap, on its slice and only moves a box that would cross
+  # the body (extended by the overhang). The last box therefore drops to the foot once
+  # gap >= 2 * slice + 4 * overhang - 2 * box; 1 mm spare.
   overhang_mm <- axis_mm - 0.6
   last_share <- mean(slices == last(levels(slices)))
   push <- (unit(1, "npc") - unit(sum(row_gap_mm), "mm")) * (2 * last_share) +
@@ -153,14 +163,14 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, he
     ),
     left_annotation = ComplexHeatmap::rowAnnotation(
       direction = selected$direction,
-      col = list(direction = set_names(DIRECTION_COLOURS[c("Up", "Down")], names)),
+      col = list(direction = set_names(DIRECTION_COLOURS[c("Up", "Down")], directions)),
       show_annotation_name = FALSE, show_legend = FALSE, simple_anno_size = unit(1.2, "mm")
     ),
     right_annotation = ComplexHeatmap::rowAnnotation(
       ora = ComplexHeatmap::anno_zoom(
         align_to = split(seq_along(slices), slices), which = "row", panel_fun = bars,
         size = unit(box_mm, "mm"), gap = gaps, extend = unit(c(overhang_mm, 0), "mm"),
-        width = unit(zoom_mm, "mm"),
+        width = unit(ZOOM_MM, "mm"),
         link_width = unit(2.5, "mm"), link_gp = grid::gpar(col = "grey55", fill = NA, lwd = 0.5)
       ),
       show_annotation_name = FALSE
@@ -179,7 +189,7 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, he
   on.exit(grDevices::dev.off())
   grob <- grid::grid.grabExpr(
     ComplexHeatmap::draw(heatmap, padding = unit(c(1, 1, 1, 1), "mm")),
-    width = width_mm / 25.4, height = (HEATMAP_MM + 2 * margin_mm) / 25.4
+    width = COLUMN_MM[["width"]] / 25.4, height = (HEATMAP_MM + 2 * margin_mm) / 25.4
   )
   # The heatmap keeps the size it was drawn at, its plot margins included, so its rows and
   # anno_zoom's boxes (fixed in mm when drawn) stay level; the volcano takes the rest. Unclipped,
@@ -208,7 +218,7 @@ pi_heatmap_panel <- function(fit, quant, enrichment, contrast, width_mm = 80, he
         set = term, label, overlap, size, p, fdr
       )
     ),
-    width_mm = width_mm, height_mm = height_mm
+    width_mm = COLUMN_MM[["width"]], height_mm = COLUMN_MM[["height"]]
   )
 }
 

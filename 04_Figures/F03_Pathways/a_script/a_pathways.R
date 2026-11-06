@@ -84,8 +84,7 @@ bars <- count_bars(
   transmute(counts, block,
     bar = BAR_LABELS[contrast], direction, collection, n = distinct_fdr_le_0.05
   ),
-  pairs, rows,
-  width_mm = 18
+  pairs, rows
 )
 
 plot <- (grid + free(bars, type = "space", side = "b")) + plot_layout(guides = "collect")

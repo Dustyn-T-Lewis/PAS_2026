@@ -28,5 +28,5 @@ plot <- ggplot(sv, aes(run_depth_log2, sv1)) +
   ) +
   theme_figure()
 
-save_figure(plot, "F01_Global", "S1d_surrogate", 60, 62)
+save_figure(plot, "F01_Global", "S1d_surrogate", 96, 62)
 list(plot = plot, data = sv)

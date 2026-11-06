@@ -14,25 +14,25 @@ Candidates and their six routes are defined in [`02_Statistics/06_Candidates`](.
 
 ![Panel a](b_reports/a_female_network.png)
 
-The 56 female candidates passing two or more routes; edges are STRING v12 links at combined score ≥ 700, colour is log2 fold change and size the number of routes. 33 have no STRING partner; the other 23 form eight communities, the largest named for TGF-β response regulation (Hsp90ab1, Cdc37, Cops3, Cops8, Sugt1, Fkbp1a) and skeletal muscle contraction (Atp2a1, Cacna1s, Srl, Casq1). A community's name may describe only some of its members.
+The 65 female candidates passing two or more routes; edges are STRING v12 links at combined score ≥ 700, colour is log2 fold change and size the number of routes. 35 have no STRING partner; the other 30 form eleven communities, the largest named for TGF-β response regulation (Hsp90ab1, Cdc37, Cops3, Cops8, Sugt1, Fkbp1a, Atp5f1a) and skeletal muscle contraction (Atp2a1, Cacna1s, Srl, Casq1). A community's name may describe only some of its members.
 
 ### b. Male candidate network
 
 ![Panel b](b_reports/b_male_network.png)
 
-The same for males: 47 protein groups on 45 nodes, since two Cav1 groups share one gene and two Mbp groups another. 20 have no partner; the rest form seven communities, among them muscle contraction, EMT, nervous system development and heme metabolism. Many members are nerve, red-cell and extracellular matrix proteins, classes that fall in male PAS pellets ([05_Composition](../../02_Statistics/05_Composition/README.md)), so much of this network may record pellet content rather than a change in the fibres.
+The same for males: 49 protein groups on 48 nodes, since two Cav1 groups share one gene. 21 have no partner; the rest form seven communities, among them muscle contraction, EMT, nervous system development and heme metabolism. Many members are nerve, red-cell and extracellular matrix proteins, classes that fall in male PAS pellets ([05_Composition](../../02_Statistics/05_Composition/README.md)), so much of this network may record pellet content rather than a change in the fibres.
 
 ### c. Female candidates, every mouse
 
 ![Panel c](b_reports/c_female_candidates.png)
 
-The 14 female proteins passing three or more routes, each mouse's log2 abundance minus its own-sex vehicle mean; an open circle marks a mouse where the protein was not detected. Nine fall and five rise (p 2.1e-05 to 0.032); only Dusp3 reaches FDR ≤ 0.05 (0.022). The routes chose these proteins from these same mice, so the female separation follows from the selection and does not confirm them.
+The 14 female proteins passing three or more routes, each mouse's log2 abundance minus its own-sex vehicle mean; an open circle marks a mouse where the protein was not detected. Ten fall and four rise (p 2.1e-05 to 0.0081); only Dusp3 reaches FDR ≤ 0.05 (0.022). The routes chose these proteins from these same mice, so the female separation follows from the selection and does not confirm them.
 
 ### d. Male candidates, every mouse
 
 ![Panel d](b_reports/d_male_candidates.png)
 
-The same for the 12 male protein groups passing three or more routes (Cav1 twice, labelled by accession). Ten fall and two rise (Mdh1, Comtd1); none reaches FDR ≤ 0.05 (smallest Cd36, 0.094). The list mixes myofibril, extracellular matrix and red-cell proteins, so the composition caveat from panel b applies.
+The same for the 13 male protein groups passing three or more routes (Cav1 twice, labelled by accession). Eleven fall and two rise (Mdh1, Comtd1); none reaches FDR ≤ 0.05 (smallest Cd36, 0.094). The list mixes myofibril, extracellular matrix and red-cell proteins, so the composition caveat from panel b applies.
 
 ## Supplementary Figure 3
 
@@ -84,7 +84,7 @@ The 22 baseline proteins at FDR ≤ 0.10 (18 female, 4 male), shaded by their FD
 
 ## Run
 
-`Rscript 04_Figures/F02_Proteins/a_script/F02.R`, `a_script/supp/S3.R` and `a_script/supp/S4.R`. Each panel script also runs alone. The F02 panels share `a_script/candidates.R` and the S3 heatmaps `a_script/supp/s3_heatmap.R`.
+`Rscript 04_Figures/F02_Proteins/a_script/F02.R`, `a_script/supp/S3.R` and `a_script/supp/S4.R`. Each panel script also runs alone. The F02 panels share `a_script/candidates.R` and the S3 heatmaps `a_script/supp/pi_heatmap.R`.
 
 ## Workbook
 

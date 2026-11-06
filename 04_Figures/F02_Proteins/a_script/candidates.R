@@ -6,12 +6,6 @@ GROUP_SHORT <- c(VEH_F = "F VEH", PAS_F = "F PAS", VEH_M = "M VEH", PAS_M = "M P
 # candidate thresholds come with candidates.rds from 02_Statistics/06_Candidates.
 CANDIDATE_DOT_ROUTES <- 3
 
-# Gene symbols, with the accession added where two protein groups share one.
-protein_label <- function(gene, feature) {
-  shared <- gene %in% gene[duplicated(gene)]
-  if_else(shared, paste(gene, feature), gene)
-}
-
 # One sex's candidates (those passing community_routes or more routes) as a STRING network:
 # shaded hulls for communities, each named beside it by its ORA term; edges at the STRING score
 # 06_Candidates used; node size routes passed, colour log2 fold change. Communities are kept
@@ -114,7 +108,7 @@ candidate_network <- function(cand, sex, title) {
 # four groups, open circles where the protein was not detected in that mouse. cands comes from
 # 06_Candidates, fit from 01_Fit and quant from 02_Quantification. Returns the plot and its points:
 # one row per protein and mouse, the value drawn and whether the protein was detected there.
-candidate_dots <- function(cands, fit, quant, sex, title, ncol = 7) {
+candidate_dots <- function(cands, fit, quant, sex, title) {
   shown <- cands |>
     filter(sex == !!sex, routes >= CANDIDATE_DOT_ROUTES) |>
     arrange(desc(routes), P.Value)
@@ -140,7 +134,7 @@ candidate_dots <- function(cands, fit, quant, sex, title, ncol = 7) {
     geom_point(aes(shape = seen),
       position = position_jitter(width = 0.12, seed = SEED), size = 0.9
     ) +
-    facet_wrap(~protein, ncol = ncol, scales = "free_y") +
+    facet_wrap(~protein, ncol = 7, scales = "free_y") +
     scale_colour_manual(values = GROUP_COLOURS, labels = GROUP_LABELS, name = NULL) +
     scale_shape_manual(
       values = c(`TRUE` = 16, `FALSE` = 1),

@@ -3,7 +3,8 @@
 # three contrasts and against each trait within each sex (pooled model, adjusted for the surrogate
 # variable), in F03's grid. Dot fill: r-equivalent of the limma t, so contrasts and traits share
 # one scale; area: -log10 p; ring: BH FDR <= 0.05 over every scored set in the universe. Rows
-# sit in two blocks by female r-equivalent; labels give the measured members.
+# sit in two blocks, CORUM then MitoCarta, each ordered by female r-equivalent; labels give the
+# measured members.
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
 
 inputs <- c(fit = output_path("02_Statistics", "01_Fit", "fit.rds"))

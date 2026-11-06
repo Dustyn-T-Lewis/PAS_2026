@@ -8,7 +8,7 @@ fit <- readRDS(inputs[["fit"]])
 interaction_p <- with(fit$phenotype_interaction, set_names(P.Value, PHENOTYPE_LABELS[phenotype]))
 effects <- fit$phenotype_effects |>
   mutate(
-    sex = factor(if_else(sex == "F", "Female", "Male"), c("Male", "Female")),
+    sex = factor(str_to_title(SEX_NAMES[sex]), c("Male", "Female")),
     trait = factor(PHENOTYPE_LABELS[phenotype], rev(PHENOTYPE_LABELS)),
     across(c(pct_change, ci_low, ci_high), \(x) 1 + x / 100)
   )

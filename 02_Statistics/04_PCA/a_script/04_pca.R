@@ -48,8 +48,8 @@ ordinate <- function(x, scale) {
     rownames_to_column("term") |>
     as_tibble() |>
     select(term, df = Df, r2 = R2, f = `F`, p = `Pr(>F)`)
-  set.seed(SEED)
   dispersion <- vegan::betadisper(distances, samples$group)
+  set.seed(SEED)
   dispersion_test <- vegan::permutest(dispersion, permutations = PERMUTATIONS)
   list(
     pca = pca, variance = pca$sdev^2 / sum(pca$sdev^2), permanova = permanova,

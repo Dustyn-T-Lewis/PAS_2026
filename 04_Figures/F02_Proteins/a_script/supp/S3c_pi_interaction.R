@@ -4,7 +4,7 @@
 # grey where the protein was not detected in that mouse (02_Quantification), and each cluster's
 # ORA bars (02_Enrichment).
 source(here::here("00_Setup", "Shared_functions", "helpers.R"))
-source(here("04_Figures", "F02_Proteins", "a_script", "supp", "s3_heatmap.R"))
+source(here("04_Figures", "F02_Proteins", "a_script", "supp", "pi_heatmap.R"))
 
 inputs <- c(
   fit = output_path("02_Statistics", "01_Fit", "fit.rds"),

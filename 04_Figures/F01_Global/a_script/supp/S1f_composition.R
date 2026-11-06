@@ -21,7 +21,7 @@ scores <- shown |>
 labels <- comp$tests |>
   filter(group %in% MARKERS) |>
   summarise(
-    text = paste(paste0(if_else(sex == "female", "F: ", "M: "), format_p(p)), collapse = "\n"),
+    text = paste(paste0(names(SEX_NAMES)[match(sex, SEX_NAMES)], ": ", format_p(p)), collapse = "\n"),
     .by = group
   ) |>
   facets()

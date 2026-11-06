@@ -38,6 +38,7 @@ report_phenotypes <- function(comparison) {
   fit <- readRDS(inputs[["fit"]])
   enrichment <- readRDS(inputs[["enrichment"]])
   sex_code <- COMPARISONS[[comparison]]$sex
+  sex_name <- SEX_NAMES[[sex_code]]
   label <- COMPARISONS[[comparison]]$label
   targets <- filter(fit$targets, sample_id %in% comparison_mice(comparison, fit$targets))
   mice <- targets$sample_id
@@ -47,7 +48,7 @@ report_phenotypes <- function(comparison) {
   associations <- fit$protein_associations |>
     mutate(level = "protein") |>
     bind_rows(fit$score_associations) |>
-    filter(sex == comparison)
+    filter(sex == sex_name)
   association_summary <- associations |>
     reframe(tier_counts(P.Value, adj.P.Val), .by = c(level, universe, phenotype, model))
   associations <- filter(associations, model != "pooled_mito") |>
@@ -69,7 +70,7 @@ report_phenotypes <- function(comparison) {
     filter(contrast == COMPARISONS[[comparison]]$contrast) |>
     select(level, universe, feature, r_group, group_p = P.Value, group_fdr = adj.P.Val)
   fgsea <- enrichment$association_fgsea |>
-    filter(sex == comparison) |>
+    filter(sex == sex_name) |>
     select(-sex)
 
   examples <- map(PHENOTYPES, \(p) {

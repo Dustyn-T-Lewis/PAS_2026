@@ -39,5 +39,5 @@ plot <- ggplot(share, aes(group, pct_mito_signal)) +
   theme_figure() +
   theme(axis.text.x = element_blank())
 
-save_figure(plot, "F01_Global", "S1e_mito_share", 60, 62)
+save_figure(plot, "F01_Global", "S1e_mito_share", 84, 62)
 list(plot = plot, data = share)
