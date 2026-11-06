@@ -14,6 +14,6 @@ Column 3 panel, header "02_Statistics", with the small subtitle "run once on all
 
 Column 4 is split into two panels stacked one above the other, each reached by its own arrow from the column 3 panel (two arrows in total leave column 3).
 - Upper panel, header "03_Comparisons", small subtitle "four steps written once in code/". Three cards side by side or stacked: an orange card with bold "Female" and below it "PAS_F − VEH_F"; a blue card with bold "Male" and below it "PAS_M − VEH_M"; a purple card with bold "Sex_Difference" and below it "(PAS_F − VEH_F) − (PAS_M − VEH_M)". Group names are written with plain underscores, never subscripts.
-- Lower panel, header "04_Figures", small subtitle "drawn from saved results only". Seven small neutral cards in two rows: "F01_Global", "F02_Proteins", "F03_Pathways", "F04_Phenotype_pathways", "F05_Modules", "F05_Complexes", "S1–S8".
+- Lower panel, header "04_Figures", small subtitle "drawn from saved results only; supplements filed under each figure". Six small neutral cards in two rows of three: "F01_Global", "F02_Proteins", "F03_Pathways", "F04_Phenotype_pathways", "F05_Complexes", "S1–S6".
 
 A full-width very light grey bar along the bottom with the text: "every step folder:  a_script/   b_reports/   c_data/   README.md".
