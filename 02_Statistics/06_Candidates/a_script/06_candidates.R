@@ -50,9 +50,13 @@ routes <- imap(SEX_CONTRASTS, \(cn, sex) {
   veh <- targets$group == paste0("VEH_", code)
   pas <- targets$group == paste0("PAS_", code)
   in_sex <- veh | pas
-  # The surrogate variable is removed within the sex before mice are compared one by one.
-  adjusted <- limma::removeBatchEffect(expr[, in_sex], covariates = sv1[in_sex])
   case <- factor(pas[in_sex], c(FALSE, TRUE))
+  # The surrogate variable is removed within the sex before mice are compared one by one, with
+  # treatment in the design so the part of sv1 that follows treatment is not removed with it.
+  adjusted <- limma::removeBatchEffect(
+    expr[, in_sex],
+    covariates = sv1[in_sex], design = model.matrix(~case)
+  )
   # pROC's trapezoid sum lands a hair off the 1/25 steps, so it is rounded before the cuts.
   auc <- apply(adjusted, 1, \(v) {
     round(as.numeric(pROC::auc(case, v, levels = levels(case), direction = "<", quiet = TRUE)), 4)

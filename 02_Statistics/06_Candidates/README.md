@@ -15,7 +15,7 @@ A protein is considered in a sex only if detected in at least 4 of 5 mice in eac
 | Route | Rule |
 |---|---|
 | Statistics | p ≤ 0.01 within the sex |
-| Every mouse | AUC ≥ 0.92 or ≤ 0.08 on surrogate-adjusted values |
+| Every mouse | AUC ≥ 0.92 or ≤ 0.08 on surrogate-adjusted values (treatment kept in the adjustment design) |
 | Both sexes | same direction, p ≤ 0.10 in each sex |
 | Phenotype | within-treatment association p ≤ 0.01 with any phenotype |
 | Hub | kME ≥ 0.8 in a module with within-sex PAS p ≤ 0.05 |
@@ -27,7 +27,7 @@ A protein is considered in a sex only if detected in at least 4 of 5 mice in eac
 
 ## Results
 
-- Females: 255 proteins pass any route, 56 pass two or more, 14 pass three or more. Cul5, Fkbp1a and Atp2a1 pass four.
-- Males: 209, 47 and 12.
+- Females: 280 proteins pass any route, 65 pass two or more, 14 pass three or more. Cul5, Fkbp1a and Atp2a1 pass four.
+- Males: 212, 49 and 13.
 - No female module responds to PAS, so the hub route adds no female candidate.
 - Read sarcoplasmic reticulum candidates in females, and nerve, red-cell, vessel and myofibril candidates in males, beside 05_Composition.
