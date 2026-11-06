@@ -17,6 +17,6 @@ Read 2026-10-16 after the coordinator's rerun of run_all.R.
 | 06: WGCNA after removing sex and run depth | removeBatchEffect(batch = sex, covariates = log2 run depth) | `06_Modules/README.md` Adjustment; `06_modules.xlsx` read_me (eigengenes "from the sex- and run-depth-adjusted matrix") |
 | 06: 827 proteins, 8 modules plus grey | 827 rows; 9 module rows incl. grey (402) | `01_Processing/06_Modules/c_data/06_modules.xlsx`, sheets `modules` (827 rows), `sizes` (turquoise, blue, brown, yellow, green, red, black, pink + grey) |
 | "read by 02_Statistics" | proteins.rds, design.rds, scores.rds, modules.rds read by 02_Statistics/01_Fit | step READMEs, "Writes" rows |
-| Footer | | `01_Processing/README.md` last paragraph (04_Gene_Sets has no b_reports PDF; the footer is generic) |
+| Footer | | `README.md` Conventions, first bullet (04_Gene_Sets has no b_reports PDF; the footer is generic) |
 
 Note: Reactome is 140 tested in `04_gene_sets.xlsx` catalog but 139 scored in `05_scores.xlsx` catalog; the image prints no per-collection count.

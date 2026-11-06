@@ -21,5 +21,6 @@ Fits every model the comparisons read, once on all 20 mice: protein, score and e
 ## Results
 
 - Full proteome (1,962 tests), at p ≤ 0.05 / Π ≤ 0.05 / FDR ≤ 0.05: female 177 / 107 / 3 (Cops3, Cops8, Dusp3, all down); male 193 / 106 / 0; interaction 162 / 142 / 0.
+- Of the Π ≤ 0.05 proteins, 1 of 107 female, 8 of 106 male and 40 of 142 interaction proteins were never detected in at least one group of their contrast (33 of the 40 in PAS males), so the value there is limpa's estimate.
 - Phenotype effects in females: capillary density +138% (p 0.005), CSA +22% (p 0.002), satellite cells +47% (p 0.009). None in males. Interaction only for capillary density (p 0.014).
 - Shown score sets at p ≤ 0.05: 42 of 98 in females, 26 of 55 in males, 41 of 70 for the interaction.

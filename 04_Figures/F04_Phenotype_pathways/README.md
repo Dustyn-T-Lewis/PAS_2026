@@ -3,7 +3,7 @@
 - Figure 4: within each sex, which pathways track each phenotype across the ten mice.
 - Supplementary Figure 6: how many proteins track each phenotype, in which direction, and which three track it most closely.
 
-Associations are co-movement across mice, not PAS effects. The models are described in [`02_Statistics/01_Fit`](../../02_Statistics/01_Fit/README.md).
+Associations are co-movement across mice and say nothing about what PAS did. The models are described in [`02_Statistics/01_Fit`](../../02_Statistics/01_Fit/README.md).
 
 ## Figure 4
 
@@ -27,7 +27,7 @@ Proteins whose association with each phenotype reaches p ≤ 0.05, split by sign
 
 ![Panel b](b_reports/supp/S6b_top_proteins.png)
 
-The three proteins with the smallest within-treatment p for each phenotype and sex, as the r-equivalent of the limma t under the pooled (light grey) and within-treatment (near-black) models; filled points pass FDR ≤ 0.05. Five pass within treatment, the strongest Cpa3 with female soleus octanoylcarnitine conductance (−0.93, FDR 0.012). Each was picked from 1,962 proteins, so its estimate runs optimistic.
+The three proteins with the smallest within-treatment p for each phenotype and sex, as the r-equivalent of the limma t under the pooled (light grey) and within-treatment (near-black) models; filled points pass FDR ≤ 0.05. Five pass within treatment, the strongest Cpa3 with female soleus octanoylcarnitine conductance (−0.93, FDR 0.012). Each was picked from 1,962 proteins, so the selection inflates its estimate.
 
 ## Run
 

@@ -26,7 +26,7 @@ The same for males: 47 protein groups on 45 nodes, since two Cav1 groups share o
 
 ![Panel c](b_reports/c_female_candidates.png)
 
-The 14 female proteins passing three or more routes, each mouse's log2 abundance minus its own-sex vehicle mean; an open circle marks a mouse where the protein was not detected. Nine fall and five rise (p 2.1e-05 to 0.032); only Dusp3 reaches FDR ≤ 0.05 (0.022). The routes chose these proteins from these same mice, so the female separation shows consistency, not confirmation.
+The 14 female proteins passing three or more routes, each mouse's log2 abundance minus its own-sex vehicle mean; an open circle marks a mouse where the protein was not detected. Nine fall and five rise (p 2.1e-05 to 0.032); only Dusp3 reaches FDR ≤ 0.05 (0.022). The routes chose these proteins from these same mice, so the female separation follows from the selection and does not confirm them.
 
 ### d. Male candidates, every mouse
 
@@ -38,7 +38,13 @@ The same for the 12 male protein groups passing three or more routes (Cav1 twice
 
 ![Supplementary Figure 3](b_reports/supp/S3.png)
 
-One column per contrast, read top to bottom: the volcano, then the heatmap of its Π ≤ 0.05 proteins, then each cluster's ORA bars. Volcanoes show every protein in the full proteome, coloured where Π ≤ 0.05, with p = 0.05 dashed and FDR ≤ 0.05 ringed and named, on axes shared across the three columns; at p ≤ 0.05 there are 177 female, 193 male and 162 interaction proteins, and only Cops3, Dusp3 and Cops8 pass FDR ≤ 0.05, all female and down. The heatmaps show log2 abundance minus the own-sex vehicle mean (green above, magenta below, full colour from ±1), grey where the protein was not detected in that mouse (no observed precursor, so the imputed value is masked). Each co-expression cluster is its own row slice, with its direction as a thin strip on the left (green up or F > M, magenta down or F < M); the clusters are described in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md). Bars beside each cluster are its three smallest-p ORA sets, whether or not they reach p ≤ 0.05, each cluster on its own −log10 p axis with p = 0.05 dotted on every bar and FDR ≤ 0.05 outlined; a cluster whose bars stop left of the dotted line has no set at p ≤ 0.05. The clusters come from proteins chosen for responding, so the ORA describes them and tests little.
+One column per contrast, read top to bottom: the volcano, then the heatmap of its Π ≤ 0.05 proteins, then each cluster's ORA bars.
+
+Volcanoes show every protein in the full proteome on axes shared across the three columns, coloured where Π ≤ 0.05, with p = 0.05 dashed and FDR ≤ 0.05 ringed and named. At p ≤ 0.05 there are 177 female, 193 male and 162 interaction proteins; only Cops3, Dusp3 and Cops8 pass FDR ≤ 0.05, all female and down.
+
+Heatmaps show log2 abundance minus the own-sex vehicle mean (green above, magenta below, full colour from ±1), grey where the protein was not detected in that mouse (no observed precursor, so the imputed value is masked). Each co-expression cluster is its own row slice, with its direction as a thin strip on the left (green up or F > M, magenta down or F < M); the clusters are described in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md).
+
+Bars are each cluster's three smallest-p ORA sets, whether or not they reach p ≤ 0.05, on the cluster's own −log10 p axis with p = 0.05 dotted and FDR ≤ 0.05 outlined. A cluster whose bars stop left of the dotted line has no set at p ≤ 0.05.
 
 ### a. Female PAS against vehicle
 

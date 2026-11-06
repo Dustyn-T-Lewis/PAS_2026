@@ -1,6 +1,6 @@
 # 04_PCA
 
-Asks what shapes the whole proteome and the phenotypes: sex, treatment, their interaction or the pellet's mitochondrial share. This is context for the comparisons, not one of their questions.
+Asks what shapes the whole proteome and the phenotypes: sex, treatment, their interaction or the pellet's mitochondrial share. This is context for the comparisons and answers none of their questions.
 
 | | |
 |---|---|

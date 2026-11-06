@@ -20,8 +20,8 @@ Gastrocnemius proteomics of pipecolic acid plus succinate (PAS) against vehicle 
 - Normalisation: none for the full proteome, median centring for MitoCarta, chosen by replicate spread.
 - BH correction within universe and contrast for proteins, within contrast and collection for fgsea. Counts at p ≤ 0.05 are exploratory.
 - Π = p^|log2 FC| (Xiao et al. 2014) ranks proteins and controls no error rate.
-- Phenotype effect: what PAS did to a phenotype, as % change against the same sex's vehicle. Phenotype association: a feature moving with a phenotype within one sex. An association is co-movement, not a PAS effect.
-- Baseline female against male differences are context, not a question. They dominate the proteome (PERMANOVA R² 0.39).
+- Phenotype effect: what PAS did to a phenotype, as % change against the same sex's vehicle. Phenotype association: a feature moving with a phenotype within one sex. An association by itself says nothing about what PAS did.
+- Baseline female against male differences are reported as context and are not one of the three questions. They dominate the proteome (PERMANOVA R² 0.39).
 - Seed 20260910 for every stochastic step.
 
 ## Run
@@ -33,9 +33,9 @@ Rscript -e 'renv::restore()'
 Rscript run_all.R
 ```
 
-About 7 minutes on a laptop, 12 from a fresh clone (limpa refits its three cached quantifications). R 4.6.0; `renv.lock` pins every package, and enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. The run needs internet: msigdbr downloads MSigDB 2026.1 from Zenodo on its first run (then cached), and STRINGdb contacts string-db.org.
+About 7 minutes on a laptop; 11 if the three cached limpa quantifications (`dpcquant_slope_*.rds`) are deleted and refitted. R 4.6.0; `renv.lock` pins every package, and enrichVolcano installs from github.com/Dustyn-T-Lewis/enrichVolcano. The run needs internet: msigdbr downloads MSigDB 2026.1 from Zenodo on its first run (then cached), and STRINGdb contacts string-db.org.
 
-## Version 1
+## History
 
 The exploratory first version is on branch `Dustyn/v1-exploratory-analyses`. Its protein contrasts are identical to these.
 

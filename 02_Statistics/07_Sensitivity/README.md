@@ -6,7 +6,7 @@ Tests how much the protein results depend on choices made once. Each variant cha
 |---|---|
 | Reads | `01_Processing/01_Filtering/c_data/precursors_filtered.rds`, `01_Processing/02_Quantification/c_data/proteins.rds`, `01_Processing/03_Design/c_data/design.rds`, `02_Statistics/01_Fit/c_data/fit.rds` |
 | Writes | `c_data/07_sensitivity.xlsx`, `c_data/sensitivity.rds`, `c_data/dpcquant_slope_0.5.rds`, `c_data/dpcquant_slope_1.rds`, `b_reports/07_sensitivity.pdf` |
-| Run | `Rscript 02_Statistics/07_Sensitivity/a_script/07_sensitivity.R` (about six minutes the first time) |
+| Run | `Rscript 02_Statistics/07_Sensitivity/a_script/07_sensitivity.R` |
 
 ## Method
 

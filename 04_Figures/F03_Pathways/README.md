@@ -9,7 +9,7 @@
 
 ### a. Pathways per contrast
 
-24 gene sets in four blocks of six: the shown full-proteome sets of the female, male and interaction contrasts, then MitoCarta pathways shown in any contrast (shown sets are defined in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md)). Each row is drawn in the three contrast columns and at every trait in both sexes; dot fill is NES (magenta down, green up) and area −log10 FDR. Bars count distinct sets at FDR ≤ 0.05: females 4 up and 2 down, males 1 up and 13 down, interaction 15 up and 1 down; in MitoCarta, females 2 up, interaction 6 up and 2 down, males none. fgsea permutes genes and runs optimistic: camera gives p ≤ 0.05 for only 3 of the 24 rows in the contrast that shows them, and the male falls in cytoskeletal, adhesion and matrix sets match the male pellet composition shifts (S1 f).
+24 gene sets in four blocks of six: the shown full-proteome sets of the female, male and interaction contrasts, then MitoCarta pathways shown in any contrast (shown sets are defined in [`02_Enrichment`](../../02_Statistics/02_Enrichment/README.md)). Each row is drawn in the three contrast columns and at every trait in both sexes; dot fill is NES (magenta down, green up) and area −log10 FDR. Bars count distinct sets at FDR ≤ 0.05: females 4 up and 2 down, males 1 up and 13 down, interaction 15 up and 1 down; in MitoCarta, females 2 up, interaction 6 up and 2 down, males none. camera gives p ≤ 0.05 for only 3 of the 24 rows in the contrast that shows them, and the male falls in cytoskeletal, adhesion and matrix sets match the male pellet composition shifts (S1 f).
 
 ## Supplementary Figure 5
 
@@ -19,7 +19,7 @@
 
 ![Panel a](b_reports/supp/S5a_compartments.png)
 
-23 GO Slim compartments (27 to 737 proteins; organelle, holding most of the proteome, is not tested) per contrast, drawn as in Figure 3 with a ring at FDR ≤ 0.05 (BH across the 23). Females have 11 passing (4 up: endoplasmic reticulum and extracellular terms; 7 down, among them nuclear and cytosolic terms), males 6 (5 down, 1 up) and the interaction 4 (all up). Mitochondrion shows no shift in any contrast (FDR ≥ 0.98). The compartments overlap heavily, so these FDRs run optimistic.
+23 GO Slim compartments (27 to 737 proteins; organelle, holding most of the proteome, is not tested) per contrast, drawn as in Figure 3 with a ring at FDR ≤ 0.05 (BH across the 23). Females have 11 passing (4 up: endoplasmic reticulum and extracellular terms; 7 down, among them nuclear and cytosolic terms), males 6 (5 down, 1 up) and the interaction 4 (all up). Mitochondrion shows no shift in any contrast (FDR ≥ 0.98). The compartments overlap heavily, so these FDRs tend to be too small.
 
 ### b. Literature and ROS sets
 
